@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>복남이 샌드 주문판</title>
+<!-- 앱으로 설치: 연 화면(카운터/샐러드바/샌드위치바)마다 따로 아이콘이 생겨요 -->
+<script>(function(){var k=(location.hash||"").replace("#","");if(["salad","sandwich"].indexOf(k)<0)k="counter";
+document.write('<link rel="manifest" id="mf" href="manifest-'+k+'.json"><link rel="apple-touch-icon" id="ati" href="icons/'+k+'-192.png">');})();</script>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="주문판">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
 <style>
 html,body{margin:0}
@@ -620,6 +626,9 @@ function setMode(){
   render();
 }
 window.addEventListener("hashchange",setMode);
+// 앱 설치: 지금 보는 화면의 아이콘으로 바꿔 둠
+window.addEventListener("hashchange",()=>{const k=mode; const mf=$("mf"), at=$("ati"); if(mf)mf.href="manifest-"+k+".json"; if(at)at.href="icons/"+k+"-192.png";});
+if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
 
 /* ---------- db ---------- */
 function showConn(t){const c=$("conn");c.hidden=!t;c.textContent=t||"";}
