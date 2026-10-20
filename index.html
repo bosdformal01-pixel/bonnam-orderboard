@@ -525,31 +525,31 @@ const G={
 G.s2d1.o=G.dressing.o; G.s2d2.o=G.dressing.o; G.s2t2.o=G.s2t1.o;
 
 /* ---------- menu (POS 판매중 items). Which option groups each menu gets is my best guess from the group names — fix here if wrong. ---------- */
-const SW=["bread","topOff","topAdd","sauceAmt","lettuce","extraSauce"];
+const SW=["bread","topOff","topAdd","sauceAmt","lettuce"]; // 샌드위치는 소스 따로 추가 없음 (오케이포스와 같게, 2026-10-21)
 const SL=["dressing","sauceAmt","lettuce","salTop5","salTop10","rice","pack","extraSauce"];
 const SLR=["dressing","sauceAmt","lettuce","salTop5","salTop10","pack","extraSauce"];
 const MENU=[
  {cat:"샌드위치",st:"sandwich",items:[
-  ["깻잎불고기샌드위치",8000,["bread","bulgogiOff","topAdd","sauceAmt","lettuce","extraSauce"]],
-  ["통새우튀김샌드위치",7500,["bread","shrimpOff","topAdd","sauceAmt","lettuce","extraSauce"]],
-  ["바질아보카도샌드위치",8000,["bread","basilOff","topAdd","sauceAmt","lettuce","extraSauce"]],
-  ["베이컨아보카도샌드위치",8000,["bread","baconAvo","topOff","sauceAmt","lettuce","extraSauce"]],
+  ["깻잎불고기샌드위치",8000,["bread","bulgogiOff","topAdd","sauceAmt","lettuce"]],
+  ["통새우튀김샌드위치",7500,["bread","shrimpOff","topAdd","sauceAmt","lettuce"]],
+  ["바질아보카도샌드위치",8000,["bread","basilOff","topAdd","sauceAmt","lettuce"]],
+  ["베이컨아보카도샌드위치",8000,["bread","baconAvo","topOff","sauceAmt","lettuce"]],
   ["파인크랩샌드위치",7000,SW],["게살샌드위치",6500,SW],
-  ["인기가요샌드위치",6500,["ingayoJam","ingayoAdd","ingayoOff","extraSauce"]],
-  ["치킨스파이시샌드위치",7000,["bread","chickenSauce","topOff","topAdd","lettuce","extraSauce"]],
-  ["치킨데리야끼샌드위치",7000,["bread","chickenSauce","topOff","topAdd","lettuce","extraSauce"]],
-  ["크랜베리치킨샌드위치",7000,["bread","chickenSauce","topOff","topAdd","lettuce","extraSauce"]],
-  ["베이컨에그샌드위치",6500,["bread","baconEggAdd","topOff","sauceAmt","lettuce","extraSauce"]],
-  ["햄에그샌드위치",6000,["bread","hamEggAdd","topOff","sauceAmt","lettuce","extraSauce"]],
+  ["인기가요샌드위치",6500,["ingayoJam","ingayoAdd","ingayoOff"]],
+  ["치킨스파이시샌드위치",7000,["bread","chickenSauce","topOff","topAdd","lettuce"]],
+  ["치킨데리야끼샌드위치",7000,["bread","chickenSauce","topOff","topAdd","lettuce"]],
+  ["크랜베리치킨샌드위치",7000,["bread","chickenSauce","topOff","topAdd","lettuce"]],
+  ["베이컨에그샌드위치",6500,["bread","baconEggAdd","topOff","sauceAmt","lettuce"]],
+  ["햄에그샌드위치",6000,["bread","hamEggAdd","topOff","sauceAmt","lettuce"]],
   ["햄치즈샌드위치",6500,SW],
-  ["크로와상샌드위치",7500,["croFill","topOff","topAdd","sauceAmt","lettuce","extraSauce"]],
+  ["크로와상샌드위치",7500,["croFill","topOff","topAdd","sauceAmt","lettuce"]],
   ["루꼴라&리코타샌드위치",8000,SW],
-  ["에그에그 샌드위치",6500,["bread","eggAdd","eggOff","extraSauce"]],
+  ["에그에그 샌드위치",6500,["bread","eggAdd","eggOff"]],
   ["리코타치즈 샌드위치",8000,SW],["단호박 샌드위치",7500,SW],
-  ["두부새싹 샌드위치",7000,["bread","tofuAdd","tofuOff","extraSauce"]],
-  ["치킨텐더 샌드위치",8000,["bread","chickenSauce","topOff","topAdd","lettuce","extraSauce"]],
+  ["두부새싹 샌드위치",7000,["bread","tofuAdd","tofuOff"]],
+  ["치킨텐더 샌드위치",8000,["bread","chickenSauce","topOff","topAdd","lettuce"]],
   ["달콤 샌드위치",7000,["dalkomType","dalkomAdd","dalkomOff"]],
-  ["닭가슴살 단호박 샌드위치",8500,["bread","chestAdd","chestOff","sauceAmt","extraSauce"]]]},
+  ["닭가슴살 단호박 샌드위치",8500,["bread","chestAdd","chestOff","sauceAmt"]]]},
  {cat:"샐러드",st:"salad",items:[
   ["복남이샐러드",8000,["dressing","sauceAmt","lettuce","boknam","rice","pack","extraSauce"]],
   ["치킨텐더 샐러드",9000,SL],["닭가슴살 샐러드",9000,SL],["리코타치즈과일 샐러드",9000,SL],
