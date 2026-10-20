@@ -96,7 +96,7 @@ input.qty{width:4.2em;padding:6px 4px;border:1.5px solid var(--line);border-radi
 .sumrow .amt{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
 .sumrow .sg,.sumrow .it{grid-column:2/4;font-size:.9rem;color:var(--muted);overflow-wrap:anywhere}
 .sumrow .sg b{color:var(--ink)}
-.sumrow .lg{grid-row:1/4;grid-column:1;align-self:start}
+.sumrow .lg{grid-row:1/5;grid-column:1;align-self:start}
 .sumrow .tm{grid-column:2}
 .lgbtn{width:44px;height:44px;border-radius:8px;border:1.5px solid var(--line);background:var(--paper);font-size:1.2rem;font-weight:700;color:var(--muted)}
 .lgbtn[aria-pressed="true"]{background:var(--salad);border-color:var(--salad);color:var(--on-accent)}
@@ -140,6 +140,12 @@ input.qty{width:4.2em;padding:6px 4px;border:1.5px solid var(--line);border-radi
 .lhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .lhead h2{margin:0!important}
 .lhead button{margin-left:auto}
+.lhead .kf{display:inline-flex;gap:0}
+.lhead .kf button{margin-left:0;border-radius:0}
+.lhead .kf button:first-child{border-radius:8px 0 0 8px}
+.lhead .kf button:last-child{border-radius:0 8px 8px 0}
+.lhead .kf button+button{border-left-width:0}
+.kfnote{font-weight:700;margin:0 0 8px}
 .sec{font-weight:700;color:var(--muted);font-size:.92rem;margin:14px 0 6px;letter-spacing:.02em}
 .sec:first-child{margin-top:0}
 .ready{border:2.5px solid var(--salad);background:var(--salad-soft);border-radius:10px;padding:12px 14px;display:grid;gap:6px}
@@ -182,7 +188,8 @@ input.qty{width:4.2em;padding:6px 4px;border:1.5px solid var(--line);border-radi
 #slip .x2{font-size:2em;line-height:1.15}
 #slip .dp{overflow-wrap:anywhere;word-break:keep-all}
 .outbtn{flex:1;min-width:200px;padding:12px;border:0;border-radius:8px;background:var(--salad);color:var(--on-accent);font-weight:700;font-size:1.1rem}
-.orow.out{opacity:.7}
+.orow.out{opacity:.85}
+.orow .tm{font-weight:700;font-variant-numeric:tabular-nums}
 .isedit{outline:3px dashed var(--sand);outline-offset:2px}
 .scan{display:grid;gap:8px;margin-bottom:16px;padding:12px;border:1.5px dashed var(--line);border-radius:10px}
 .scanbtn{padding:12px;border-radius:8px;border:1.5px solid var(--btn);background:var(--paper);color:var(--ink);font-weight:700;font-size:1.05rem}
@@ -269,6 +276,11 @@ input.qty{width:4.2em;padding:6px 4px;border:1.5px solid var(--line);border-radi
 .onum{font-weight:800;font-variant-numeric:tabular-nums;border:1.5px solid var(--ink);border-radius:6px;padding:0 6px;font-size:.95rem}
 details.done{margin-top:24px}
 details.done summary{cursor:pointer;font-weight:600;color:var(--muted);margin-bottom:12px}
+.ticket.pinned{box-shadow:0 0 0 3px var(--ink)}
+.ticket .pinbar{font-weight:800;font-size:1.05rem;margin:-4px 0 -2px}
+.ticket .tfoot .linkbtn.on,.orow .linkbtn.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.orow.pinned{outline:2.5px solid var(--ink);outline-offset:1px}
+.ptag.pin{background:var(--ink);color:var(--paper)}
 .stview.salad{--stc:var(--salad)}
 .stview.sandwich{--stc:var(--sand)}
 </style>
@@ -359,7 +371,7 @@ details.done summary{cursor:pointer;font-weight:600;color:var(--muted);margin-bo
     </form>
   </section>
   <section class="panel" aria-labelledby="lTitle">
-    <div class="lhead"><h2 id="lTitle">오늘 주문</h2><button type="button" class="linkbtn" id="sumBtn">📋 오늘 마감 요약</button><button type="button" class="linkbtn" id="soundBtn2" style="margin-left:0">🔔 알림음 켜기</button><button type="button" class="linkbtn" id="slipWBtn" style="margin-left:0" title="영수증 프린터 종이 폭">🖨 전표 종이 79mm</button><button type="button" class="linkbtn" id="serBtn" style="margin-left:0" title="영수증 프린터(COM4)에 연결">🔌 영수증 프린터 연결하기</button></div>
+    <div class="lhead"><h2 id="lTitle">오늘 주문</h2><button type="button" class="linkbtn" id="sumBtn">📋 마감 요약 (어제·오늘)</button><button type="button" class="linkbtn" id="soundBtn2" style="margin-left:0">🔔 알림음 켜기</button><button type="button" class="linkbtn" id="slipWBtn" style="margin-left:0" title="영수증 프린터 종이 폭">🖨 전표 종이 79mm</button><button type="button" class="linkbtn" id="serBtn" style="margin-left:0" title="영수증 프린터(COM4)에 연결">🔌 영수증 프린터 연결하기</button><span class="kf" role="group" aria-label="포장/배달만 보기"><button type="button" class="linkbtn" data-kf="">전체</button><button type="button" class="linkbtn" data-kf="포장">포장만</button><button type="button" class="linkbtn" data-kf="배달">배달만</button></span></div>
     <div class="olist" id="orderList"><p class="empty">오늘 들어온 주문이 아직 없어요. 왼쪽에서 첫 주문을 넣으면 여기와 태블릿에 바로 떠요.</p></div>
     <details class="done" id="outWrap" hidden>
       <summary id="outSum">나간 주문</summary>
@@ -400,6 +412,13 @@ details.done summary{cursor:pointer;font-weight:600;color:var(--muted);margin-bo
       <label for="optNote">이 메뉴 요청사항</label>
       <input type="text" id="optNote" placeholder="예: 소스 따로 담기" maxlength="80">
     </div>
+    <div class="field" style="margin:0">
+      <label for="optFree">목록에 없는 추가 (돈 받는 것)</label>
+      <div class="row">
+        <input type="text" id="optFree" placeholder="예: 에그마요 추가" maxlength="40" style="flex:1;min-width:140px">
+        <input type="text" id="optFreeP" inputmode="numeric" placeholder="금액" maxlength="6" style="width:6.5em;font-variant-numeric:tabular-nums" aria-label="추가 금액 (원)"><span>원</span>
+      </div>
+    </div>
     <div class="row">
       <span class="lbl">개수</span>
       <button type="button" class="qbtn" id="optMinus" aria-label="하나 빼기">−</button>
@@ -432,6 +451,7 @@ details.done summary{cursor:pointer;font-weight:600;color:var(--muted);margin-bo
 <div class="overlay" id="sumOverlay" hidden>
   <div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="sumTitle">
     <div class="sheet-head"><h2 id="sumTitle">오늘 마감 요약</h2><button type="button" class="linkbtn x" id="sumClose">닫기</button></div>
+    <div class="row" id="sumDays"><button type="button" class="chip" data-sday="0">오늘</button><button type="button" class="chip" data-sday="1">어제</button><button type="button" class="chip" data-sday="2">그저께</button><input type="date" id="sumDate" aria-label="날짜 고르기"></div>
     <div class="sumtop" id="sumTop"></div>
     <div class="sumrows" id="sumRows"></div>
     <details class="done" id="deptWrap"><summary>과별 합계</summary><div class="deptsum" id="deptSum" style="margin-top:8px"></div></details>
@@ -455,15 +475,15 @@ const G={
  lettuce:{l:"양상추",o:[["양상추 적게"],["양상추 많이",1000],["양상추 제거"]]},
  sauceAmt:{l:"소스 양",o:[["소스 적게"],["소스 제거"]]},
  topOff:{l:"빼기",m:1,o:[["토마토 빼기"],["할라피뇨 빼기"],["할라피뇨 대신 피클"],["치즈 빼기"]]},
- topAdd:{l:"추가",m:1,o:[["빵 1장 추가",500],["계란후라이 추가",500],["치즈 1장 추가",500],["치즈 2장 추가",1000],["햄 1장 추가",500],["햄 2장 추가",1000]]},
+ topAdd:{l:"추가",m:1,o:[["빵 1장 추가",500],["계란후라이 추가",500],["치즈 1장 추가",500],["치즈 2장 추가",1000],["햄 1장 추가",500],["햄 2장 추가",1000],["에그마요 추가",700]]},
  extraSauce:{l:"소스 따로 추가",m:1,o:[["피클",700],["할라피뇨",700],["오리엔탈 드레싱",700],["발사믹 드레싱",700],["유자 드레싱",700],["참깨 드레싱",700],["흑임자 드레싱",700],["사우전드 드레싱",700],["케이준 드레싱",700],["타르타르 드레싱",700],["스리라차 드레싱",700],["데리야끼 소스",700],["매운 데리야끼 소스",700],["치폴레 소스",700],["딸기쨈",1000],["바질 페스토(50G)",1500]]},
- dressing:{l:"드레싱",req:1,key:1,d:0,st:"salad",o:[["오리엔탈 드레싱"],["발사믹 드레싱"],["사우전드 아일랜드 드레싱"],["유자 드레싱"],["참깨 드레싱"],["스리라차마요 드레싱"],["흑임자 드레싱"],["케이준 드레싱"],["홀스래디쉬 드레싱"]]},
- salTop5:{l:"토핑 (500원대)",m:1,o:[["견과류"],["스위트콘"],["병아리콩",500],["계란 추가",700],["슬라이스 햄 추가",500],["에그마요 추가",700],["단호박 추가",1000]]},
+ dressing:{l:"드레싱",req:1,key:1,d:0,hideDef:1,st:"salad",o:[["오리엔탈 드레싱"],["발사믹 드레싱"],["사우전드 아일랜드 드레싱"],["유자 드레싱"],["참깨 드레싱"],["스리라차마요 드레싱"],["흑임자 드레싱"],["케이준 드레싱"],["홀스래디쉬 드레싱"]]},
+ salTop5:{l:"토핑 (500원대)",m:1,o:[["견과류"],["스위트콘"],["병아리콩",500],["계란 추가",700],["슬라이스 햄 추가",500],["단호박 추가",1000]]},
  salTop10:{l:"토핑 (1,000원 이상)",m:1,o:[["감자 샐러드 추가",1000],["에그마요 추가",1000],["구운 두부 추가",1000],["단호박 샐러드 추가",1500],["현미밥 추가",1500],["과일 2종 추가",1500],["베이컨 추가",2000],["닭가슴살 추가",2500],["오리훈제 추가",2500],["소불고기 추가",2500],["수제 리코타치즈 추가",2500],["버터갈릭새우 추가",2500],["치킨텐더 2조각",2500],["연어 추가",5000]]},
  rice:{l:"현미밥",o:[["현미밥 추가"]]},
  pack:{l:"포장 용기",o:[["친환경 종이 포장"],["용기 포장"]]},
- boknam:{l:"복남이샐러드 추가",m:1,o:[["삶은 달걀 추가",700],["에그마요 추가",1500],["베이컨 추가",2000],["닭가슴살 추가",2500],["아보카도 추가",2500],["버터갈릭 새우 추가",2500],["연어 추가",5000]]},
- thigh:{l:"닭다리살 소스",req:1,key:1,o:[["데리야끼"],["매운 데리야끼"]]},
+ boknam:{l:"복남이샐러드 추가",m:1,o:[["삶은 달걀 추가",700],["에그마요 추가",1000],["베이컨 추가",2000],["닭가슴살 추가",2500],["아보카도 추가",2500],["버터갈릭 새우 추가",2500],["연어 추가",5000]]},
+ thigh:{l:"닭다리살 소스",req:1,key:1,hideDef:1,o:[["데리야끼"],["매운 데리야끼"]]},
  miniTop5:{l:"토핑 (500원)",m:1,o:[["견과류"],["스위트콘"],["구운두부",500],["감자샐러드 추가",500],["단호박 샐러드 추가",500],["에그마요 추가",500]]},
  miniTop10:{l:"토핑 (1,000원 이상)",m:1,o:[["닭가슴살 추가",1000],["불고기 추가",1300],["오리훈제 추가",1300],["수제리코타치즈 추가",1300],["새우 2마리",1300],["치킨텐더 1조각",1500],["과일 2종",1500],["아보카도 반개",2000]]},
  cupfruit:{l:"컵과일 크기",req:1,o:[["12oz"],["22oz"]]},
@@ -484,7 +504,7 @@ const G={
  baconAvo:{l:"추가",m:1,o:[["빵 1장 추가",500],["계란 후라이 추가",500],["치즈 1장 추가",500],["슬라이스 햄 1장 추가",500],["슬라이스 햄 2장 추가",1000],["베이컨 1줄 추가",1000],["베이컨 2줄 추가",1500]]},
  chickenSauce:{l:"소스",o:[["소스 많이"],["소스 적게"]]},
  baconEggAdd:{l:"추가",m:1,o:[["빵 1장 추가",500],["계란 후라이 추가",500],["치즈 1장 추가",500],["햄 1장 추가",500],["햄 2장 추가",1000],["베이컨 1줄 추가",1000]]},
- hamEggAdd:{l:"추가",m:1,o:[["계란후라이 추가",500],["치즈 1장 추가",500],["치즈 2장 추가",1000],["햄 1장 추가",500],["햄 2장 추가",1000],["베이컨 1줄 추가",1000],["에그마요 추가",1500],["단호박 샐러드 추가",1500],["감자 샐러드 추가",1500],["아보카도 반개 추가",2500]]},
+ hamEggAdd:{l:"추가",m:1,o:[["계란후라이 추가",500],["치즈 1장 추가",500],["치즈 2장 추가",1000],["햄 1장 추가",500],["햄 2장 추가",1000],["베이컨 1줄 추가",1000],["에그마요 추가",700],["단호박 샐러드 추가",1500],["감자 샐러드 추가",1500],["아보카도 반개 추가",2500]]},
  eggAdd:{l:"추가",m:1,o:[["잼 많이"],["치즈 1장 추가",500],["빵 1장 추가",500],["햄 2장 추가",1000],["아보카도 반개 추가",2000],["닭가슴살 추가",2000]]},
  eggOff:{l:"빼기",m:1,o:[["잼 빼기"],["치즈 빼기"]]},
  tofuAdd:{l:"추가",m:1,o:[["햄 추가",500],["햄 2장 추가",800],["치즈 추가",500],["치즈 2장 추가",800],["계란 후라이 추가",500],["베이컨 3줄 추가",2000]]},
@@ -492,13 +512,14 @@ const G={
  dalkomType:{l:"달콤 샌드위치 속",req:1,key:1,o:[["에그 샐러드"],["단호박 샐러드",500],["감자 샐러드",500]]},
  dalkomAdd:{l:"추가",m:1,o:[["계란후라이 추가",500],["치즈 1장 추가",500],["치즈 2장 추가",1000],["햄 1장 추가",500],["햄 2장 추가",1000],["닭가슴살 추가",2000],["아보카도 반개 추가",2000]]},
  dalkomOff:{l:"빼기",m:1,o:[["딸기쨈 빼기"]]},
+ croFill:{l:"크로와상 속",req:1,key:1,o:[["에그"],["크래미"],["햄치즈"],["감자샐러드"],["단호박샐러드"]]},
  chestAdd:{l:"추가",m:1,o:[["계란후라이 추가",500],["햄 1장 추가",500],["햄 2장 추가",1000],["치즈 1장 추가",500],["치즈 2장 추가",1000],["아보카도 추가",2500]]},
  chestOff:{l:"빼기",m:1,o:[["토마토 빼기"]]},
  halfSand:{l:"반반 샌드위치",req:1,key:1,p:1,st:"sandwich",o:[["햄에그 샌드위치"],["햄치즈 샌드위치",500],["인기가요 샌드위치",500],["베이컨에그 샌드위치",500],["게살샐러드 샌드위치",500],["치킨 스파이시 샌드위치",1000],["치킨 데리야끼 샌드위치",1000],["통새우 샌드위치",1500],["바질아보카도 샌드위치",2000],["깻잎불고기 샌드위치",2000]]},
  set1Drink:{l:"음료",req:1,key:1,p:1,st:"sandwich",o:[["아이스 아메리카노"],["감귤주스"],["오렌지주스"],["복숭아 아이스티"],["해독주스 250ml",1500],["토당주스 250ml",1500],["ABC 주스 250ml",1500],["레몬에이드",2000],["자몽에이드",2000]]},
- s2d1:{l:"샐러드1 드레싱",req:1,key:1,d:0,p:1,st:"salad",o:null},
- s2t1:{l:"샐러드1 토핑",m:1,p:1,st:"salad",o:[["견과류"],["스위트콘"],["구운두부",500],["에그마요 추가",700],["감자샐러드 추가",1000],["단호박샐러드 추가",1000],["닭가슴살 추가",1500],["불고기 추가",1500],["오리훈제 추가",1500],["수제리코타치즈 추가",1500],["새우 2마리 추가",1500],["치킨텐더 추가",1500],["과일 2종 추가",1500],["아보카도 반개 추가",2500]]},
- s2d2:{l:"샐러드2 드레싱",req:1,key:1,d:0,p:1,st:"salad",o:null},
+ s2d1:{l:"샐러드1 드레싱",req:1,key:1,d:0,hideDef:1,p:1,st:"salad",o:null},
+ s2t1:{l:"샐러드1 토핑",m:1,p:1,st:"salad",o:[["견과류"],["스위트콘"],["구운두부",500],["에그마요 추가",1000],["감자샐러드 추가",1000],["단호박샐러드 추가",1000],["닭가슴살 추가",1500],["불고기 추가",1500],["오리훈제 추가",1500],["수제리코타치즈 추가",1500],["새우 2마리 추가",1500],["치킨텐더 추가",1500],["과일 2종 추가",1500],["아보카도 반개 추가",2500]]},
+ s2d2:{l:"샐러드2 드레싱",req:1,key:1,d:0,hideDef:1,p:1,st:"salad",o:null},
  s2t2:{l:"샐러드2 토핑",m:1,p:1,st:"salad",o:null}
 };
 G.s2d1.o=G.dressing.o; G.s2d2.o=G.dressing.o; G.s2t2.o=G.s2t1.o;
@@ -521,7 +542,7 @@ const MENU=[
   ["베이컨에그샌드위치",6500,["bread","baconEggAdd","topOff","sauceAmt","lettuce","extraSauce"]],
   ["햄에그샌드위치",6000,["bread","hamEggAdd","topOff","sauceAmt","lettuce","extraSauce"]],
   ["햄치즈샌드위치",6500,SW],
-  ["크로와상샌드위치",7500,["topOff","topAdd","sauceAmt","lettuce","extraSauce"]],
+  ["크로와상샌드위치",7500,["croFill","topOff","topAdd","sauceAmt","lettuce","extraSauce"]],
   ["루꼴라&리코타샌드위치",8000,SW],
   ["에그에그 샌드위치",6500,["bread","eggAdd","eggOff","extraSauce"]],
   ["리코타치즈 샌드위치",8000,SW],["단호박 샌드위치",7500,SW],
@@ -543,7 +564,7 @@ const MENU=[
  {cat:"세트 (반반)",st:"both",items:[
   ["1인세트",10000,["dressing","set1Drink"]],
   ["2인세트",14500,["halfSand","s2d1","s2t1","s2d2","s2t2"]],
-  ["쌈밥 샐러드 세트",10000,["dressing"]],["유부초밥 샐러드 세트",10000,["dressing"]]]},
+  ["쌈밥 샐러드 세트",10000,["dressing"]],["유부초밥 샐러드 세트",10000,["dressing"],"salad"]]},
  {cat:"토스트",st:"sandwich",items:[["카야토스트",6500,["kaya"]],["전남친토스트",6500,[]],["악마토스트",6500,[]]]},
  {cat:"커피",st:"sandwich",items:[["아메리카노",2500,["temp"]],["카페라떼",3000,["temp"]],["카페모카",3500,["temp"]],["바닐라라떼",3500,["temp"]],["카라멜마끼야또",3500,["temp"]],["초코라떼",3000,["temp"]]]},
  {cat:"차·에이드·스무디",st:"sandwich",items:[["유자꿀차",2500,["temp"]],["수제레몬청꿀차",3000,["temp"]],["수제레몬에이드",4000,[]],["자몽에이드",4000,[]],["유자에이드",4000,[]],["복숭아아이스티",2500,[]],["플레인요거트 스무디",4000,[]],["딸기요거트 스무디",4500,[]],["블루베리요거트 스무디",4500,[]]]},
@@ -599,7 +620,7 @@ function setMode(){
   $("stationView").className="stview "+mode;
   $("stTitle").textContent=ST_NAME[mode]||"";
   if(mode==="counter")closeFormOverlay();
-  $("batchOverlay").hidden=true; $("sumOverlay").hidden=true; if(typeof closeFull==="function")closeFull();
+  $("batchOverlay").hidden=true; closeSummary(); if(typeof closeFull==="function")closeFull();
   render();
 }
 window.addEventListener("hashchange",setMode);
@@ -778,12 +799,12 @@ function renderCats(){
 }
 function menuMatches(q){
   const nq=norm(q), onlyCho=/^[ㄱ-ㅎ]+$/.test(nq), out=[]; // 초성만 쓰면 초성으로, 글자를 쓰면 글자로 찾기
-  MENU.forEach(c=>c.items.forEach(([n,price,groups])=>{ if(norm(n).includes(nq)||(onlyCho&&cho(n).includes(nq)))out.push({n,price,groups,st:c.st,cat:c.cat}); }));
+  MENU.forEach(c=>c.items.forEach(([n,price,groups,ist])=>{ if(norm(n).includes(nq)||(onlyCho&&cho(n).includes(nq)))out.push({n,price,groups,st:ist||c.st,cat:c.cat}); }));
   return out;
 }
 function renderMenu(){
   const box=$("menuGrid"), q=$("menuSearch").value.trim(); box.replaceChildren();
-  const list=q?menuMatches(q):MENU[curCat].items.map(([n,price,groups])=>({n,price,groups,st:MENU[curCat].st}));
+  const list=q?menuMatches(q):MENU[curCat].items.map(([n,price,groups,ist])=>({n,price,groups,st:ist||MENU[curCat].st}));
   if(q&&!list.length){box.append(el("p","empty","'"+q+"' 메뉴가 없어요. 아래 칸에 직접 써도 돼요."));return;}
   list.forEach((m,i)=>{const b=el("button");b.type="button";b.append(m.n);
     if(q&&i===0)b.append(el("kbd",null,"Enter"));
@@ -807,8 +828,10 @@ function openOpt(m,editIdx){
     (it.opts||[]).forEach(o=>{const gi=o.gid; if(sel[gi]){const k=G[gi].o.findIndex(x=>x[0]===o.v); if(k>=0)sel[gi].add(k);}});
     m.groups.forEach(g=>{ if(defIdx(g)!=null&&!G[g].m&&sel[g].size>1)sel[g].delete(defIdx(g)); });
   }
+  let free={v:"",p:0};
+  if(editIdx!=null){const f=(draft.items[editIdx].opts||[]).find(o=>o.gid==="_free"); if(f)free={v:f.v,p:f.p||0};}
   sheet={...m,sel,qty,editIdx};
-  $("optNote").value=note;
+  $("optNote").value=note; $("optFree").value=free.v; $("optFreeP").value=free.p?String(free.p):"";
   if(!m.groups.length&&editIdx==null){commitItem();return;}
   $("optTitle").textContent=m.name; $("optMsg").textContent="";
   $("optAdd").textContent=editIdx==null?"담기":"바꾸기";
@@ -832,7 +855,9 @@ function renderOptGroups(){
   if(document.activeElement!==$("optQty"))$("optQty").value=sheet.qty;
   $("optPrice").textContent=won(unitPrice()*sheet.qty);
 }
-function unitPrice(){let p=sheet.base||0; sheet.groups.forEach(gid=>sheet.sel[gid].forEach(i=>{p+=G[gid].o[i][1]||0;})); return p;}
+const freeP=()=>{const v=parseInt(($("optFreeP").value||"").replace(/\D/g,""),10); return v>0?Math.min(v,999999):0;};
+function unitPrice(){let p=sheet.base||0; sheet.groups.forEach(gid=>sheet.sel[gid].forEach(i=>{p+=G[gid].o[i][1]||0;})); if($("optFree").value.trim())p+=freeP(); return p;}
+["optFree","optFreeP"].forEach(id=>$(id).addEventListener("input",()=>{ if(id==="optFreeP"){const v=$(id).value.replace(/\D/g,""); if(v!==$(id).value)$(id).value=v;} if(sheet)$("optPrice").textContent=won(unitPrice()*sheet.qty); }));
 $("optMinus").onclick=()=>{if(sheet.qty>1){sheet.qty--;renderOptGroups();}};
 $("optQty").addEventListener("input",()=>{const v=parseInt($("optQty").value.replace(/\D/g,""),10); if(v>0){sheet.qty=Math.min(999,v); $("optPrice").textContent=won(unitPrice()*sheet.qty);}});
 $("optQty").addEventListener("focus",()=>$("optQty").select());
@@ -852,6 +877,7 @@ function commitItem(){
   const opts=[];
   sheet.groups.forEach(gid=>{const g=G[gid]; [...sheet.sel[gid]].sort((a,b)=>a-b).forEach(i=>{
     const o={gid,g:g.l,v:g.o[i][0]}; if(g.o[i][1])o.p=g.o[i][1]; if(g.st)o.st=g.st; if(g.key)o.k=1; if(g.p)o.pl=1; opts.push(o);});});
+  const fv=$("optFree").value.trim(); if(fv){const o={gid:"_free",g:"추가",v:fv}; if(freeP())o.p=freeP(); opts.push(o);}
   const item={name:sheet.name,qty:sheet.qty,st:sheet.st,unit:unitPrice(),opts,note:$("optNote").value.trim(),base:sheet.base,groups:sheet.groups};
   if(sheet.editIdx!=null){
     const ei=sheet.editIdx, j=draft.items.findIndex((x,ix)=>ix!==ei&&itemKey(x)===itemKey(item));
@@ -861,8 +887,16 @@ function commitItem(){
   if($("menuSearch").value){$("menuSearch").value=""; renderMenu(); if(finePointer())$("menuSearch").focus();}
 }
 const optText=o=>o.pl?o.g+": "+o.v:o.v;
+// 기본 그대로 고른 소스는 태블릿·전표에 안 찍어요 (사장님 요청 2026-10-21: 샐러드 오리엔탈, 닭다리살 데리야끼)
+function isDefOpt(o){
+  if(!o||o.p)return false;
+  const gid=o.gid&&G[o.gid]?o.gid:Object.keys(G).find(k=>G[k].hideDef&&G[k].l===o.g);
+  const g=gid&&G[gid]; if(!g||!g.hideDef)return false;
+  const di=defIdx(gid); return di!=null&&g.o[di]&&g.o[di][0]===o.v;
+}
+const shownOpts=i=>(i.opts||[]).filter(o=>!isDefOpt(o));
 // same menu + same options + same request → one line with a bigger count (사장님 요청: 같은 메뉴 한 줄로)
-const itemKey=i=>JSON.stringify([i.name,i.st,(i.opts||[]).map(o=>(o.gid||o.g)+"="+o.v).sort(),i.note||""]);
+const itemKey=i=>JSON.stringify([i.name,i.st,(i.opts||[]).map(o=>(o.gid||o.g)+"="+o.v+(o.gid==="_free"?"@"+(o.p||0):"")).sort(),i.note||""]);
 let bumpIdx=-1;
 function addDraftItem(item,skip){
   const k=itemKey(item), j=draft.items.findIndex((x,ix)=>ix!==skip&&itemKey(x)===k);
@@ -878,7 +912,7 @@ function renderPicked(){
     const head=el("b"); head.append(el("span","tag "+it.st,ST_NAME[it.st])," ",it.name); nm.append(head);
     const ot=(it.opts||[]).map(optText).concat(it.note?["요청: "+it.note]:[]).join(" · ");
     if(ot)nm.append(el("span","ops",ot));
-    if(it.groups&&it.groups.length){nm.title="눌러서 옵션 바꾸기";nm.onclick=()=>openOpt({name:it.name,base:it.base,st:it.st,groups:it.groups},idx);}
+    if(it.groups&&(it.groups.length||MENU_IDX[it.name])){nm.title="눌러서 옵션 바꾸기";nm.onclick=()=>openOpt({name:it.name,base:it.base,st:it.st,groups:it.groups},idx);}
     const minus=el("button","qbtn","−");minus.type="button";minus.setAttribute("aria-label",it.name+" 하나 빼기");
     minus.onclick=()=>{it.qty--; if(it.qty<=0)draft.items.splice(idx,1); renderPicked();};
     const plus=el("button","qbtn","+");plus.type="button";plus.setAttribute("aria-label",it.name+" 하나 더");
@@ -977,7 +1011,7 @@ $("orderForm").addEventListener("submit",async e=>{
 
 /* ---------- 주문 고치기 ---------- */
 let editing=null;
-const MENU_IDX={}; MENU.forEach(c=>c.items.forEach(([n,price,groups])=>{MENU_IDX[n]={base:price,st:c.st,groups};}));
+const MENU_IDX={}; MENU.forEach(c=>c.items.forEach(([n,price,groups,ist])=>{MENU_IDX[n]={base:price,st:ist||c.st,groups};}));
 // what one bar has to make, to tell whether an edit changed that bar's work
 // counts per (menu + that bar's options + note), so merging or reordering lines doesn't look like a change
 function sigFor(items,st){
@@ -991,7 +1025,7 @@ function rebuildItem(i){
   const m=MENU_IDX[i.name];
   if(!m)return {name:i.name,qty:i.qty,st:i.st,unit:i.unit||0,opts:(i.opts||[]).slice(),note:i.note||"",base:i.unit||0,groups:[]};
   const opts=(i.opts||[]).map(o=>{
-    const gid=o.gid&&G[o.gid]?o.gid:m.groups.find(g=>G[g].l===o.g&&G[g].o.some(x=>x[0]===o.v));
+    const gid=o.gid==="_free"||(o.gid&&G[o.gid])?o.gid:m.groups.find(g=>G[g].l===o.g&&G[g].o.some(x=>x[0]===o.v));
     return Object.assign({},o,gid?{gid}:{});
   });
   return {name:i.name,qty:i.qty,st:i.st,unit:i.unit||m.base,opts,note:i.note||"",base:m.base,groups:m.groups};
@@ -1030,7 +1064,7 @@ let sampleFn=null, scanLim=null, scanCtl=null;
 });
 function scanCatalog(){
   const used=new Set(), lines=["[메뉴] 이름 | 만드는 곳 | 고를 수 있는 옵션 그룹"];
-  MENU.forEach(c=>c.items.forEach(([n,price,groups])=>{groups.forEach(g=>used.add(g)); lines.push(n+" | "+c.st+" | "+(groups.join(",")||"-"));}));
+  MENU.forEach(c=>c.items.forEach(([n,price,groups,ist])=>{groups.forEach(g=>used.add(g)); lines.push(n+" | "+(ist||c.st)+" | "+(groups.join(",")||"-"));}));
   lines.push("","[옵션 그룹] 그룹id: 이름 (한 개만/여러 개) = 값들");
   [...used].forEach(g=>{const x=G[g]; lines.push(g+": "+x.l+" ("+(x.m?"여러 개":"한 개만")+") = "+x.o.map(o=>o[0]).join(" / "));});
   lines.push("","[과 목록] "+allDepts().map(d=>d.name).join(", "));
@@ -1140,35 +1174,62 @@ $("scanBox").addEventListener("drop",e=>{e.preventDefault(); runScan([...((e.dat
 
 /* ---------- 오늘 마감 요약: today's finished orders, in the order the ledger is written ---------- */
 function signText(o){if(isGuest(o))return (o.kind==="배달"?"배달":"포장")+" · 일반 손님 (장부 없음)"+(o.phone4?" · 뒷자리 "+o.phone4:""); return o.kind==="배달"?(o.phone4?"배달 · 전화 뒷자리 "+o.phone4:"배달 · 전화 뒷자리 (안 적어 둠)"):"포장 · 손님 싸인";}
+// 마감 요약은 날짜를 골라 볼 수 있어요 (사장님 요청 2026-10-21: 바쁜 날은 다음 날 장부 정리). 지난 날 주문은 저장 공간에 그대로 남아 있어요.
+const dayStr=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const daysAgo=n=>{const d=new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate()-n); return dayStr(d);};
+let sumDay=null, sumOrders=[], sumUnsub=null, sumLoading=false;
+function setSumDay(day){
+  if(!day)day=today();
+  sumDay=day; $("sumDate").value=day;
+  if(sumUnsub){sumUnsub();sumUnsub=null;}
+  sumOrders=[]; sumLoading=false;
+  if(day!==today()&&col){
+    sumLoading=true;
+    sumUnsub=col.where("day","==",day).onSnapshot(snap=>{sumOrders=snap.docs.map(d=>Object.assign({id:d.id},d.data())); sumLoading=false; renderSummary();},
+      ()=>{sumLoading=false; sumOrders=null; renderSummary();});
+  }
+  renderSummary();
+}
+function closeSummary(){$("sumOverlay").hidden=true; if(sumUnsub){sumUnsub();sumUnsub=null;}}
 function renderSummary(){
   if($("sumOverlay").hidden)return;
-  const real=orders.filter(o=>!o.example), gone=real.filter(o=>o.out).sort((a,b)=>(a.outAt||0)-(b.outAt||0)), left=real.filter(o=>!o.out);
-  const sum=l=>l.reduce((s,o)=>s+(o.total||0),0), pk=gone.filter(o=>o.kind!=="배달"), dl=gone.filter(o=>o.kind==="배달");
-  const fees=dl.reduce((s,o)=>s+(o.fee||0),0), books=gone.filter(o=>!isGuest(o)), logged=books.filter(o=>o.logged).length, gs=gone.filter(isGuest);
-  const d=new Date(); $("sumTitle").textContent=(d.getMonth()+1)+"월 "+d.getDate()+"일 마감 요약";
-  const top=$("sumTop"); top.replaceChildren(
-    el("div","big","나간 주문 "+gone.length+"건 · "+won(sum(gone))),
+  const isToday=!sumDay||sumDay===today(), day=isToday?today():sumDay;
+  document.querySelectorAll("[data-sday]").forEach(b=>b.setAttribute("aria-pressed",String(daysAgo(Number(b.dataset.sday))===day)));
+  const [yy,mm,dd]=day.split("-").map(Number); $("sumTitle").textContent=mm+"월 "+dd+"일 마감 요약"+(isToday?" (오늘)":"");
+  const top=$("sumTop"), rows=$("sumRows");
+  if(!isToday&&(sumLoading||sumOrders===null)){top.replaceChildren(el("div","s",sumOrders===null?"이 날 주문을 불러오지 못했어요. 다시 눌러 주세요.":"불러오는 중이에요…")); rows.replaceChildren(); $("deptWrap").hidden=true; return;}
+  const src=isToday?orders:sumOrders;
+  const real=src.filter(o=>!o.example), gone=real.filter(o=>o.out).sort((a,b)=>(a.outAt||0)-(b.outAt||0)), left=real.filter(o=>!o.out).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  const sum=l=>l.reduce((s,o)=>s+(o.total||0),0), all=gone.concat(left), pk=all.filter(o=>o.kind!=="배달"), dl=all.filter(o=>o.kind==="배달");
+  const fees=dl.reduce((s,o)=>s+(o.fee||0),0), books=all.filter(o=>!isGuest(o)), logged=books.filter(o=>o.logged).length, gs=all.filter(isGuest);
+  top.replaceChildren(
+    el("div","big","주문 "+all.length+"건 · "+won(sum(all))),
     el("div","s","포장 "+pk.length+"건 "+won(sum(pk))+" · 배달 "+dl.length+"건 "+won(sum(dl))+(fees?" (배달비 "+won(fees)+" 포함)":"")),
     el("div","s","장부에 옮긴 것 "+logged+" / "+books.length+"건 — 옮겨 적은 줄은 왼쪽 네모를 눌러 표시하세요."));
   if(gs.length)top.append(el("div","s","일반 손님 "+gs.length+"건 "+won(sum(gs))+" (장부 없음)"));
-  if(left.length)top.append(el("div","s","아직 안 나간 주문 "+left.length+"건 ("+won(sum(left))+")은 빠져 있어요."));
-  const rows=$("sumRows");
-  if(!gone.length){rows.replaceChildren(el("p","empty","오늘 나간 주문이 아직 없어요. 포장할 차례에서 '가져갔어요/배달 보냈어요'를 누르면 여기 모여요."));}
-  else rows.replaceChildren(...gone.map(o=>{
+  if(left.length)top.append(el("div","s",(isToday?"아직 안 나간 주문 ":"'포장 완료'를 안 누른 주문 ")+left.length+"건 ("+won(sum(left))+")은 맨 아래에 있어요."));
+  const row=o=>{
     const r=el("div","sumrow"+(o.logged?" logged":""));
     let lg;
     if(isGuest(o)){lg=el("span","lg");lg.setAttribute("aria-hidden","true");lg.style.width="44px";}
     else{lg=el("button","lgbtn lg",o.logged?"✓":""); lg.type="button"; lg.setAttribute("aria-pressed",String(!!o.logged)); lg.setAttribute("aria-label","장부에 옮겨 적음"); lg.disabled=busy.has(o.id);
     lg.onclick=()=>write(o.id,ref=>ref.update({logged:!o.logged}));}
     const sg=el("div","sg"); sg.append(el("b",null,signText(o))); if(o.memo)sg.append(" · 메모: "+o.memo);
-    r.append(lg, el("span","dp",(o.outAt?hm(o.outAt)+" ":"")+deptLabel(o)), el("span","amt",won(o.total)+(o.fee?" (배달비 포함)":"")), sg, el("div","it",itemsText(o)));
-    return r;}));
-  const by=new Map(); gone.forEach(o=>{const k=isGuest(o)?"일반 손님":deptLabel(o)||"(과 없음)"; const e=by.get(k)||{n:0,t:0}; e.n++; e.t+=o.total||0; by.set(k,e);});
+    const tm="받음 "+(o.createdAt?hm(o.createdAt):"--:--")+(o.out?" · 완료 "+(o.outAt?hm(o.outAt):"--:--"):"");
+    r.append(lg, el("span","dp",deptLabel(o)), el("span","amt",won(o.total)+(o.fee?" (배달비 포함)":"")), el("div","sg",tm), sg, el("div","it",itemsText(o)));
+    return r;};
+  const parts=gone.map(row);
+  if(left.length){parts.push(el("div","sec",isToday?"아직 안 나간 주문":"'포장 완료'를 안 누른 주문")); left.forEach(o=>parts.push(row(o)));}
+  if(!parts.length)rows.replaceChildren(el("p","empty",isToday?"오늘 주문이 아직 없어요.":"이 날 주문이 없어요."));
+  else rows.replaceChildren(...parts);
+  const by=new Map(); all.forEach(o=>{const k=isGuest(o)?"일반 손님":deptLabel(o)||"(과 없음)"; const e=by.get(k)||{n:0,t:0}; e.n++; e.t+=o.total||0; by.set(k,e);});
   $("deptWrap").hidden=!by.size;
   $("deptSum").replaceChildren(...[...by].sort((a,b)=>b[1].t-a[1].t).flatMap(([k,e])=>[el("span",null,k),el("span",null,e.n+"건"),el("span",null,won(e.t))]));
 }
-$("sumBtn").onclick=()=>{$("sumOverlay").hidden=false; renderSummary();};
-$("sumClose").onclick=()=>$("sumOverlay").hidden=true;
+$("sumBtn").onclick=()=>{$("sumOverlay").hidden=false; setSumDay(today());};
+document.querySelectorAll("[data-sday]").forEach(b=>b.onclick=()=>setSumDay(daysAgo(Number(b.dataset.sday))));
+$("sumDate").addEventListener("change",()=>{ if($("sumDate").value)setSumDay($("sumDate").value); });
+$("sumClose").onclick=closeSummary;
 
 /* ---------- form overlay for station tablets ---------- */
 function openFormOverlay(){$("formSlot").append($("formPanel"));$("formOverlay").hidden=false;renderRecent();}
@@ -1176,7 +1237,7 @@ function closeFormOverlay(){ if($("formPanel").parentElement!==$("counterView"))
 $("openForm").onclick=openFormOverlay;
 $("closeForm").onclick=closeFormOverlay;
 document.addEventListener("keydown",e=>{ if(e.key!=="Escape")return;
-  if(!$("fullOverlay").hidden)closeFull(); else if(!$("sumOverlay").hidden)$("sumOverlay").hidden=true; else if(!$("batchOverlay").hidden)$("batchOverlay").hidden=true; else if(!$("optOverlay").hidden){$("optOverlay").hidden=true;sheet=null;} else if(!$("formOverlay").hidden)closeFormOverlay(); });
+  if(!$("fullOverlay").hidden)closeFull(); else if(!$("sumOverlay").hidden)closeSummary(); else if(!$("batchOverlay").hidden)$("batchOverlay").hidden=true; else if(!$("optOverlay").hidden){$("optOverlay").hidden=true;sheet=null;} else if(!$("formOverlay").hidden)closeFormOverlay(); });
 
 /* ---------- 모아보기: everything this bar must make by a given time, any department ---------- */
 const CAT_ORDER={}; MENU.forEach((c,ci)=>c.items.forEach(([n],ii)=>{CAT_ORDER[n]=ci*100+ii;}));
@@ -1209,7 +1270,7 @@ function renderFull(){
     const ul=el("ul");
     list.forEach(i=>{
       const li=el("li"), ln=el("div","ln"); ln.append(el("span","q",String(i.qty)),el("span",null,i.name)); li.append(ln);
-      if((i.opts||[]).length){const ops=el("div","ops"); i.opts.forEach(op=>ops.append(el("span","op",optText(op)))); li.append(ops);}
+      if(shownOpts(i).length){const ops=el("div","ops"); shownOpts(i).forEach(op=>ops.append(el("span","op",optText(op)))); li.append(ops);}
       if(i.note)li.append(el("div","nt","요청: "+i.note));
       ul.append(li);
     });
@@ -1240,7 +1301,7 @@ function renderBatch(){
   const map=new Map();
   inc.forEach(o=>itemsFor(o,st).forEach(i=>{
     const name=i.name+(i.st==="both"?(st==="salad"?" · 샐러드 반쪽":" · 샌드위치 반쪽"):"");
-    const ops=(i.opts||[]).filter(op=>i.st!=="both"||!op.st||op.st===st).map(optText);
+    const ops=shownOpts(i).filter(op=>i.st!=="both"||!op.st||op.st===st).map(optText);
     if(i.note)ops.push("요청: "+i.note);
     const ck=ops.join(" · ")||"기본";
     if(!map.has(name))map.set(name,{name,base:i.name,total:0,combos:new Map(),depts:new Set()});
@@ -1264,7 +1325,12 @@ $("batchUntil").addEventListener("change",()=>setBatchUntil($("batchUntil").valu
 document.querySelectorAll("[data-badd]").forEach(b=>b.onclick=()=>setBatchUntil(b.dataset.badd==="all"?"23:59":plusMin(Number(b.dataset.badd))));
 
 /* ---------- helpers ---------- */
-const sorted=list=>list.slice().sort((a,b)=>(a.due||"99:99").localeCompare(b.due||"99:99")||(a.createdAt||0)-(b.createdAt||0));
+// 들어온 순서대로. "📌 먼저 하기"로 고정한 주문은 맨 앞 (사장님 요청 2026-10-21)
+const sorted=list=>list.slice().sort((a,b)=>(a.pin?0:1)-(b.pin?0:1)||(a.pin||0)-(b.pin||0)||(a.createdAt||0)-(b.createdAt||0));
+function pinBtn(o,cls){
+  const b=el("button",(cls||"linkbtn")+(o.pin?" on":""),o.pin?"📌 고정 풀기":"📌 먼저 하기"); b.type="button"; b.disabled=busy.has(o.id);
+  b.title="모든 화면에서 이 주문을 맨 앞에 둬요"; b.onclick=()=>write(o.id,ref=>ref.update({pin:o.pin?0:Date.now()})); return b;
+}
 const itemsFor=(o,st)=>(o.items||[]).filter(i=>i.st===st||i.st==="both");
 const needs=o=>({salad:itemsFor(o,"salad").length>0,sandwich:itemsFor(o,"sandwich").length>0});
 function isReady(o){const n=needs(o),d=o.done||{};return !o.out&&(n.salad||n.sandwich)&&(!n.salad||!!d.salad)&&(!n.sandwich||!!d.sandwich);}
@@ -1330,7 +1396,7 @@ function slipNode(o){
   w.append(dash(), c4(slipW==="58"?"상품명":"상 품 명","단 가","수량","금 액","hd"), dash());
   inOrder(o.items).forEach(i=>{
     w.append(el("div","n",i.name));
-    (i.opts||[]).forEach(op=>w.append(el("div","opt",optText(op))));
+    shownOpts(i).forEach(op=>w.append(el("div","opt",optText(op))));
     if(i.note)w.append(el("div","opt","요청: "+i.note));
     w.append(c4("",i.unit?num(i.unit):"",String(i.qty),i.unit?num(i.unit*i.qty):""));
   });
@@ -1413,7 +1479,7 @@ function slipBytes(o){
   dash(); row(W<40?"상품명":"상 품 명","단 가","수량","금 액"); dash();
   inOrder(o.items).forEach(i=>{
     wrapLn(i.name);
-    (i.opts||[]).forEach(op=>wrapLn("  "+optText(op),"    "));
+    shownOpts(i).forEach(op=>wrapLn("  "+optText(op),"    "));
     if(i.note)wrapLn("  요청: "+i.note,"    ");
     row("",i.unit?num(i.unit):"",String(i.qty),i.unit?num(i.unit*i.qty):"");
   });
@@ -1481,7 +1547,7 @@ function render(){ if(mode==="counter"){renderCounter(); renderSummary();} else 
 let confirmId=null;
 const hm=ms=>{const d=new Date(ms);return pad(d.getHours())+":"+pad(d.getMinutes());};
 const deptLabel=o=>isGuest(o)?"일반 손님"+(o.phone4?" "+o.phone4:""):[o.org&&o.org!=="기타"?o.org:"",o.dept,o.floor?"("+o.floor+")":""].filter(Boolean).join(" ");
-const itemsText=o=>inOrder(o.items).map(i=>i.name+" "+i.qty+((i.opts||[]).length?" ("+i.opts.map(optText).join(", ")+")":"")+(i.note?" [요청: "+i.note+"]":"")).join(" / ");
+const itemsText=o=>inOrder(o.items).map(i=>i.name+" "+i.qty+(shownOpts(i).length?" ("+shownOpts(i).map(optText).join(", ")+")":"")+(i.note?" [요청: "+i.note+"]":"")).join(" / ");
 function editBtn(o){const b=el("button","linkbtn","고치기");b.type="button";b.disabled=busy.has(o.id);b.onclick=()=>startEdit(o);return b;}
 function cancelBtn(o){
   const del=el("button","linkbtn danger",confirmId===o.id?"정말 지울까요? 한 번 더":"주문 취소");
@@ -1500,7 +1566,7 @@ function readyCard(o){
   else if(o.kind==="배달")r.append(el("div","sign",o.phone4?"장부 싸인: 전화 뒷자리 "+o.phone4:"장부 싸인: 전화 뒷자리 (안 적어 둠)"));
   else r.append(el("div","sign","장부 싸인: 손님이 가져갈 때 받기"));
   const act=el("div","act");
-  const out=el("button","outbtn",o.kind==="배달"?"배달 보냈어요":isGuest(o)?"손님이 가져갔어요":"손님이 가져갔어요 (싸인 받음)"); out.type="button"; out.disabled=busy.has(o.id);
+  const out=el("button","outbtn","포장 완료"); out.type="button"; out.disabled=busy.has(o.id);
   out.onclick=()=>write(o.id,ref=>ref.update({out:true,outAt:Date.now()}));
   const pt=slipTag(o); if(pt)h.append(pt);
   act.append(slipBtn(o),out,editBtn(o)); r.append(act);
@@ -1511,6 +1577,7 @@ function makingRow(o){
   h.append(...[noTag(o),el("span","t",o.due||"시간 미정"),el("span","d",deptLabel(o)),el("span","tag both",o.kind||"")].filter(Boolean));
   if(o.example)h.append(el("span","ex","예시"));
   if(o.editedAt)h.append(el("span","ex","수정됨 "+hm(o.editedAt)));
+  if(o.pin)h.append(el("span","ptag pin","📌 먼저"));
   if(o.total)h.append(el("span","s",moneyText(o)));
   r.append(h, el("div","s",itemsText(o)));
   if(o.kind==="배달"&&o.phone4&&!isGuest(o))r.append(el("div","s","전화 뒷자리: "+o.phone4));
@@ -1519,27 +1586,37 @@ function makingRow(o){
   ["salad","sandwich"].forEach(st=>{ if(n[st])act.append(el("span","tag "+st,ST_NAME[st]+(d[st]?" 완료":" 만드는 중"))); });
   const pt=slipTag(o); if(pt)h.append(pt);
   const sb=el("button","linkbtn",o.printedAt?"🖨 전표 다시":"🖨 전표"); sb.type="button"; sb.onclick=()=>printSlip(o);
-  act.append(sb,editBtn(o),cancelBtn(o)); r.append(act);
+  act.append(sb,pinBtn(o),editBtn(o),cancelBtn(o)); r.append(act);
+  if(o.pin)r.classList.add("pinned");
   return r;
 }
 function outRow(o){
   const r=el("div","orow out"), h=el("div","h");
-  h.append(...[noTag(o),el("span","t",o.outAt?hm(o.outAt)+" 나감":"나감"),el("span","d",deptLabel(o)),el("span","tag both",o.kind||"")].filter(Boolean));
+  h.append(...[noTag(o),el("span","d",deptLabel(o)),el("span","tag both",o.kind||"")].filter(Boolean));
   if(o.total)h.append(el("span","s",moneyText(o)));
-  r.append(h, el("div","s",itemsText(o)));
+  const pt=slipTag(o); if(pt)h.append(pt);
+  r.append(h, el("div","tm","받음 "+(o.createdAt?hm(o.createdAt):"--:--")+" · 완료 "+(o.outAt?hm(o.outAt):"--:--")+(o.due?" · 예상 "+o.due:"")), el("div","s",itemsText(o)));
+  if(o.memo)r.append(el("div","s","메모: "+o.memo));
   if(o.kind==="배달"&&o.phone4&&!isGuest(o))r.append(el("div","s","장부 싸인: 전화 뒷자리 "+o.phone4));
   const act=el("div","act"), back=el("button","linkbtn","되돌리기"); back.type="button"; back.disabled=busy.has(o.id);
   back.onclick=()=>write(o.id,ref=>ref.update({out:false}));
-  act.append(back); r.append(act);
+  const sb=el("button","linkbtn",o.printedAt?"🖨 전표 다시":"🖨 전표"); sb.type="button"; sb.onclick=()=>printSlip(o);
+  act.append(sb,back); r.append(act);
   return r;
 }
+// 카운터에서 포장만 / 배달만 보기 (사장님 요청: 피크 때 포장 주문 장부를 미리 쓰려고)
+let kindF=""; try{kindF=localStorage.getItem("bn_kindf")||"";}catch(e){}
+document.querySelectorAll("[data-kf]").forEach(b=>b.onclick=()=>{kindF=b.dataset.kf; try{localStorage.setItem("bn_kindf",kindF);}catch(e){} renderCounter();});
+const kindOk=o=>!kindF||(kindF==="배달"?o.kind==="배달":o.kind!=="배달");
 function renderCounter(){
   renderRecent();
-  const box=$("orderList");
-  const ready=sorted(orders.filter(isReady)), making=sorted(orders.filter(o=>!o.out&&!isReady(o))), gone=orders.filter(o=>o.out).sort((a,b)=>(b.outAt||0)-(a.outAt||0));
-  $("outWrap").hidden=!gone.length; $("outSum").textContent="나간 주문 "+gone.length+"건"; $("outList").replaceChildren(...gone.map(outRow));
-  if(!ready.length&&!making.length){box.replaceChildren(el("p","empty",!dbReady?"주문 목록을 불러오는 중이에요.":gone.length?"지금 남은 주문이 없어요.":"오늘 들어온 주문이 아직 없어요. 왼쪽에서 첫 주문을 넣으면 여기와 태블릿에 바로 떠요."));return;}
-  const parts=[];
+  document.querySelectorAll("[data-kf]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.kf===kindF)));
+  const box=$("orderList"), vis=orders.filter(kindOk);
+  const ready=sorted(vis.filter(isReady)), making=sorted(vis.filter(o=>!o.out&&!isReady(o))), gone=vis.filter(o=>o.out).sort((a,b)=>(b.outAt||0)-(a.outAt||0));
+  $("outWrap").hidden=!gone.length; $("outSum").textContent=(kindF?kindF+" ":"")+"나간 주문 "+gone.length+"건 (받은 시간 · 완료 시간 · 전표)"; $("outList").replaceChildren(...gone.map(outRow));
+  const hidden=orders.filter(o=>!o.out&&!kindOk(o)).length, note=kindF?el("p","kfnote",kindF+" 주문만 보는 중"+(hidden?" · 숨긴 "+(kindF==="배달"?"포장":"배달")+" 주문 "+hidden+"건":"")):null;
+  if(!ready.length&&!making.length){box.replaceChildren(...[note,el("p","empty",!dbReady?"주문 목록을 불러오는 중이에요.":kindF?"지금 남은 "+kindF+" 주문이 없어요.":gone.length?"지금 남은 주문이 없어요.":"오늘 들어온 주문이 아직 없어요. 왼쪽에서 첫 주문을 넣으면 여기와 태블릿에 바로 떠요.")].filter(Boolean));return;}
+  const parts=note?[note]:[];
   if(ready.length){parts.push(el("div","sec","포장할 차례 "+ready.length+"건"));ready.forEach(o=>parts.push(readyCard(o)));}
   if(making.length){parts.push(el("div","sec","만드는 중 "+making.length+"건"));making.forEach(o=>parts.push(makingRow(o)));}
   box.replaceChildren(...parts);
@@ -1550,6 +1627,7 @@ function ticket(o,st){
   if(isDone)t.classList.add("isdone"); else if(m!=null&&m<0)t.classList.add("late");
   const nt=newIds.get(o.id); if(nt&&Date.now()-nt<60000&&!isDone)t.classList.add("new");
   const kind=el("div","kind"); const nt0=noTag(o); if(nt0)kind.append(nt0," "); kind.append(el("span","kindtag",o.kind||"")); t.append(kind);
+  if(o.pin&&!isDone){t.classList.add("pinned"); t.append(el("div","pinbar","📌 먼저 할 주문"));}
   const due=el("div","due"); due.append(el("b",null,o.due||"--:--"),el("span",null,dueText(o,isDone))); t.append(due);
   if((o.org&&o.org!=="기타")||o.floor)t.append(el("div","org",[o.org!=="기타"?o.org:"",o.floor].filter(Boolean).join(" · ")));
   const dept=el("div","dept",isGuest(o)?deptLabel(o):o.dept||""); if(o.example)dept.append(" ",el("span","ex","예시")); if(o.editedAt)dept.append(" ",el("span","ex","수정됨 "+hm(o.editedAt))); t.append(dept);
@@ -1558,7 +1636,7 @@ function ticket(o,st){
     const li=el("li"), ln=el("div","ln");
     ln.append(el("span","q",String(i.qty)),el("span",null,i.name+(i.st==="both"?(st==="salad"?" · 샐러드 반쪽":" · 샌드위치 반쪽"):"")));
     li.append(ln);
-    const ops=(i.opts||[]).filter(op=>i.st!=="both"||!op.st||op.st===st);
+    const ops=shownOpts(i).filter(op=>i.st!=="both"||!op.st||op.st===st);
     if(ops.length){const w=el("div","ops");ops.forEach(op=>w.append(el("span","op"+(op.k?" key":""),optText(op))));li.append(w);}
     if(i.note)li.append(el("div","nt","요청: "+i.note));
     ul.append(li);
@@ -1567,6 +1645,7 @@ function ticket(o,st){
   if(o.memo)t.append(el("div","memo",o.memo));
   const other=st==="salad"?"sandwich":"salad", foot=el("div","tfoot");
   if(needs(o)[other])foot.append(el("div","other",ST_NAME[other]+": "+(d[other]?"완료":"만드는 중")));
+  if(!isDone)foot.append(pinBtn(o));
   const fb=el("button","linkbtn fullbtn","주문 전체 보기"); fb.type="button"; fb.onclick=()=>openFull(o.id); foot.append(fb);
   t.append(foot);
   const b=el("button","donebtn",isDone?"완료 취소":"다 만들었어요");b.type="button";b.disabled=busy.has(o.id);
