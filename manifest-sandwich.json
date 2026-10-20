@@ -1,0 +1,26 @@
+{
+ "id": "./?app=sandwich",
+ "name": "복남이 샌드 주문판 · 샌드위치바",
+ "short_name": "샌드위치바",
+ "start_url": "./#sandwich",
+ "scope": "./",
+ "display": "standalone",
+ "orientation": "any",
+ "background_color": "#eef0ec",
+ "theme_color": "#c99412",
+ "lang": "ko",
+ "icons": [
+  {
+   "src": "icons/sandwich-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any maskable"
+  },
+  {
+   "src": "icons/sandwich-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any maskable"
+  }
+ ]
+}
