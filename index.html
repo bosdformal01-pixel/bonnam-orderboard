@@ -289,6 +289,55 @@ details.done summary{cursor:pointer;font-weight:600;color:var(--muted);margin-bo
 .ptag.pin{background:var(--ink);color:var(--paper)}
 .stview.salad{--stc:var(--salad)}
 .stview.sandwich{--stc:var(--sand)}
+/* 예약 주문 (2026-10-21): 단체 주문을 날짜를 정해 미리 넣어 두기 */
+:root{--res:#6d4fc2;--res-soft:#ece6fb}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--res:#b39cf5;--res-soft:#2a2340}}
+:root[data-theme="dark"]{--res:#b39cf5;--res-soft:#2a2340}
+.fhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.fhead h2{margin:0!important}
+.fhead .resbtn{background:var(--res);border-color:var(--res);color:#fff;font-size:1rem;padding:7px 14px}
+input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);font-size:1.2rem;font-variant-numeric:tabular-nums}
+.resbox{border:2px solid var(--res);background:var(--res-soft);border-radius:10px;padding:12px 12px 0;margin-bottom:14px}
+.resbox .chips{margin-top:2px}
+.reshint{font-weight:700;color:var(--res);min-height:1.5em}
+.restag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:.8rem;font-weight:800;background:var(--res);color:#fff;white-space:nowrap}
+.ticket.isres{border-color:var(--res)}
+.ticket .resline{font-weight:700;color:var(--res);overflow-wrap:anywhere}
+.orow.isres,.ready.isres{box-shadow:inset 6px 0 0 var(--res)}
+#resNew{margin-left:auto}
+#resNew+.x{margin-left:0}
+.rday{font-weight:800;font-size:1.05rem;margin:8px 0 0;color:var(--res)}
+.rday:first-child{margin-top:0}
+.rcard{border:1.5px solid var(--line);border-left:6px solid var(--res);border-radius:8px;padding:10px 12px;display:grid;gap:4px}
+.rcard .h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.rcard .t{font-size:1.25rem;font-weight:800;font-variant-numeric:tabular-nums}
+.rcard .d{font-size:1.15rem;font-weight:700;overflow-wrap:anywhere}
+.rcard .s{color:var(--muted);font-size:.92rem;overflow-wrap:anywhere}
+.rcard .act{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.overlay.top3{z-index:45}
+.sheet.remind{max-width:520px;border:3px solid var(--res);margin-top:10vh}
+.sheet.remind h2{font-family:var(--display);font-weight:400;font-size:1.6rem;margin:0;color:var(--res)}
+.calbtn{font-weight:700;border-color:var(--res)}
+.calhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.calhead b{font-size:1.3rem;min-width:7.5em;text-align:center}
+.calhead #calToday{margin-left:auto}
+.calsum{font-weight:700;font-variant-numeric:tabular-nums;color:var(--muted);margin:6px 0}
+.calgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.calgrid .wd{text-align:center;font-size:.8rem;font-weight:700;color:var(--muted)}
+.calgrid .wd.sun,.calgrid .cd.sun .n{color:var(--late)}
+.calgrid .wd.sat,.calgrid .cd.sat .n{color:#2f6fd6}
+.calgrid .cd{min-height:68px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);padding:4px 5px;text-align:left;display:flex;flex-direction:column;gap:1px;font-variant-numeric:tabular-nums;min-width:0}
+.calgrid .cd .n{font-weight:700;font-size:.9rem}
+.calgrid .cd .m{font-weight:700;font-size:.8rem;overflow-wrap:anywhere;line-height:1.2}
+.calgrid .cd .c{font-size:.72rem;color:var(--muted)}
+.calgrid .cd .r{font-size:.72rem;font-weight:800;color:var(--res);line-height:1.2}
+.calgrid .cd.today{border-color:var(--ink);border-width:2.5px}
+.calgrid .cd.hasres{background:var(--res-soft)}
+.calgrid .cd.empty{border-style:dashed;opacity:.55}
+.calgrid .pad{min-height:0}
+.calnote{font-size:.85rem;color:var(--muted);margin:6px 0 0}
+.calgrid .cd .m .short{display:none}
+@media (max-width:600px){.calgrid .cd{min-height:58px;padding:3px}.calgrid .cd .m .full{display:none}.calgrid .cd .m .short{display:inline}.calgrid .cd .r{font-size:.66rem}}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -311,7 +360,7 @@ details.done summary{cursor:pointer;font-weight:600;color:var(--muted);margin-bo
 
 <main id="counterView" class="counter" hidden>
   <section class="panel" id="formPanel" aria-labelledby="fTitle">
-    <h2 id="fTitle">새 주문 받기</h2>
+    <div class="fhead" id="fHead"><h2 id="fTitle">새 주문 받기</h2><button type="button" class="linkbtn strong resbtn" id="resBtn">📅 예약 주문</button><button type="button" class="linkbtn" id="resListBtn">예약 목록</button></div>
     <div class="editbar" id="editBar" hidden><span>고치는 중: <b id="editWho"></b></span><button type="button" class="linkbtn" id="editCancel">고치기 그만</button></div>
     <div class="scan" id="scanBox" hidden>
       <button type="button" class="scanbtn" id="scanBtn">📷 전표 사진 · 화면 캡처로 채우기</button>
@@ -319,7 +368,28 @@ details.done summary{cursor:pointer;font-weight:600;color:var(--muted);margin-bo
       <div class="scanmsg" id="scanMsg" role="status">전표 사진을 고르거나, 포스 화면을 캡처(Win+Shift+S)한 뒤 여기서 Ctrl+V 하면 메뉴·옵션을 아래 칸에 채워요. 저장은 확인하고 직접 눌러 주세요.</div>
     </div>
     <form id="orderForm" autocomplete="off">
-      <div class="field">
+      <div class="resbox" id="resBox" hidden>
+        <div class="field">
+          <span class="lbl">언제까지 (날짜·시간 꼭 쓰기)</span>
+          <div class="row"><input type="date" id="resDate" aria-label="예약 날짜"><input type="time" id="resTime" aria-label="예약 시간"></div>
+          <div class="chips" id="resDayChips"></div>
+          <div class="chips" id="resTimeChips"></div>
+          <div class="reshint" id="resHint"></div>
+        </div>
+        <div class="field">
+          <label for="resWho">주문한 곳 (안 써도 돼요)</label>
+          <input type="text" id="resWho" placeholder="예: 화정초등학교, OO웨딩홀" maxlength="40">
+        </div>
+        <div class="field">
+          <label for="resAddr">배달 주소 (안 써도 돼요)</label>
+          <input type="text" id="resAddr" placeholder="예: 울산 동구 OO로 12, 2층 연회장" maxlength="100">
+        </div>
+        <div class="field">
+          <label for="resPhone">전화번호 (안 써도 돼요)</label>
+          <input type="tel" id="resPhone" inputmode="tel" placeholder="예: 010-1234-5678" maxlength="20" style="max-width:16em">
+        </div>
+      </div>
+      <div class="field" id="deptField">
         <label for="deptSearch">어느 과 (검색해서 고르기)</label>
         <div class="combo">
           <div class="picked-dept" id="deptPicked" hidden>
@@ -331,7 +401,7 @@ details.done summary{cursor:pointer;font-weight:600;color:var(--muted);margin-bo
         </div>
         <div class="chips" id="deptRecent"></div>
       </div>
-      <div class="field">
+      <div class="field" id="dueField">
         <span class="lbl">예상 시간 (지금 시각에서 시작해요. +를 누를 때마다 더해져요)</span>
         <div class="row">
           <input type="time" id="due" aria-label="예상 시간">
@@ -370,7 +440,7 @@ details.done summary{cursor:pointer;font-weight:600;color:var(--muted);margin-bo
         <div class="feeline" id="feeLine" hidden></div>
       </div>
       <div class="field">
-        <label for="memo">주문 전체 메모</label>
+        <label for="memo" id="memoLbl">주문 전체 메모</label>
         <textarea id="memo" placeholder="예: 수저 10개, 영수증 따로" maxlength="300"></textarea>
       </div>
       <button type="submit" class="submit" id="submitBtn">주문 넣기</button>
@@ -378,7 +448,7 @@ details.done summary{cursor:pointer;font-weight:600;color:var(--muted);margin-bo
     </form>
   </section>
   <section class="panel" aria-labelledby="lTitle">
-    <div class="lhead"><h2 id="lTitle">오늘 주문</h2><button type="button" class="linkbtn" id="sumBtn">📋 마감 요약 (어제·오늘)</button><button type="button" class="linkbtn" id="soundBtn2" style="margin-left:0">🔔 알림음 켜기</button><button type="button" class="linkbtn" id="slipWBtn" style="margin-left:0" title="영수증 프린터 종이 폭">🖨 전표 종이 79mm</button><button type="button" class="linkbtn" id="serBtn" style="margin-left:0" title="영수증 프린터(COM4)에 연결">🔌 영수증 프린터 연결하기</button><span class="kf" role="group" aria-label="포장/배달만 보기"><button type="button" class="linkbtn" data-kf="">전체</button><button type="button" class="linkbtn" data-kf="포장">포장만</button><button type="button" class="linkbtn" data-kf="배달">배달만</button></span></div>
+    <div class="lhead"><h2 id="lTitle">오늘 주문</h2><button type="button" class="linkbtn" id="sumBtn">📋 마감 요약 · 달력</button><button type="button" class="linkbtn" id="soundBtn2" style="margin-left:0">🔔 알림음 켜기</button><button type="button" class="linkbtn" id="slipWBtn" style="margin-left:0" title="영수증 프린터 종이 폭">🖨 전표 종이 79mm</button><button type="button" class="linkbtn" id="serBtn" style="margin-left:0" title="영수증 프린터(COM4)에 연결">🔌 영수증 프린터 연결하기</button><span class="kf" role="group" aria-label="포장/배달만 보기"><button type="button" class="linkbtn" data-kf="">전체</button><button type="button" class="linkbtn" data-kf="포장">포장만</button><button type="button" class="linkbtn" data-kf="배달">배달만</button></span></div>
     <div class="olist" id="orderList"><p class="empty">오늘 들어온 주문이 아직 없어요. 왼쪽에서 첫 주문을 넣으면 여기와 태블릿에 바로 떠요.</p></div>
     <details class="done" id="outWrap" hidden>
       <summary id="outSum">나간 주문</summary>
@@ -433,6 +503,8 @@ details.done summary{cursor:pointer;font-weight:600;color:var(--muted);margin-bo
       <button type="button" class="qbtn" id="optPlus" aria-label="하나 더">+</button>
       <button type="button" class="chip" data-qadd="5">+5</button>
       <button type="button" class="chip" data-qadd="10">+10</button>
+      <button type="button" class="chip" data-qadd="50">+50</button>
+      <button type="button" class="chip" data-qadd="100">+100</button>
       <span style="margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums" id="optPrice"></span>
     </div>
     <div class="msg err" id="optMsg"></div>
@@ -458,7 +530,13 @@ details.done summary{cursor:pointer;font-weight:600;color:var(--muted);margin-bo
 <div class="overlay" id="sumOverlay" hidden>
   <div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="sumTitle">
     <div class="sheet-head"><h2 id="sumTitle">오늘 마감 요약</h2><button type="button" class="linkbtn x" id="sumClose">닫기</button></div>
-    <div class="row" id="sumDays"><button type="button" class="chip" data-sday="0">오늘</button><button type="button" class="chip" data-sday="1">어제</button><button type="button" class="chip" data-sday="2">그저께</button><input type="date" id="sumDate" aria-label="날짜 고르기"></div>
+    <div class="row" id="sumDays"><button type="button" class="chip calbtn" id="calOpen">📅 달력</button><button type="button" class="chip" data-sday="0">오늘</button><button type="button" class="chip" data-sday="1">어제</button><button type="button" class="chip" data-sday="2">그저께</button><input type="date" id="sumDate" aria-label="날짜 고르기"></div>
+    <div class="cal" id="calBox" hidden>
+      <div class="calhead"><button type="button" class="linkbtn" id="calPrev" aria-label="지난 달">◀</button><b id="calMonth"></b><button type="button" class="linkbtn" id="calNext" aria-label="다음 달">▶</button><button type="button" class="linkbtn" id="calToday">이번 달</button></div>
+      <div class="calsum" id="calSum"></div>
+      <div class="calgrid" id="calGrid"></div>
+      <p class="calnote">날짜를 누르면 그날 주문을 자세히 봐요. 📅 표시는 미리 받아 둔 예약 주문이에요.</p>
+    </div>
     <div class="sumtop" id="sumTop"></div>
     <div class="sumrows" id="sumRows"></div>
     <details class="done" id="deptWrap"><summary>과별 합계</summary><div class="deptsum" id="deptSum" style="margin-top:8px"></div></details>
@@ -469,6 +547,28 @@ details.done summary{cursor:pointer;font-weight:600;color:var(--muted);margin-bo
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="fullTitle">
     <div class="sheet-head"><h2 id="fullTitle">주문 전체 보기</h2><button type="button" class="linkbtn x" id="fullClose">닫기</button></div>
     <div id="fullBody" style="display:grid;gap:10px"></div>
+  </div>
+</div>
+
+<div class="overlay" id="resOverlay" hidden>
+  <div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="resSheetTitle">
+    <div class="sheet-head"><h2 id="resSheetTitle">📅 예약 주문 받기</h2><button type="button" class="linkbtn x" id="resClose">닫기</button></div>
+    <div id="resSlot"></div>
+  </div>
+</div>
+
+<div class="overlay" id="resListOverlay" hidden>
+  <div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="resListTitle">
+    <div class="sheet-head"><h2 id="resListTitle">📅 예약 목록</h2><button type="button" class="linkbtn strong" id="resNew">+ 새 예약</button><button type="button" class="linkbtn x" id="resListClose">닫기</button></div>
+    <div id="resListBody" style="display:grid;gap:10px"></div>
+  </div>
+</div>
+
+<div class="overlay top3" id="remindOverlay" hidden>
+  <div class="sheet remind" role="alertdialog" aria-modal="true" aria-labelledby="remindTitle">
+    <h2 id="remindTitle">🔔 내일 예약 주문을 확인하세요!</h2>
+    <div id="remindBody" style="display:grid;gap:8px"></div>
+    <div class="row"><button type="button" class="linkbtn" id="remindList">예약 목록 보기</button><button type="button" class="submit" id="remindOk" style="flex:1;width:auto">확인했어요</button></div>
   </div>
 </div>
 
@@ -612,6 +712,7 @@ function toast(t){const e=$("toast");e.textContent=t;e.hidden=false;clearTimeout
 let mode="counter", orders=[], customDepts=[], col=null, deptCol=null, dbReady=false, unsub=null, subDay=null;
 let firstSnap=true; const newIds=new Map(), lastEdit=new Map(), readyNew=new Map(); let readySet=new Set(); let sound=false;
 const draft={kind:"포장",dept:null,items:[]}; let curCat=0;
+let resOrders=[], resUnsub=null, resMode=false, resEditing=null, resConfirm=null; // 예약 주문: 내일 이후 날짜로 미리 넣어 둔 주문
 
 /* ---------- mode ---------- */
 function setMode(){
@@ -622,6 +723,7 @@ function setMode(){
   $("stationView").hidden=mode==="counter";
   $("stationView").className="stview "+mode;
   $("stTitle").textContent=ST_NAME[mode]||"";
+  if(resMode)closeRes(true);
   if(mode==="counter")closeFormOverlay();
   $("batchOverlay").hidden=true; closeSummary(); if(typeof closeFull==="function")closeFull();
   render();
@@ -637,6 +739,12 @@ function subscribe(){
   if(!col)return;
   if(unsub)unsub();
   subDay=today(); firstSnap=true;
+  // 예약 주문: 내일부터의 주문 (그날이 되면 위 '오늘 주문'에 자동으로 들어와요)
+  if(resUnsub)resUnsub();
+  resUnsub=col.where("day",">",subDay).onSnapshot(snap=>{
+    resOrders=snap.docs.map(d=>Object.assign({id:d.id},d.data())).filter(o=>o.reserved);
+    renderResList(); checkRemind();
+  },()=>{});
   unsub=col.where("day","==",subDay).onSnapshot(snap=>{
     const now=Date.now(); let ring=false;
     // the first snapshots can come from cache; only ring for changes after the server's full list arrived
@@ -679,7 +787,7 @@ function renderWho(u){
   const b=el("button",null,"로그아웃"); b.type="button"; b.onclick=()=>{if(confirm("이 기기에서 로그아웃할까요? 다시 쓰려면 로그인해야 해요."))fbAuth.signOut().then(()=>location.reload());};
   w.replaceChildren(document.createTextNode((u.email||"")+" 로 로그인됨 · "),b);
 }
-setInterval(()=>{$("clock").textContent=nowHM(); if(col&&subDay!==today())subscribe(); render(); if(dueAuto&&!editing)$("due").value=nowHM(); renderDueChips();},30000);
+setInterval(()=>{$("clock").textContent=nowHM(); if(col&&subDay!==today())subscribe(); render(); if(dueAuto&&!editing)$("due").value=nowHM(); renderDueChips(); checkRemind();},30000);
 $("clock").textContent=nowHM();
 
 /* ---------- sound: one light "띠링~" ---------- */
@@ -785,7 +893,7 @@ $("deptClear").onclick=clearDept;
 function recentDepts(){
   const seen=new Set(), out=[];
   const add=d=>{if(!d||!d.name)return; d=findDept(d)||d; const k=d.org+"|"+d.name;if(!seen.has(k)){seen.add(k);out.push(d);}};
-  orders.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).forEach(o=>{if(!o.example&&!isGuest(o))add({org:o.org||"기타",name:o.dept});});
+  orders.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).forEach(o=>{if(!o.example&&!o.reserved&&!isGuest(o))add({org:o.org||"기타",name:o.dept});});
   try{JSON.parse(localStorage.getItem("bn_depts2")||"[]").forEach(add);}catch(e){}
   return out.slice(0,8);
 }
@@ -865,10 +973,10 @@ const freeP=()=>{const v=parseInt(($("optFreeP").value||"").replace(/\D/g,""),10
 function unitPrice(){let p=sheet.base||0; sheet.groups.forEach(gid=>sheet.sel[gid].forEach(i=>{p+=G[gid].o[i][1]||0;})); if($("optFree").value.trim())p+=freeP(); return p;}
 ["optFree","optFreeP"].forEach(id=>$(id).addEventListener("input",()=>{ if(id==="optFreeP"){const v=$(id).value.replace(/\D/g,""); if(v!==$(id).value)$(id).value=v;} if(sheet)$("optPrice").textContent=won(unitPrice()*sheet.qty); }));
 $("optMinus").onclick=()=>{if(sheet.qty>1){sheet.qty--;renderOptGroups();}};
-$("optQty").addEventListener("input",()=>{const v=parseInt($("optQty").value.replace(/\D/g,""),10); if(v>0){sheet.qty=Math.min(999,v); $("optPrice").textContent=won(unitPrice()*sheet.qty);}});
+$("optQty").addEventListener("input",()=>{const v=parseInt($("optQty").value.replace(/\D/g,""),10); if(v>0){sheet.qty=Math.min(9999,v); $("optPrice").textContent=won(unitPrice()*sheet.qty);}});
 $("optQty").addEventListener("focus",()=>$("optQty").select());
 $("optQty").addEventListener("blur",()=>{if(sheet)$("optQty").value=sheet.qty;});
-document.querySelectorAll("[data-qadd]").forEach(b=>b.onclick=()=>{sheet.qty=Math.min(999,sheet.qty+Number(b.dataset.qadd));renderOptGroups();});
+document.querySelectorAll("[data-qadd]").forEach(b=>b.onclick=()=>{sheet.qty=Math.min(9999,sheet.qty+Number(b.dataset.qadd));renderOptGroups();});
 // Enter in the option sheet = 담기 (POS keyboard)
 $("optOverlay").addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.isComposing&&e.target.id!=="optClose"){e.preventDefault();$("optAdd").click();} });
 $("optPlus").onclick=()=>{sheet.qty++;renderOptGroups();};
@@ -927,7 +1035,12 @@ function renderPicked(){
     minus.onclick=()=>{it.qty--; if(it.qty<=0)draft.items.splice(idx,1); renderPicked();};
     const plus=el("button","qbtn","+");plus.type="button";plus.setAttribute("aria-label",it.name+" 하나 더");
     plus.onclick=()=>{it.qty++;renderPicked();};
-    r.append(nm,minus,el("span","qty",String(it.qty)),plus); box.append(r);
+    // 단체 주문은 개수가 커서 (샌드위치 50, 샐러드 100) 숫자를 바로 쓸 수 있게
+    const q=el("input","qty"); q.value=String(it.qty); q.inputMode="numeric"; q.setAttribute("aria-label",it.name+" 개수 직접 쓰기");
+    q.onfocus=()=>q.select();
+    q.onchange=()=>{const v=parseInt(q.value.replace(/\D/g,""),10); if(v>0)it.qty=Math.min(9999,v); renderPicked();};
+    q.onkeydown=e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();q.blur();}};
+    r.append(nm,minus,q,plus); box.append(r);
   });
   const fee=feeFor(draft.kind,total);
   bumpIdx=-1;
@@ -961,6 +1074,7 @@ function setKind(k){
 }
 function updatePhoneBox(){
   const g=!!(draft.dept&&draft.dept.guest);
+  if(resMode){$("phoneBox").hidden=true;return;}
   $("phoneBox").hidden=draft.kind!=="배달"&&!g;
   $("phoneLbl").textContent=g?"손님 전화 뒷자리 4개 (손님 구분용, 안 써도 돼요)":"전화 뒷자리 4개 (장부 싸인용, 안 써도 돼요)";
 }
@@ -973,12 +1087,13 @@ document.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{
 const finePointer=()=>window.matchMedia&&matchMedia("(pointer:fine)").matches;
 function resetForm(){
   draft.dept=null;draft.items=[];$("deptPicked").hidden=true;$("deptSearch").hidden=false;
-  ["memo","deptSearch","phone4"].forEach(id=>$(id).value="");
+  ["memo","deptSearch","phone4","resDate","resTime","resWho","resAddr","resPhone"].forEach(id=>$(id).value="");
   setKind("포장"); renderPicked(); setDueNow();
   $("scanMsg").className="scanmsg"; $("scanMsg").textContent="전표 사진을 고르거나, 포스 화면을 캡처(Win+Shift+S)한 뒤 여기서 Ctrl+V 하면 메뉴·옵션을 아래 칸에 채워요. 저장은 확인하고 직접 눌러 주세요.";
 }
 $("orderForm").addEventListener("submit",async e=>{
   e.preventDefault();
+  if(resMode){saveRes();return;}
   const msg=$("formMsg"); msg.className="msg";
   if(!draft.dept){const q=$("deptSearch").value.trim(); const ex=q&&allDepts().find(d=>norm(d.name)===norm(q));
     if(ex)pickDept(ex); else if(["일반","일반손님","손님"].includes(norm(q)))pickDept(GUEST); else if(q)pickDept({org:"기타",name:q,custom:true});}
@@ -986,7 +1101,7 @@ $("orderForm").addEventListener("submit",async e=>{
   if(!draft.items.length){msg.className="msg err";msg.textContent="메뉴를 하나 이상 골라 주세요.";return;}
   if(!col){msg.className="msg err";msg.textContent="지금은 저장이 안 돼요. 가게 구글 계정으로 로그인해 주세요.";return;}
   const btn=$("submitBtn"); btn.disabled=true; msg.textContent=editing?"저장하는 중…":"넣는 중…";
-  const items=draft.items.map(i=>({name:i.name,qty:i.qty,st:i.st,unit:i.unit||0,opts:(i.opts||[]).map(o=>{const c={g:o.g,v:o.v};["p","st","k","pl","gid"].forEach(k=>{if(o[k]!=null)c[k]=o[k];});return c;}),note:i.note||""}));
+  const items=packItems();
   const body={day:today(),createdAt:Date.now(),no:nextNo(),org:draft.dept.org,dept:draft.dept.name,floor:draft.dept.floor||"",guest:!!draft.dept.guest,due:$("due").value||"",kind:draft.kind,
     memo:$("memo").value.trim(),items,total:0,from:mode,done:{salad:false,sandwich:false}};
   const food=items.reduce((s,i)=>s+i.unit*i.qty,0); body.fee=feeFor(draft.kind,food); body.total=food+body.fee;
@@ -1020,6 +1135,8 @@ $("orderForm").addEventListener("submit",async e=>{
   }finally{btn.disabled=false;}
 });
 
+const packItems=()=>draft.items.map(i=>({name:i.name,qty:i.qty,st:i.st,unit:i.unit||0,opts:(i.opts||[]).map(o=>{const c={g:o.g,v:o.v};["p","st","k","pl","gid"].forEach(k=>{if(o[k]!=null)c[k]=o[k];});return c;}),note:i.note||""}));
+
 /* ---------- 주문 고치기 ---------- */
 let editing=null;
 const MENU_IDX={}; MENU.forEach(c=>c.items.forEach(([n,price,groups,ist])=>{MENU_IDX[n]={base:price,st:ist||c.st,groups};}));
@@ -1045,8 +1162,7 @@ function rebuildItem(i){
 let stash=null;
 function startEdit(o){
   if(mode!=="counter"){location.hash="#counter";}
-  if(!editing&&(draft.dept||draft.items.length||(!dueAuto&&$("due").value)||$("memo").value.trim()))
-    stash={dept:draft.dept,items:draft.items,kind:draft.kind,due:$("due").value,dueAuto,memo:$("memo").value,phone4:$("phone4").value};
+  if(!editing)stashDraft();
   editing=o.id;
   pickDept(isGuest(o)?GUEST:o.floor!==undefined?{org:o.org||"기타",name:o.dept||"",floor:o.floor,custom:(o.org||"기타")==="기타"}:{org:o.org||"기타",name:o.dept||""});
   $("due").value=o.due||""; dueAuto=false; renderDueChips(); setKind(o.kind||"포장"); $("phone4").value=o.phone4||""; $("memo").value=o.memo||"";
@@ -1057,14 +1173,170 @@ function startEdit(o){
 }
 function stopEdit(){
   editing=null; $("editBar").hidden=true; $("fTitle").textContent="새 주문 받기"; $("submitBtn").textContent="주문 넣기"; resetForm();
-  if(stash){const s=stash; stash=null;
-    if(s.dept)pickDept(s.dept); draft.items=s.items; setKind(s.kind); $("memo").value=s.memo; $("phone4").value=s.phone4;
-    if(s.dueAuto)setDueNow(); else {$("due").value=s.due; dueAuto=false; renderDueChips();}
-    renderPicked(); renderCounter(); return true;}
-  renderCounter(); return false;
+  const back=restoreStash(); renderCounter(); return back;
+}
+function stashDraft(){
+  if(draft.dept||draft.items.length||(!dueAuto&&$("due").value)||$("memo").value.trim())
+    stash={dept:draft.dept,items:draft.items,kind:draft.kind,due:$("due").value,dueAuto,memo:$("memo").value,phone4:$("phone4").value};
+}
+function restoreStash(){
+  if(!stash)return false; const s=stash; stash=null;
+  if(s.dept)pickDept(s.dept); draft.items=s.items; setKind(s.kind); $("memo").value=s.memo; $("phone4").value=s.phone4;
+  if(s.dueAuto)setDueNow(); else {$("due").value=s.due; dueAuto=false; renderDueChips();}
+  renderPicked(); return true;
 }
 $("phone4").addEventListener("input",e=>{const v=e.target.value.replace(/\D/g,"").slice(0,4); if(v!==e.target.value)e.target.value=v;});
 $("editCancel").onclick=()=>{ if(stopEdit())toast("받던 새 주문을 다시 불러왔어요."); };
+
+/* ---------- 예약 주문 (2026-10-21 선정님 요청): 학교·결혼식장 단체 주문을 전화 받은 날 미리 넣어 두기.
+   예약은 그 날짜의 주문으로 저장돼서, 그날 포스·태블릿을 켜면 오늘 주문에 바로 들어가 있어요. ---------- */
+const WD="일월화수목금토";
+const dateOf=day=>{const [y,m,d]=day.split("-").map(Number);return new Date(y,m-1,d,12);};
+function dayLabel(day){
+  if(!day)return "";
+  const dt=dateOf(day), base=new Date(); base.setHours(12,0,0,0);
+  const diff=Math.round((dt-base)/864e5);
+  return (dt.getMonth()+1)+"월 "+dt.getDate()+"일 ("+WD[dt.getDay()]+")"+(diff===0?" · 오늘":diff===1?" · 내일":diff===2?" · 모레":diff>0?" · "+diff+"일 뒤":"");
+}
+const shortDay=ms=>{const d=new Date(ms);return (d.getMonth()+1)+"/"+d.getDate();};
+const qtySum=o=>(o.items||[]).reduce((s,i)=>s+(i.qty||0),0);
+function resInfo(o){return [o.addr?"주소: "+o.addr:"",o.phone?"전화: "+o.phone:""].filter(Boolean).join(" · ");}
+const resTag=()=>el("span","restag","📅 예약");
+function renderResChips(){
+  const dbox=$("resDayChips"), tbox=$("resTimeChips"); dbox.replaceChildren(); tbox.replaceChildren();
+  [["내일",1],["모레",2],["3일 뒤",3],["일주일 뒤",7]].forEach(([l,n])=>{const v=daysAgo(-n), b=el("button","chip",l); b.type="button";
+    b.setAttribute("aria-pressed",String($("resDate").value===v)); b.onclick=()=>{$("resDate").value=v; renderResChips();}; dbox.append(b);});
+  ["10:00","11:00","11:30","12:00","13:00","14:00","15:00","17:00"].forEach(v=>{const b=el("button","chip",v); b.type="button";
+    b.setAttribute("aria-pressed",String($("resTime").value===v)); b.onclick=()=>{$("resTime").value=v; renderResChips();}; tbox.append(b);});
+  const d=$("resDate").value, t=$("resTime").value;
+  $("resHint").textContent=d||t?(d?dayLabel(d):"날짜를 골라 주세요")+" · "+(t?t+" 까지":"시간을 골라 주세요"):"";
+}
+["resDate","resTime"].forEach(id=>$(id).addEventListener("input",renderResChips));
+$("resPhone").addEventListener("input",e=>{const v=e.target.value.replace(/[^\d\- ]/g,""); if(v!==e.target.value)e.target.value=v;});
+function openRes(o){
+  if(mode!=="counter"){location.hash="#counter"; setTimeout(()=>openRes(o),80); return;}
+  if(editing){toast("고치던 주문을 먼저 저장하거나 '고치기 그만'을 눌러 주세요.");return;}
+  if(!resMode)stashDraft();
+  resMode=true; resEditing=o?o.id:null; resetForm();
+  $("resBox").hidden=false; $("deptField").hidden=true; $("dueField").hidden=true; $("fHead").hidden=true;
+  $("memoLbl").textContent="특이사항 (안 써도 돼요)"; $("memo").placeholder="예: 2시까지 세팅, 수저 150개, 개별 포장";
+  $("submitBtn").textContent=o?"고친 예약 저장":"예약 넣기";
+  $("resSheetTitle").textContent=o?"📅 예약 고치기":"📅 예약 주문 받기";
+  if(o){
+    $("resDate").value=o.day||""; $("resTime").value=o.due||""; $("resWho").value=o.dept==="예약 주문"?"":(o.dept||"");
+    $("resAddr").value=o.addr||""; $("resPhone").value=o.phone||""; $("memo").value=o.memo||""; setKind(o.kind||"포장");
+    draft.items=[]; (o.items||[]).map(rebuildItem).forEach(i=>addDraftItem(i)); bumpIdx=-1; renderPicked();
+  }
+  updatePhoneBox(); renderResChips();
+  $("resListOverlay").hidden=true;
+  $("resSlot").append($("formPanel")); $("resOverlay").hidden=false;
+  if(finePointer()&&!o)$("resDate").focus();
+}
+// quiet=true: closing because the screen changed (no question)
+function closeRes(quiet){
+  if(!resMode)return true;
+  if(!quiet&&draft.items.length&&!confirm(resEditing?"고친 내용을 저장하지 않고 닫을까요?":"적던 예약을 저장하지 않고 닫을까요?"))return false;
+  resMode=false; resEditing=null;
+  $("resBox").hidden=true; $("deptField").hidden=false; $("dueField").hidden=false; $("fHead").hidden=false;
+  $("memoLbl").textContent="주문 전체 메모"; $("memo").placeholder="예: 수저 10개, 영수증 따로"; $("submitBtn").textContent="주문 넣기";
+  $("resOverlay").hidden=true; $("counterView").prepend($("formPanel"));
+  resetForm(); restoreStash(); updatePhoneBox(); renderCounter();
+  return true;
+}
+async function saveRes(){
+  const msg=$("formMsg"); msg.className="msg err";
+  const day=$("resDate").value, due=$("resTime").value;
+  if(!day){msg.textContent="예약 날짜를 골라 주세요.";$("resDate").focus();return;}
+  if(!due){msg.textContent="몇 시까지인지 넣어 주세요.";$("resTime").focus();return;}
+  if(day<today()){msg.textContent="지난 날짜예요. 날짜를 다시 골라 주세요.";$("resDate").focus();return;}
+  if(!draft.items.length){msg.textContent="메뉴를 하나 이상 골라 주세요.";return;}
+  if(!col){msg.textContent="지금은 저장이 안 돼요. 가게 구글 계정으로 로그인해 주세요.";return;}
+  msg.className="msg";
+  const items=packItems(), food=items.reduce((s,i)=>s+i.unit*i.qty,0), fee=feeFor(draft.kind,food);
+  const phone=$("resPhone").value.trim();
+  const body={day,due,reserved:true,org:"",dept:$("resWho").value.trim()||"예약 주문",floor:"",guest:false,kind:draft.kind,
+    memo:$("memo").value.trim(),items,fee,total:food+fee,phone,phone4:phone.replace(/\D/g,"").slice(-4),addr:$("resAddr").value.trim()};
+  const btn=$("submitBtn"); btn.disabled=true; msg.textContent="저장하는 중…";
+  try{
+    if(resEditing){
+      const cur=resOrders.find(o=>o.id===resEditing)||orders.find(o=>o.id===resEditing);
+      if(!cur){msg.className="msg err";msg.textContent="이 예약은 이미 취소됐어요.";return;}
+      const upd=Object.assign({},body,{resEditedAt:Date.now()});
+      if(day===today()){
+        // 오늘 예약을 고치면 보통 주문처럼: 태블릿에 '수정됨', 바뀐 바만 다시 만들기
+        const done={}, prev=cur.day===day?(cur.done||{}):{};
+        ["salad","sandwich"].forEach(st=>{done[st]=cur.day===day&&sigFor(cur.items,st)===sigFor(items,st)?!!prev[st]:false;});
+        upd.done=done; upd.editedAt=Date.now(); if(cur.day!==day)upd.no=nextNo(); else if(!cur.no)upd.no=orderNo(cur); // 화면에 보이던 번호 그대로
+        if(!done.salad&&prev.salad||!done.sandwich&&prev.sandwich)upd.out=false;
+      } else { upd.no=0; upd.done={salad:false,sandwich:false}; upd.out=false; }
+      await col.doc(resEditing).update(upd);
+    } else {
+      Object.assign(body,{createdAt:Date.now(),resAt:Date.now(),no:day===today()?nextNo():0,from:mode,done:{salad:false,sandwich:false}});
+      await col.add(body);
+    }
+    msg.textContent="";
+    const was=!!resEditing; closeRes(true);
+    toast((was?"예약을 고쳤어요: ":"예약을 넣었어요: ")+dayLabel(day)+" "+due+" 까지."+(day===today()?" 오늘 주문에 바로 떴어요.":" 그날 포스를 켜면 주문으로 들어가 있어요."));
+  }catch(err){msg.className="msg err";msg.textContent="저장하지 못했어요. 다시 눌러 주세요.";}
+  finally{btn.disabled=false;}
+}
+// 오늘 아직 안 나간 예약 + 내일부터의 예약, 날짜·시간 순
+function resAll(){return orders.filter(o=>o.reserved&&!o.out&&!o.example).concat(resOrders).sort((a,b)=>((a.day||"")+(a.due||"")).localeCompare((b.day||"")+(b.due||"")));}
+function renderResList(){
+  if(mode!=="counter")return;
+  const all=resAll(); $("resListBtn").textContent="예약 목록"+(all.length?" ("+all.length+")":"");
+  if($("resListOverlay").hidden)return;
+  const box=$("resListBody");
+  if(!all.length){box.replaceChildren(el("p","empty","받아 둔 예약이 없어요. '+ 새 예약'을 눌러 넣어 주세요."));return;}
+  const parts=[]; let last=null;
+  all.forEach(o=>{
+    if(o.day!==last){last=o.day; const n=all.filter(x=>x.day===o.day); parts.push(el("div","rday",dayLabel(o.day)+" · "+n.length+"건 "+won(n.reduce((s,x)=>s+(x.total||0),0))));}
+    const r=el("div","rcard"), h=el("div","h");
+    h.append(el("span","t",(o.due||"--:--")+" 까지"),el("span","d",o.dept||"예약 주문"),el("span","kindtag",o.kind||""),el("span","s",won(o.total)+" · "+qtySum(o)+"개"));
+    r.append(h, el("div","s",itemsText(o)));
+    const ri=resInfo(o); if(ri)r.append(el("div","s",ri));
+    if(o.memo)r.append(el("div","s","특이사항: "+o.memo));
+    r.append(el("div","s","접수 "+(o.resAt||o.createdAt?shortDay(o.resAt||o.createdAt)+" "+hm(o.resAt||o.createdAt):"")+(o.day===today()?" · 오늘 주문에 들어가 있어요":"")));
+    const act=el("div","act");
+    const ed=el("button","linkbtn","고치기"); ed.type="button"; ed.disabled=busy.has(o.id); ed.onclick=()=>openRes(o);
+    const del=el("button","linkbtn danger",resConfirm===o.id?"정말 취소할까요? 한 번 더":"예약 취소"); del.type="button"; del.disabled=busy.has(o.id);
+    del.onclick=()=>{ if(resConfirm!==o.id){resConfirm=o.id;renderResList();setTimeout(()=>{if(resConfirm===o.id){resConfirm=null;renderResList();}},4000);return;}
+      resConfirm=null; write(o.id,ref=>ref.delete()).then(()=>toast("예약을 취소했어요.")); };
+    act.append(ed,del); r.append(act); parts.push(r);
+  });
+  box.replaceChildren(...parts);
+}
+function openResList(){ $("resListOverlay").hidden=false; renderResList(); }
+$("resBtn").onclick=()=>openRes(null);
+$("resNew").onclick=()=>openRes(null);
+$("resListBtn").onclick=openResList;
+$("resListClose").onclick=()=>{$("resListOverlay").hidden=true;};
+$("resClose").onclick=()=>closeRes(false);
+
+/* ---------- 예약 알림: 예약 전날 오전 11시, 저녁 7시 반에 "내일 예약 주문을 확인하세요!" (화면마다 한 번씩) ---------- */
+const REMIND=[["a",11*60],["b",19*60+30]];
+function checkRemind(){
+  if(!dbReady||!$("remindOverlay").hidden)return;
+  const tm=daysAgo(-1), list=resOrders.filter(o=>o.day===tm); if(!list.length)return;
+  const d=new Date(), now=d.getHours()*60+d.getMinutes();
+  let seen=""; try{const v=(localStorage.getItem("bn_remind")||"").split(":"); if(v[0]===today())seen=v[1]||"";}catch(e){}
+  const due=REMIND.filter(([k,t])=>now>=t&&!seen.includes(k)); if(!due.length)return;
+  // 알림 시간이 지난 뒤에 막 받은 예약은 바로 띄우지 않아요 (방금 적었으니까)
+  const t=due[due.length-1][1], slotMs=new Date(d.getFullYear(),d.getMonth(),d.getDate(),Math.floor(t/60),t%60).getTime();
+  if(!list.some(o=>(o.resAt||o.createdAt||0)<slotMs))return;
+  try{localStorage.setItem("bn_remind",today()+":"+seen+due.map(x=>x[0]).join(""));}catch(e){}
+  const rows=list.slice().sort((a,b)=>(a.due||"").localeCompare(b.due||"")).map(o=>{
+    const r=el("div","rcard"), h=el("div","h");
+    h.append(el("span","t",(o.due||"--:--")+" 까지"),el("span","d",o.dept||"예약 주문"),el("span","kindtag",o.kind||""));
+    r.append(h, el("div","s",itemsText(o)+" (총 "+qtySum(o)+"개)"));
+    if(o.memo)r.append(el("div","s","특이사항: "+o.memo));
+    return r;});
+  $("remindBody").replaceChildren(el("div","reshint",dayLabel(tm)+" 예약 "+list.length+"건"),...rows);
+  $("remindList").hidden=mode!=="counter";
+  $("remindOverlay").hidden=false; playChime();
+}
+$("remindOk").onclick=()=>{$("remindOverlay").hidden=true;};
+$("remindList").onclick=()=>{$("remindOverlay").hidden=true; openResList();};
 
 /* ---------- 전표 사진으로 채우기: Claude reads a photo of the OKPOS slip and fills the form (never saves) ---------- */
 let sampleFn=null, scanLim=null, scanCtl=null;
@@ -1191,6 +1463,7 @@ const daysAgo=n=>{const d=new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate(
 let sumDay=null, sumOrders=[], sumUnsub=null, sumLoading=false;
 function setSumDay(day){
   if(!day)day=today();
+  sumView="day"; if(calUnsub){calUnsub();calUnsub=null;}
   sumDay=day; $("sumDate").value=day;
   if(sumUnsub){sumUnsub();sumUnsub=null;}
   sumOrders=[]; sumLoading=false;
@@ -1201,18 +1474,76 @@ function setSumDay(day){
   }
   renderSummary();
 }
-function closeSummary(){$("sumOverlay").hidden=true; if(sumUnsub){sumUnsub();sumUnsub=null;}}
+function closeSummary(){$("sumOverlay").hidden=true; if(sumUnsub){sumUnsub();sumUnsub=null;} if(calUnsub){calUnsub();calUnsub=null;}}
+
+/* ---------- 매출 달력 (2026-10-21 선정님 요청): 날짜별 판매 금액, 누르면 그날 마감 요약. 앞으로의 날짜엔 받아 둔 예약 ---------- */
+let sumView="day", calYM=null, calUnsub=null, calOrders=null;
+function openCal(ym){
+  sumView="cal"; calYM=ym||(sumDay||today()).slice(0,7);
+  if(sumUnsub){sumUnsub();sumUnsub=null;}
+  if(calUnsub){calUnsub();calUnsub=null;}
+  calOrders=null;
+  if(col)calUnsub=col.where("day",">=",calYM+"-01").where("day","<=",calYM+"-31").onSnapshot(
+    snap=>{calOrders=snap.docs.map(d=>d.data()); renderSummary();},()=>{calOrders=false; renderSummary();});
+  else calOrders=[];
+  renderSummary();
+}
+const manWon=n=>n>=10000?(Math.round(n/1000)/10).toLocaleString("ko-KR")+"만":n.toLocaleString("ko-KR"); // 좁은 화면용: 113.2만
+const calMoney=n=>{const s=el("span","m"); s.append(el("span","full",n.toLocaleString("ko-KR")),el("span","short",manWon(n))); return s;};
+const shiftYM=(ym,n)=>{const [y,m]=ym.split("-").map(Number); const d=new Date(y,m-1+n,1); return d.getFullYear()+"-"+pad(d.getMonth()+1);};
+function renderCal(){
+  const [y,m]=calYM.split("-").map(Number), t=today();
+  $("sumTitle").textContent=m+"월 매출 달력"; $("calMonth").textContent=y+"년 "+m+"월";
+  const grid=$("calGrid"), parts=[];
+  [..."일월화수목금토"].forEach((w,i)=>parts.push(el("div","wd"+(i===0?" sun":i===6?" sat":""),w)));
+  if(calOrders===null||calOrders===false){
+    $("calSum").textContent=calOrders===null?"불러오는 중이에요…":"이 달 주문을 불러오지 못했어요. 다시 눌러 주세요.";
+    grid.replaceChildren(...parts); return;
+  }
+  const by={}; calOrders.filter(o=>!o.example).forEach(o=>{const e=by[o.day]||(by[o.day]={n:0,sum:0,rn:0,rsum:0}); e.n++; e.sum+=o.total||0; if(o.reserved){e.rn++; e.rsum+=o.total||0;}});
+  const first=new Date(y,m-1,1).getDay(), last=new Date(y,m,0).getDate();
+  for(let i=0;i<first;i++)parts.push(el("div","pad"));
+  let mSum=0, mN=0, fN=0, fSum=0;
+  for(let d=1;d<=last;d++){
+    const key=calYM+"-"+pad(d), e=by[key], wd=(first+d-1)%7, fut=key>t;
+    const b=el("button","cd"+(wd===0?" sun":wd===6?" sat":"")+(key===t?" today":"")+(e&&e.rn?" hasres":"")+(!e?" empty":"")); b.type="button";
+    b.append(el("span","n",String(d)));
+    if(e&&!fut){mSum+=e.sum; mN+=e.n; b.append(calMoney(e.sum), el("span","c",e.n+"건")); if(e.rn)b.append(el("span","r","📅 예약 "+e.rn));}
+    if(e&&fut){fN+=e.rn; fSum+=e.rsum; b.append(el("span","r","📅 예약 "+e.rn+"건"), calMoney(e.rsum));}
+    b.setAttribute("aria-label",m+"월 "+d+"일"+(e?(fut?" 예약 "+e.rn+"건 ":" 주문 "+e.n+"건 ")+won(fut?e.rsum:e.sum):" 주문 없음"));
+    b.onclick=()=>setSumDay(key);
+    parts.push(b);
+  }
+  grid.replaceChildren(...parts);
+  const past=calYM<t.slice(0,7), fut=calYM>t.slice(0,7);
+  $("calSum").textContent=(fut?"":m+"월 매출 "+won(mSum)+" · 주문 "+mN+"건"+(past?"":" (오늘까지)"))+(fN?(fut?"":" · ")+"앞으로 예약 "+fN+"건 "+won(fSum):fut?"이 달에 받아 둔 예약이 아직 없어요.":"");
+}
+$("calOpen").onclick=()=>openCal();
+$("calPrev").onclick=()=>openCal(shiftYM(calYM,-1));
+$("calNext").onclick=()=>openCal(shiftYM(calYM,1));
+$("calToday").onclick=()=>openCal(today().slice(0,7));
 function renderSummary(){
   if($("sumOverlay").hidden)return;
-  const isToday=!sumDay||sumDay===today(), day=isToday?today():sumDay;
+  const cal=sumView==="cal";
+  $("calBox").hidden=!cal; $("sumTop").hidden=cal; $("sumRows").hidden=cal; $("calOpen").setAttribute("aria-pressed",String(cal));
+  if(cal){$("deptWrap").hidden=true; document.querySelectorAll("[data-sday]").forEach(b=>b.setAttribute("aria-pressed","false")); renderCal(); return;}
+  const isToday=!sumDay||sumDay===today(), day=isToday?today():sumDay, isFuture=day>today();
   document.querySelectorAll("[data-sday]").forEach(b=>b.setAttribute("aria-pressed",String(daysAgo(Number(b.dataset.sday))===day)));
-  const [yy,mm,dd]=day.split("-").map(Number); $("sumTitle").textContent=mm+"월 "+dd+"일 마감 요약"+(isToday?" (오늘)":"");
+  const [yy,mm,dd]=day.split("-").map(Number); $("sumTitle").textContent=mm+"월 "+dd+"일 "+(isFuture?"예약 주문":"마감 요약")+(isToday?" (오늘)":"");
   const top=$("sumTop"), rows=$("sumRows");
   if(!isToday&&(sumLoading||sumOrders===null)){top.replaceChildren(el("div","s",sumOrders===null?"이 날 주문을 불러오지 못했어요. 다시 눌러 주세요.":"불러오는 중이에요…")); rows.replaceChildren(); $("deptWrap").hidden=true; return;}
   const src=isToday?orders:sumOrders;
   const real=src.filter(o=>!o.example), gone=real.filter(o=>o.out).sort((a,b)=>(a.outAt||0)-(b.outAt||0)), left=real.filter(o=>!o.out).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   const sum=l=>l.reduce((s,o)=>s+(o.total||0),0), all=gone.concat(left), pk=all.filter(o=>o.kind!=="배달"), dl=all.filter(o=>o.kind==="배달");
   const fees=dl.reduce((s,o)=>s+(o.fee||0),0), books=all.filter(o=>!isGuest(o)), logged=books.filter(o=>o.logged).length, gs=all.filter(isGuest);
+  if(isFuture){
+    top.replaceChildren(el("div","big","예약 "+all.length+"건 · "+won(sum(all))),el("div","s",dayLabel(day)+" · 그날 포스를 켜면 주문으로 들어가 있어요. 고치기·취소는 카운터의 '예약 목록'에서 해요."));
+    rows.replaceChildren(...(all.length?all.slice().sort((a,b)=>(a.due||"").localeCompare(b.due||"")).map(o=>{
+      const r=el("div","rcard"), h=el("div","h"); h.append(el("span","t",(o.due||"--:--")+" 까지"),el("span","d",o.dept||"예약 주문"),el("span","kindtag",o.kind||""),el("span","s",won(o.total)+" · "+qtySum(o)+"개"));
+      r.append(h,el("div","s",itemsText(o))); const ri=resInfo(o); if(ri)r.append(el("div","s",ri)); if(o.memo)r.append(el("div","s","특이사항: "+o.memo)); return r;})
+      :[el("p","empty","이 날 받아 둔 예약이 없어요.")]));
+    $("deptWrap").hidden=true; return;
+  }
   top.replaceChildren(
     el("div","big","주문 "+all.length+"건 · "+won(sum(all))),
     el("div","s","포장 "+pk.length+"건 "+won(sum(pk))+" · 배달 "+dl.length+"건 "+won(sum(dl))+(fees?" (배달비 "+won(fees)+" 포함)":"")),
@@ -1226,7 +1557,7 @@ function renderSummary(){
     else{lg=el("button","lgbtn lg",o.logged?"✓":""); lg.type="button"; lg.setAttribute("aria-pressed",String(!!o.logged)); lg.setAttribute("aria-label","장부에 옮겨 적음"); lg.disabled=busy.has(o.id);
     lg.onclick=()=>write(o.id,ref=>ref.update({logged:!o.logged}));}
     const sg=el("div","sg"); sg.append(el("b",null,signText(o))); if(o.memo)sg.append(" · 메모: "+o.memo);
-    const tm="받음 "+(o.createdAt?hm(o.createdAt):"--:--")+(o.out?" · 완료 "+(o.outAt?hm(o.outAt):"--:--"):"");
+    const tm=(o.reserved?"📅 예약 ("+shortDay(o.resAt||o.createdAt)+" 접수) "+(o.due||"")+" 까지":"받음 "+(o.createdAt?hm(o.createdAt):"--:--"))+(o.out?" · 완료 "+(o.outAt?hm(o.outAt):"--:--"):"");
     r.append(lg, el("span","dp",deptLabel(o)), el("span","amt",won(o.total)+(o.fee?" (배달비 포함)":"")), el("div","sg",tm), sg, el("div","it",itemsText(o)));
     return r;};
   const parts=gone.map(row);
@@ -1248,6 +1579,10 @@ function closeFormOverlay(){ if($("formPanel").parentElement!==$("counterView"))
 $("openForm").onclick=openFormOverlay;
 $("closeForm").onclick=closeFormOverlay;
 document.addEventListener("keydown",e=>{ if(e.key!=="Escape")return;
+  if(!$("remindOverlay").hidden){$("remindOverlay").hidden=true;return;}
+  if(!$("optOverlay").hidden){$("optOverlay").hidden=true;sheet=null;return;}
+  if(!$("resOverlay").hidden){closeRes(false);return;}
+  if(!$("resListOverlay").hidden){$("resListOverlay").hidden=true;return;}
   if(!$("fullOverlay").hidden)closeFull(); else if(!$("sumOverlay").hidden)closeSummary(); else if(!$("batchOverlay").hidden)$("batchOverlay").hidden=true; else if(!$("optOverlay").hidden){$("optOverlay").hidden=true;sheet=null;} else if(!$("formOverlay").hidden)closeFormOverlay(); });
 
 /* ---------- 모아보기: everything this bar must make by a given time, any department ---------- */
@@ -1274,6 +1609,7 @@ function renderFull(){
   if(!o){box.replaceChildren(el("p","empty","이 주문은 취소됐어요."));return;}
   const head=el("div","fullhead"); const fn=noTag(o); if(fn)head.append(fn); head.append(el("b",null,o.due||"--:--"),el("span","fd",deptLabel(o)),el("span","kindtag",o.kind||""));
   if(o.editedAt)head.append(el("span","ex","수정됨 "+hm(o.editedAt)));
+  if(o.reserved)head.append(resTag());
   const parts=[head];
   const groups=FULL_GROUPS.map(()=>[]); inOrder(o.items).forEach(i=>groups[grpOf(i)].push(i));
   groups.forEach((list,gi)=>{ if(!list.length)return;
@@ -1391,11 +1727,12 @@ function slipNode(o){
   const dash=()=>el("div","dash","-".repeat(80));
   const c4=(a,b,c,d,cls)=>{const r=el("div","c4"+(cls?" "+cls:""));r.append(el("span",null,a),el("span",null,b),el("span",null,c),el("span",null,d));return r;};
   const rw=(k,v)=>{const r=el("div","rw");r.append(el("span",null,k),el("span",null,v));return r;};
-  const at=o.createdAt||Date.now();
+  const at=o.reserved?Date.now():o.createdAt||Date.now(); // 예약은 미리 받은 날이 아니라 판 날짜로
   // ---- 배달 정보: 영수증 맨 위 (사용자 요청 2026-10-19: 주문번호·건물/층 빼고, 연락처는 적었을 때만) ----
   if(!g)w.append(el("div","x2 dp",o.dept||"")); // 일반 손님은 영수증에 안 찍음 (화면에만)
+  if(o.addr)w.append(el("div",null,"주소: "+o.addr));
   w.append(rw(dl?"배달시간":"픽업시간",o.due?o.due+" 까지":"미정"));
-  if(o.phone4)w.append(rw("연락처","뒷자리 "+o.phone4));
+  if(o.phone)w.append(rw("연락처",o.phone)); else if(o.phone4)w.append(rw("연락처","뒷자리 "+o.phone4));
   if(o.memo)w.append(el("div",null,"요청사항: "+o.memo));
   if(!g)w.append(rw("결제","장부"));
   w.append(dash());
@@ -1472,12 +1809,13 @@ function slipBytes(o){
   const ln=(s="")=>{txt(s);raw(0x0a);};
   const dash=()=>ln("-".repeat(W));
   const wrapLn=(s,ind="")=>wrapW(s,W-cw(ind)).forEach((t,i)=>ln((i?ind:"")+t));
-  const at=o.createdAt||Date.now();
+  const at=o.reserved?Date.now():o.createdAt||Date.now();
   raw(0x1b,0x40, 0x1c,0x26); // 초기화, 한글 모드
   // ---- 배달 정보 (맨 위) ----
   if(!g){raw(0x1d,0x21,0x11, 0x1b,0x45,1); wrapW(o.dept||"",Math.floor(W/2)).forEach(t=>ln(t)); raw(0x1d,0x21,0x00, 0x1b,0x45,0);}
+  if(o.addr)wrapLn("주소: "+o.addr,"  ");
   raw(0x1b,0x45,1); ln(lr(dl?"배달시간":"픽업시간",o.due?o.due+" 까지":"미정",W)); raw(0x1b,0x45,0);
-  if(o.phone4)ln(lr("연락처","뒷자리 "+o.phone4,W));
+  if(o.phone)ln(lr("연락처",o.phone,W)); else if(o.phone4)ln(lr("연락처","뒷자리 "+o.phone4,W));
   if(o.memo)wrapLn("요청사항: "+o.memo,"  ");
   if(!g)ln(lr("결제","장부",W));
   dash();
@@ -1554,12 +1892,12 @@ serKnown();
 window.addEventListener("afterprint",()=>setTimeout(()=>document.body.classList.remove("printing"),100));
 
 /* ---------- render ---------- */
-function render(){ if(mode==="counter"){renderCounter(); renderSummary();} else {renderStation(mode); renderBatch();} renderFull(); }
+function render(){ if(mode==="counter"){renderCounter(); renderSummary(); renderResList();} else {renderStation(mode); renderBatch();} renderFull(); }
 let confirmId=null;
 const hm=ms=>{const d=new Date(ms);return pad(d.getHours())+":"+pad(d.getMinutes());};
 const deptLabel=o=>isGuest(o)?"일반 손님"+(o.phone4?" "+o.phone4:""):[o.org&&o.org!=="기타"?o.org:"",o.dept,o.floor?"("+o.floor+")":""].filter(Boolean).join(" ");
 const itemsText=o=>inOrder(o.items).map(i=>i.name+" "+i.qty+(shownOpts(i).length?" ("+shownOpts(i).map(optText).join(", ")+")":"")+(i.note?" [요청: "+i.note+"]":"")).join(" / ");
-function editBtn(o){const b=el("button","linkbtn","고치기");b.type="button";b.disabled=busy.has(o.id);b.onclick=()=>startEdit(o);return b;}
+function editBtn(o){const b=el("button","linkbtn","고치기");b.type="button";b.disabled=busy.has(o.id);b.onclick=()=>o.reserved?openRes(o):startEdit(o);return b;}
 function cancelBtn(o){
   const del=el("button","linkbtn danger",confirmId===o.id?"정말 지울까요? 한 번 더":"주문 취소");
   del.type="button"; del.disabled=busy.has(o.id);
@@ -1570,7 +1908,9 @@ function readyCard(o){
   const r=el("div","ready"), nt=readyNew.get(o.id); if(nt&&Date.now()-nt<60000)r.classList.add("flash"); if(editing===o.id)r.classList.add("isedit");
   const h=el("div","h"); h.append(...[noTag(o),el("span","t",o.due||"시간 미정"),el("span","d",deptLabel(o)),el("span","kindtag",o.kind||"")].filter(Boolean));
   if(o.example)h.append(el("span","ex","예시"));
+  if(o.reserved){h.append(resTag()); r.classList.add("isres");}
   r.append(h, el("div","s",itemsText(o)));
+  if(o.reserved&&resInfo(o))r.append(el("div","s",resInfo(o)));
   if(o.memo)r.append(el("div","s","메모: "+o.memo));
   if(o.total)r.append(el("div","s","금액 "+moneyText(o)));
   if(isGuest(o))r.append(el("div","sign","일반 손님 · 장부 없음"));
@@ -1589,9 +1929,11 @@ function makingRow(o){
   if(o.example)h.append(el("span","ex","예시"));
   if(o.editedAt)h.append(el("span","ex","수정됨 "+hm(o.editedAt)));
   if(o.pin)h.append(el("span","ptag pin","📌 먼저"));
+  if(o.reserved){h.append(resTag()); r.classList.add("isres");}
   if(o.total)h.append(el("span","s",moneyText(o)));
   r.append(h, el("div","s",itemsText(o)));
-  if(o.kind==="배달"&&o.phone4&&!isGuest(o))r.append(el("div","s","전화 뒷자리: "+o.phone4));
+  if(o.reserved&&resInfo(o))r.append(el("div","s",resInfo(o)));
+  if(o.kind==="배달"&&o.phone4&&!o.phone&&!isGuest(o))r.append(el("div","s","전화 뒷자리: "+o.phone4));
   if(o.memo)r.append(el("div","s","메모: "+o.memo));
   const act=el("div","act"), n=needs(o), d=o.done||{};
   ["salad","sandwich"].forEach(st=>{ if(n[st])act.append(el("span","tag "+st,ST_NAME[st]+(d[st]?" 완료":" 만드는 중"))); });
@@ -1604,9 +1946,10 @@ function makingRow(o){
 function outRow(o){
   const r=el("div","orow out"), h=el("div","h");
   h.append(...[noTag(o),el("span","d",deptLabel(o)),el("span","tag both",o.kind||"")].filter(Boolean));
+  if(o.reserved)h.append(resTag());
   if(o.total)h.append(el("span","s",moneyText(o)));
   const pt=slipTag(o); if(pt)h.append(pt);
-  r.append(h, el("div","tm","받음 "+(o.createdAt?hm(o.createdAt):"--:--")+" · 완료 "+(o.outAt?hm(o.outAt):"--:--")+(o.due?" · 예상 "+o.due:"")), el("div","s",itemsText(o)));
+  r.append(h, el("div","tm",(o.reserved?"예약 ("+shortDay(o.resAt||o.createdAt)+" 접수)":"받음 "+(o.createdAt?hm(o.createdAt):"--:--"))+" · 완료 "+(o.outAt?hm(o.outAt):"--:--")+(o.due?" · 예상 "+o.due:"")), el("div","s",itemsText(o)));
   if(o.memo)r.append(el("div","s","메모: "+o.memo));
   if(o.kind==="배달"&&o.phone4&&!isGuest(o))r.append(el("div","s","장부 싸인: 전화 뒷자리 "+o.phone4));
   const act=el("div","act"), back=el("button","linkbtn","되돌리기"); back.type="button"; back.disabled=busy.has(o.id);
@@ -1641,7 +1984,9 @@ function ticket(o,st){
   if(o.pin&&!isDone){t.classList.add("pinned"); t.append(el("div","pinbar","📌 먼저 할 주문"));}
   const due=el("div","due"); due.append(el("b",null,o.due||"--:--"),el("span",null,dueText(o,isDone))); t.append(due);
   if((o.org&&o.org!=="기타")||o.floor)t.append(el("div","org",[o.org!=="기타"?o.org:"",o.floor].filter(Boolean).join(" · ")));
+  if(o.reserved)t.classList.add("isres");
   const dept=el("div","dept",isGuest(o)?deptLabel(o):o.dept||""); if(o.example)dept.append(" ",el("span","ex","예시")); if(o.editedAt)dept.append(" ",el("span","ex","수정됨 "+hm(o.editedAt))); t.append(dept);
+  if(o.reserved)t.append(el("div","resline","📅 예약 주문 · 총 "+qtySum(o)+"개"));
   const ul=el("ul");
   inOrder(itemsFor(o,st)).forEach(i=>{
     const li=el("li"), ln=el("div","ln");
