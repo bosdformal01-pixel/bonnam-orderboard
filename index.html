@@ -361,6 +361,7 @@ details.done summary{cursor:pointer;font-weight:600;color:var(--muted);margin-bo
         <div class="menu-grid" id="menuGrid"></div>
         <div class="row" style="margin-top:8px">
           <input type="text" id="freeName" placeholder="목록에 없는 메뉴 직접 쓰기" style="flex:1;min-width:160px" maxlength="40">
+          <input type="text" id="freePrice" inputmode="numeric" placeholder="1개 가격" maxlength="7" style="width:7em;font-variant-numeric:tabular-nums" aria-label="1개 가격 (원)">
           <button type="button" class="chip" data-free="salad">샐러드바로</button>
           <button type="button" class="chip" data-free="sandwich">샌드위치바로</button>
         </div>
@@ -901,7 +902,7 @@ function isDefOpt(o){
 }
 const shownOpts=i=>(i.opts||[]).filter(o=>!isDefOpt(o));
 // same menu + same options + same request → one line with a bigger count (사장님 요청: 같은 메뉴 한 줄로)
-const itemKey=i=>JSON.stringify([i.name,i.st,(i.opts||[]).map(o=>(o.gid||o.g)+"="+o.v+(o.gid==="_free"?"@"+(o.p||0):"")).sort(),i.note||""]);
+const itemKey=i=>JSON.stringify([i.name,i.st,MENU_IDX[i.name]?0:(i.unit||0),(i.opts||[]).map(o=>(o.gid||o.g)+"="+o.v+(o.gid==="_free"?"@"+(o.p||0):"")).sort(),i.note||""]);
 let bumpIdx=-1;
 function addDraftItem(item,skip){
   const k=itemKey(item), j=draft.items.findIndex((x,ix)=>ix!==skip&&itemKey(x)===k);
@@ -918,6 +919,10 @@ function renderPicked(){
     const ot=(it.opts||[]).map(optText).concat(it.note?["요청: "+it.note]:[]).join(" · ");
     if(ot)nm.append(el("span","ops",ot));
     if(it.groups&&(it.groups.length||MENU_IDX[it.name])){nm.title="눌러서 옵션 바꾸기";nm.onclick=()=>openOpt({name:it.name,base:it.base,st:it.st,groups:it.groups},idx);}
+    else if(!MENU_IDX[it.name]){ // 직접 쓴 메뉴: 눌러서 1개 가격 넣기·바꾸기
+      nm.append(el("span","ops",it.unit?"1개 "+won(it.unit)+" · 눌러서 가격 바꾸기":"가격 없음 · 눌러서 가격 넣기"));
+      nm.title="눌러서 가격 넣기"; nm.onclick=()=>{const v=prompt(it.name+" 1개 가격 (원)",it.unit?String(it.unit):""); if(v==null)return; it.unit=parseInt(v.replace(/\D/g,""),10)||0; renderPicked();};
+    }
     const minus=el("button","qbtn","−");minus.type="button";minus.setAttribute("aria-label",it.name+" 하나 빼기");
     minus.onclick=()=>{it.qty--; if(it.qty<=0)draft.items.splice(idx,1); renderPicked();};
     const plus=el("button","qbtn","+");plus.type="button";plus.setAttribute("aria-label",it.name+" 하나 더");
@@ -962,7 +967,8 @@ function updatePhoneBox(){
 document.querySelectorAll("[data-kind]").forEach(b=>b.onclick=()=>setKind(b.dataset.kind));
 document.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{
   const n=$("freeName").value.trim(); if(!n){$("freeName").focus();return;}
-  addDraftItem({name:n,qty:1,st:b.dataset.free,unit:0,opts:[],note:""}); $("freeName").value=""; renderPicked();
+  const pr=parseInt(($("freePrice").value||"").replace(/\D/g,""),10)||0;
+  addDraftItem({name:n,qty:1,st:b.dataset.free,unit:pr,opts:[],note:""}); $("freeName").value=""; $("freePrice").value=""; renderPicked();
 });
 const finePointer=()=>window.matchMedia&&matchMedia("(pointer:fine)").matches;
 function resetForm(){
