@@ -296,6 +296,7 @@ details.done summary{cursor:pointer;font-weight:600;color:var(--muted);margin-bo
 .fhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .fhead h2{margin:0!important}
 .fhead .resbtn{background:var(--res);border-color:var(--res);color:#fff;font-size:1rem;padding:7px 14px}
+.resbox select{padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);font-size:1.2rem;font-variant-numeric:tabular-nums}
 input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);font-size:1.2rem;font-variant-numeric:tabular-nums}
 .resbox{border:2px solid var(--res);background:var(--res-soft);border-radius:10px;padding:12px 12px 0;margin-bottom:14px}
 .resbox .chips{margin-top:2px}
@@ -370,8 +371,8 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
     <form id="orderForm" autocomplete="off">
       <div class="resbox" id="resBox" hidden>
         <div class="field">
-          <span class="lbl">언제까지 (날짜·시간 꼭 쓰기)</span>
-          <div class="row"><input type="date" id="resDate" aria-label="예약 날짜"><input type="time" id="resTime" aria-label="예약 시간"></div>
+          <span class="lbl">언제까지 (월·일·시간 꼭 쓰기)</span>
+          <div class="row"><input type="hidden" id="resDate"><select id="resMon" aria-label="예약 월"><option value="">월</option></select><select id="resDay" aria-label="예약 일"><option value="">일</option></select><input type="time" id="resTime" aria-label="예약 시간"></div>
           <div class="chips" id="resDayChips"></div>
           <div class="chips" id="resTimeChips"></div>
           <div class="reshint" id="resHint"></div>
@@ -1087,7 +1088,7 @@ document.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{
 const finePointer=()=>window.matchMedia&&matchMedia("(pointer:fine)").matches;
 function resetForm(){
   draft.dept=null;draft.items=[];$("deptPicked").hidden=true;$("deptSearch").hidden=false;
-  ["memo","deptSearch","phone4","resDate","resTime","resWho","resAddr","resPhone"].forEach(id=>$(id).value="");
+  ["memo","deptSearch","phone4","resDate","resMon","resDay","resTime","resWho","resAddr","resPhone"].forEach(id=>$(id).value="");
   setKind("포장"); renderPicked(); setDueNow();
   $("scanMsg").className="scanmsg"; $("scanMsg").textContent="전표 사진을 고르거나, 포스 화면을 캡처(Win+Shift+S)한 뒤 여기서 Ctrl+V 하면 메뉴·옵션을 아래 칸에 채워요. 저장은 확인하고 직접 눌러 주세요.";
 }
@@ -1202,7 +1203,20 @@ const shortDay=ms=>{const d=new Date(ms);return (d.getMonth()+1)+"/"+d.getDate()
 const qtySum=o=>(o.items||[]).reduce((s,i)=>s+(i.qty||0),0);
 function resInfo(o){return [o.addr?"주소: "+o.addr:"",o.phone?"전화: "+o.phone:""].filter(Boolean).join(" · ");}
 const resTag=()=>el("span","restag","📅 예약");
+// 예약 날짜는 월·일만 골라요 (선정님 요청: 연도는 필요 없음). 연도는 오늘 기준으로: 이미 지난 월·일이면 내년
+for(let m=1;m<=12;m++){const o=el("option",null,m+"월");o.value=String(m);$("resMon").append(o);}
+for(let d=1;d<=31;d++){const o=el("option",null,d+"일");o.value=String(d);$("resDay").append(o);}
+function pickResMD(){
+  const m=Number($("resMon").value), d=Number($("resDay").value);
+  if(!m||!d){$("resDate").value=""; renderResChips(); return;}
+  const now=new Date(); let y=now.getFullYear();
+  const last=new Date(y,m,0).getDate(); const dd=Math.min(d,last); if(dd!==d)$("resDay").value=String(dd);
+  if(y+"-"+pad(m)+"-"+pad(dd)<today())y++;
+  $("resDate").value=y+"-"+pad(m)+"-"+pad(dd); renderResChips();
+}
+["resMon","resDay"].forEach(id=>$(id).addEventListener("change",pickResMD));
 function renderResChips(){
+  const rv=$("resDate").value; if(rv){const [,m,d]=rv.split("-").map(Number); $("resMon").value=String(m); $("resDay").value=String(d);}
   const dbox=$("resDayChips"), tbox=$("resTimeChips"); dbox.replaceChildren(); tbox.replaceChildren();
   [["내일",1],["모레",2],["3일 뒤",3],["일주일 뒤",7]].forEach(([l,n])=>{const v=daysAgo(-n), b=el("button","chip",l); b.type="button";
     b.setAttribute("aria-pressed",String($("resDate").value===v)); b.onclick=()=>{$("resDate").value=v; renderResChips();}; dbox.append(b);});
@@ -1211,7 +1225,7 @@ function renderResChips(){
   const d=$("resDate").value, t=$("resTime").value;
   $("resHint").textContent=d||t?(d?dayLabel(d):"날짜를 골라 주세요")+" · "+(t?t+" 까지":"시간을 골라 주세요"):"";
 }
-["resDate","resTime"].forEach(id=>$(id).addEventListener("input",renderResChips));
+$("resTime").addEventListener("input",renderResChips);
 $("resPhone").addEventListener("input",e=>{const v=e.target.value.replace(/[^\d\- ]/g,""); if(v!==e.target.value)e.target.value=v;});
 function openRes(o){
   if(mode!=="counter"){location.hash="#counter"; setTimeout(()=>openRes(o),80); return;}
@@ -1230,7 +1244,7 @@ function openRes(o){
   updatePhoneBox(); renderResChips();
   $("resListOverlay").hidden=true;
   $("resSlot").append($("formPanel")); $("resOverlay").hidden=false;
-  if(finePointer()&&!o)$("resDate").focus();
+  if(finePointer()&&!o)$("resMon").focus();
 }
 // quiet=true: closing because the screen changed (no question)
 function closeRes(quiet){
@@ -1246,9 +1260,9 @@ function closeRes(quiet){
 async function saveRes(){
   const msg=$("formMsg"); msg.className="msg err";
   const day=$("resDate").value, due=$("resTime").value;
-  if(!day){msg.textContent="예약 날짜를 골라 주세요.";$("resDate").focus();return;}
+  if(!day){msg.textContent="예약 날짜(월·일)를 골라 주세요.";$(!$("resMon").value?"resMon":"resDay").focus();return;}
   if(!due){msg.textContent="몇 시까지인지 넣어 주세요.";$("resTime").focus();return;}
-  if(day<today()){msg.textContent="지난 날짜예요. 날짜를 다시 골라 주세요.";$("resDate").focus();return;}
+  if(day<today()){msg.textContent="지난 날짜예요. 날짜를 다시 골라 주세요.";$("resMon").focus();return;}
   if(!draft.items.length){msg.textContent="메뉴를 하나 이상 골라 주세요.";return;}
   if(!col){msg.textContent="지금은 저장이 안 돼요. 가게 구글 계정으로 로그인해 주세요.";return;}
   msg.className="msg";
