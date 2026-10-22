@@ -683,7 +683,8 @@ const G={
  dalkomOff:{l:"빼기",m:1,o:[["딸기쨈 빼기"]]},
  /* 오케이포스 사이드메뉴 그대로 (2026-10-21 선정님이 Claude in Chrome으로 뽑은 표). 에그마요 추가는 오케이포스 샌드위치 그룹엔 없지만 선정님이 1,000원이라고 알려줌 */
  okSand:{l:"샌드위치 옵션",m:1,o:[["양상추 적게"],["양상추 많이",500],["양상추 제거"],["우유 식빵"],["소스 많이"],["소스 적게"],["토마토 제거"],["치즈 1장",500],["햄 1장",500],["계란 후라이 추가",500],["햄 2장",1000],["치즈 2장",1000],["에그마요 추가",1000]]},
- okCro:{l:"크로와상",req:1,key:1,m:1,max:3,o:[["(크) 햄치즈"],["(크) 크래미"],["(크) 감자"],["(크) 단호박"],["(크) 에그"]]},
+ // 기본 3개(에그·크래미·햄치즈)가 눌려 있고, 다시 누르면 빠져요. 기본 그대로면 전표에 안 찍어요 (사장님 요청 2026-10-22)
+ okCro:{l:"크로와상 속",req:1,key:1,m:1,max:3,ds:[0,1,2],hint:"기본 에그·크래미·햄치즈 · 다시 누르면 빠져요 · 3개까지",o:[["(크) 에그"],["(크) 크래미"],["(크) 햄치즈"],["(크) 감자"],["(크) 단호박"]]},
  okSalad:{l:"샐러드 추가",m:1,o:[["(샐) 에그마요",1000],["(세트) 감자샐러드",1000],["(세트) 단호박 샐러드",1000],["(세트) 닭가슴살",1500],["(세트) 불고기",1500],["(세트) 오리 훈제",1500],["(세트) 수제 리코타",1500],["(세트) 새우",1500],["(세트) 치킨텐더 1조각",1500],["(세트) 과일 추가",1500],["(세트) 아보카도 반개",2500],["견과류"],["스위트콘"]]},
  croFill:{l:"크로와상 속",req:1,key:1,m:1,max:3,o:[["에그"],["크래미"],["햄치즈"],["감자샐러드"],["단호박샐러드"]]},
  chestAdd:{l:"추가",m:1,o:[["계란후라이 추가",500],["햄 1장 추가",500],["햄 2장 추가",1000],["치즈 1장 추가",500],["치즈 2장 추가",1000],["아보카도 추가",2500]]},
@@ -750,7 +751,7 @@ const MENU=[
   ["오리훈제 단호박 샐러드",9000,SLB],["아보카도 샐러드",9000,SLA],["소불고기 샐러드",9000,SLA],
   ["미니 샐러드",4500,["bmDress","bmMini"]],
   ["컵과일",4500,["cupfruit"]],
-  ["연어 샐러드",9000,SLA],["닭다리살 샐러드",9000,SLA],["버터갈릭 새우 샐러드",9000,SLA]]},
+  ["연어 샐러드",9000,SLA],["닭다리살 샐러드",9000,SLA],["버터갈릭 새우 샐러드",9000,SLA],["아보새우 샐러드",9000,SLA]]},
  {cat:"현미밥 샐러드",st:"salad",items:[
   ["현미밥 연어 샐러드",9000,SLR],["현미밥 오리훈제 샐러드",9000,SLR],["현미밥 소불고기 샐러드",9000,SLR],
   ["현미밥 우삼겹 샐러드",9000,SLR],["현미밥 닭다리살 샐러드",9000,SLR],
@@ -1031,12 +1032,15 @@ $("menuSearch").addEventListener("keydown",e=>{
 let sheet=null; // {name,base,st,groups,sel:{gid:Set(idx)},qty,editIdx}
 // Required single-choice groups start on their first option (사장님 요청: 필수 옵션은 맨 앞이 기본).
 const defIdx=gid=>{const g=G[gid]; return g.d!=null?g.d:(g.req&&!g.m?0:null);};
+// 처음에 눌려 있는 칸들 (여러 개 기본이 있는 그룹은 ds)
+const defSet=gid=>G[gid].ds?G[gid].ds:(defIdx(gid)!=null?[defIdx(gid)]:[]);
 function openOpt(m,editIdx){
   const sel={};
-  m.groups.forEach(g=>{sel[g]=new Set(); if(defIdx(g)!=null)sel[g].add(defIdx(g));});
+  m.groups.forEach(g=>{sel[g]=new Set(defSet(g));});
   let qty=1, note="";
   if(editIdx!=null){
     const it=draft.items[editIdx]; qty=it.qty; note=it.note||"";
+    m.groups.forEach(g=>{ if(G[g].ds&&(it.opts||[]).some(o=>o.gid===g))sel[g].clear(); });
     (it.opts||[]).forEach(o=>{const gi=o.gid; if(sel[gi]){ if(G[gi].emptyAs&&o.v===G[gi].emptyAs){sel[gi].clear();return;} const k=G[gi].o.findIndex(x=>x[0]===o.v); if(k>=0)sel[gi].add(k);}});
     m.groups.forEach(g=>{ if(defIdx(g)!=null&&!G[g].m&&sel[g].size>1)sel[g].delete(defIdx(g)); });
   }
@@ -1054,7 +1058,7 @@ function renderOptGroups(){
   const box=$("optGroups"); box.replaceChildren();
   sheet.groups.forEach(gid=>{
     const g=G[gid], wrap=el("div","og"); wrap.dataset.g=gid;
-    const lb=el("div","lbl",g.l); if(g.req)lb.append(el("span","req",g.max?"꼭 고르기 · "+g.max+"개까지":"꼭 고르기")); else lb.append(el("span","hint",g.hint?g.hint:g.emptyAs?"한 번 더 누르면 "+g.emptyAs:g.m?(g.max?g.max+"개까지":"여러 개 가능"):"안 고르면 기본"));
+    const lb=el("div","lbl",g.l); if(g.req)lb.append(el("span","req",g.hint?g.hint:g.max?"꼭 고르기 · "+g.max+"개까지":"꼭 고르기")); else lb.append(el("span","hint",g.hint?g.hint:g.emptyAs?"한 번 더 누르면 "+g.emptyAs:g.m?(g.max?g.max+"개까지":"여러 개 가능"):"안 고르면 기본"));
     const chips=el("div","chips");
     g.o.forEach(([v,p],i)=>{
       const b=el("button","chip",v); if(p)b.append(el("small",null,"+"+p.toLocaleString("ko-KR")));
@@ -1108,7 +1112,14 @@ function isDefOpt(o){
   const g=gid&&G[gid]; if(!g||!g.hideDef)return false;
   const di=defIdx(gid); return di!=null&&g.o[di]&&g.o[di][0]===o.v;
 }
-const shownOpts=i=>(i.opts||[]).filter(o=>!isDefOpt(o));
+// 여러 개 기본(크로와상 속)은 기본 그대로 골랐을 때만 숨기고, 하나라도 바꾸면 고른 것 전부 찍어요
+function isDefSet(i,gid){
+  const g=G[gid]; if(!g||!g.ds)return false;
+  const vs=(i.opts||[]).filter(o=>o.gid===gid).map(o=>o.v).sort();
+  const dv=g.ds.map(k=>g.o[k][0]).sort();
+  return vs.length===dv.length&&vs.every((v,k)=>v===dv[k]);
+}
+const shownOpts=i=>(i.opts||[]).filter(o=>!isDefOpt(o)&&!isDefSet(i,o.gid));
 // same menu + same options + same request → one line with a bigger count (사장님 요청: 같은 메뉴 한 줄로)
 const itemKey=i=>JSON.stringify([i.name,i.st,MENU_IDX[i.name]?0:(i.unit||0),(i.opts||[]).map(o=>(o.gid||o.g)+"="+o.v+(o.gid==="_free"?"@"+(o.p||0):"")).sort(),i.note||""]);
 let bumpIdx=-1;
@@ -1506,7 +1517,7 @@ function scanItem(r){
     if(i<0){if(v)extra.push(String(v));return;}
     if(!G[gid].m)sel[gid].clear(); sel[gid].add(i);
   });
-  m.groups.forEach(g=>{if(!sel[g].size&&defIdx(g)!=null)sel[g].add(defIdx(g));});
+  m.groups.forEach(g=>{if(!sel[g].size)defSet(g).forEach(k=>sel[g].add(k));});
   const opts=[]; let unit=m.base;
   m.groups.forEach(gid=>{const g=G[gid]; [...sel[gid]].sort((a,b)=>a-b).forEach(i=>{
     const o={gid,g:g.l,v:g.o[i][0]}; if(g.o[i][1]){o.p=g.o[i][1];unit+=o.p;} if(g.st)o.st=g.st; if(g.key)o.k=1; if(g.p)o.pl=1; opts.push(o);});});
