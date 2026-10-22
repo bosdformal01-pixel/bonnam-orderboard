@@ -706,6 +706,7 @@ const G={
     A 깻잎불고기·바질아보카도·치킨텐더·베이컨아보카도·리코타 / B 통새우 / C 달콤·파인크랩·닭가슴살 / D 게살·베이컨에그·햄치즈·에그에그·인기가요 / E 햄에그 */
  grpSandS:{l:"샌드위치",req:1,nod:1,key:1,st:"sandwich",o:[["깻잎불고기",1000],["바질아보카도",1000],["치킨텐더",1000],["베이컨아보카도",1000],["리코타",1000],["통새우",800],["달콤 (에그)",500],["달콤 (감자)",500],["달콤 (단호박)",500],["파인크랩",500],["닭가슴살 (데리)",500],["닭가슴살 (매운데리)",500],["닭가슴살 (크랜베리)",500],["게살",300],["베이컨에그",300],["햄치즈",300],["에그에그",300],["인기가요",300],["햄에그"]]},
  grpSandB:{l:"샌드위치",req:1,nod:1,key:1,st:"sandwich",o:[["깻잎불고기",2000],["바질아보카도",2000],["치킨텐더",2000],["베이컨아보카도",2000],["리코타",2000],["통새우",1500],["달콤 (에그)",1000],["달콤 (감자)",1000],["달콤 (단호박)",1000],["파인크랩",1000],["닭가슴살 (데리)",1000],["닭가슴살 (매운데리)",1000],["닭가슴살 (크랜베리)",1000],["게살",500],["베이컨에그",500],["햄치즈",500],["에그에그",500],["인기가요",500],["햄에그"]]},
+ grpDress:{l:"드레싱",key:1,d:0,hideDef:1,emptyAs:"드레싱 없음",st:"salad",hint:"오리엔탈 기본 · 한 번 더 누르면 드레싱 없음",o:[["오리엔탈 드레싱"]]},
  grpSideB:{l:"샐러드 또는 과일",req:1,nod:1,key:1,st:"salad",o:[["샐러드"],["과일"]]},
  grpDrink:{l:"박스 음료",req:1,nod:1,key:1,drink:1,st:"sandwich",o:[["팩음료",1000],["오렌지주스",1500],["감귤주스",1500],["딸기우유",3500],["해독주스",3500],["토당주스",3500],["ABC주스",3500]]},
  set1Drink:{l:"음료",key:1,drink:1,emptyAs:"음료 없음",hint:"안 고르면 음료 없음",p:1,st:"sandwich",o:[["아이스 아메리카노",2000],["감귤주스",2000],["오렌지주스",2000],["복숭아 아이스티",2000],["해독주스 250ml",3500],["토당주스 250ml",3500],["ABC 주스 250ml",3500],["레몬에이드",4000],["자몽에이드",4000]]},
@@ -779,7 +780,7 @@ const MENU=[
  // 단체 주문: 일반 메뉴판엔 안 보이고, 📅 예약 주문의 메뉴 찾기에서만 나와요 ('단체' 로 찾기)
  {cat:"단체 주문",st:"both",hidden:1,items:[
   ["단체① 반개 포장 (10개 이상)",3500,["grpSandS"],"sandwich"],
-  ["단체② 반개 + 샐러드 (2개 이상)",7250,["grpSandS"]],
+  ["단체② 반개 + 샐러드 (2개 이상)",7250,["grpSandS","grpDress"]],
   ["단체③ 박스: 샌드위치 + 샐러드 또는 과일 + 음료",10000,["grpSandB","grpSideB","grpDrink"]],
   ["단체④ 박스: 샌드위치 + 샐러드 + 과일 + 음료",15000,["grpSandB","grpDrink"]]]},
  {cat:"토스트",st:"sandwich",items:[["카야토스트",6500,["kaya"]],["전남친토스트",6500,[]],["악마토스트",6500,[]]]},
@@ -1094,7 +1095,10 @@ function renderOptGroups(){
   $("optPrice").textContent=won(unitPrice()*sheet.qty);
 }
 const freeP=()=>{const v=parseInt(($("optFreeP").value||"").replace(/\D/g,""),10); return v>0?Math.min(v,999999):0;};
-function unitPrice(){let p=sheet.base||0; sheet.groups.forEach(gid=>sheet.sel[gid].forEach(i=>{p+=G[gid].o[i][1]||0;})); if($("optFree").value.trim())p+=freeP(); return p;}
+// 단체④ 박스 A 샌드위치 + 3,500원 음료는 전화·매장 주문 20,000원 (네이버는 20,500원). 가격표 별표, 2026-10-22
+const GRP_A=5, GRP4="단체④ 박스: 샌드위치 + 샐러드 + 과일 + 음료";
+function unitPrice(){let p=sheet.base||0; sheet.groups.forEach(gid=>sheet.sel[gid].forEach(i=>{p+=G[gid].o[i][1]||0;}));
+  if(sheet.name===GRP4&&[...sheet.sel.grpSandB].some(i=>i<GRP_A)&&[...sheet.sel.grpDrink].some(i=>G.grpDrink.o[i][1]===3500))p-=500; if($("optFree").value.trim())p+=freeP(); return p;}
 ["optFree","optFreeP"].forEach(id=>$(id).addEventListener("input",()=>{ if(id==="optFreeP"){const v=$(id).value.replace(/\D/g,""); if(v!==$(id).value)$(id).value=v;} if(sheet)$("optPrice").textContent=won(unitPrice()*sheet.qty); }));
 $("optMinus").onclick=()=>{if(sheet.qty>1){sheet.qty--;renderOptGroups();}};
 $("optQty").addEventListener("input",()=>{const v=parseInt($("optQty").value.replace(/\D/g,""),10); if(v>0){sheet.qty=Math.min(9999,v); $("optPrice").textContent=won(unitPrice()*sheet.qty);}});
