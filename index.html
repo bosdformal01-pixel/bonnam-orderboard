@@ -281,6 +281,9 @@ input.qty{width:4.2em;padding:6px 4px;border:1.5px solid var(--line);border-radi
 .ticket li .op{font-size:.92rem;padding:1px 8px;border-radius:6px;background:var(--bg)}
 .ticket li .op.key{background:var(--stc);color:#fff;font-weight:700}
 .ticket li .nt{margin:4px 0 0 calc(2.2ch + 10px);font-weight:600;color:var(--late);overflow-wrap:anywhere}
+.ticket .drinks{border:2px dashed var(--line);border-radius:6px;padding:6px 10px;margin:0 0 8px}
+.ticket .drinks .dh{font-size:.85rem;color:var(--muted);font-weight:600}
+.ticket .drinks .dl{font-weight:700;font-size:1.05rem}
 .ticket .memo{background:var(--sand-soft);border-radius:6px;padding:6px 10px;font-weight:600;overflow-wrap:anywhere}
 .ticket .other{font-size:.85rem;color:var(--muted)}
 .ticket .tfoot{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -480,6 +483,7 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
           <input type="text" id="freePrice" inputmode="numeric" placeholder="1개 가격" maxlength="7" style="width:7em;font-variant-numeric:tabular-nums" aria-label="1개 가격 (원)">
           <button type="button" class="chip" data-free="salad">샐러드바로</button>
           <button type="button" class="chip" data-free="sandwich">샌드위치바로</button>
+          <button type="button" class="chip" data-free="both">두 곳 다</button>
         </div>
         <div class="picked" id="picked"></div>
         <div class="total" id="totalRow" hidden><span id="totalLbl">합계 (포스 가격 기준)</span><span id="totalVal"></span></div>
@@ -1140,7 +1144,7 @@ function renderPicked(){
     total+=(it.unit||0)*it.qty;
     const r=el("div","pick"); if(idx===bumpIdx)r.classList.add("bump");
     const nm=el("button","nm"); nm.type="button";
-    const head=el("b"); head.append(el("span","tag "+it.st,ST_NAME[it.st])," ",it.name); nm.append(head);
+    const head=el("b"); head.append(el("span","tag "+it.st,it.st==="both"&&!MENU_IDX[it.name]?"두 곳 다":ST_NAME[it.st])," ",it.name); nm.append(head);
     const ot=(it.opts||[]).map(optText).concat(it.note?["요청: "+it.note]:[]).join(" · ");
     if(ot)nm.append(el("span","ops",ot));
     if(it.groups&&(it.groups.length||MENU_IDX[it.name])){nm.title="눌러서 옵션 바꾸기";nm.onclick=()=>openOpt({name:it.name,base:it.base,st:it.st,groups:it.groups},idx);}
@@ -1869,7 +1873,7 @@ function renderBatch(){
   const inc=pend.filter(o=>o.due&&o.due<=until), noTime=pend.filter(o=>!o.due).length;
   const map=new Map();
   inc.forEach(o=>itemsFor(o,st).forEach(i=>{
-    const name=i.name+(i.st==="both"?(st==="salad"?" · 샐러드 반쪽":" · 샌드위치 반쪽"):"");
+    const name=barName(i,st);
     const ops=shownOpts(i).filter(op=>i.st!=="both"||!op.st||op.st===st).map(optText);
     if(i.note)ops.push("요청: "+i.note);
     const ck=ops.join(" · ")||"기본";
@@ -1899,6 +1903,20 @@ const sorted=list=>list.slice().sort((a,b)=>(a.pin?0:1)-(b.pin?0:1)||(a.pin||0)-
 function pinBtn(o,cls){
   const b=el("button",(cls||"linkbtn")+(o.pin?" on":""),o.pin?"📌 고정 풀기":"📌 먼저 하기"); b.type="button"; b.disabled=busy.has(o.id);
   b.title="모든 화면에서 이 주문을 맨 앞에 둬요"; b.onclick=()=>write(o.id,ref=>ref.update({pin:o.pin?0:Date.now()})); return b;
+}
+// 반반 세트만 '반쪽'을 붙여요. 직접 쓴 메뉴를 '두 곳 다'로 보낸 건 이름 그대로 (2026-10-22)
+const isHalf=i=>i.st==="both"&&!!MENU_IDX[i.name]&&MENU_IDX[i.name].st==="both";
+const barName=(i,st)=>i.name+(isHalf(i)?(st==="salad"?" · 샐러드 반쪽":" · 샌드위치 반쪽"):"");
+// 음료는 샌드위치바(사모님)가 만들지만, 샐러드바 표에도 '같이 나갈 음료'로 보여 줘요 (선정님 요청 2026-10-22)
+const DRINK_CATS=["커피","차·에이드·스무디","주스·음료"];
+const DRINK_SET=new Set(); MENU.forEach(c=>{if(DRINK_CATS.includes(c.cat))c.items.forEach(([n])=>DRINK_SET.add(n));});
+function drinksOf(o){
+  const out=[];
+  (o.items||[]).forEach(i=>{
+    if(DRINK_SET.has(i.name)){const ops=shownOpts(i).map(optText); out.push({q:i.qty,t:i.name+(ops.length?" ("+ops.join(", ")+")":"")});}
+    else (i.opts||[]).forEach(op=>{if(op.gid==="set1Drink"&&op.v!==G.set1Drink.emptyAs)out.push({q:i.qty,t:op.v+" ("+i.name+")"});});
+  });
+  return out;
 }
 const itemsFor=(o,st)=>(o.items||[]).filter(i=>i.st===st||i.st==="both");
 const needs=o=>({salad:itemsFor(o,"salad").length>0,sandwich:itemsFor(o,"sandwich").length>0});
@@ -2468,7 +2486,7 @@ function ticket(o,st){
   const ul=el("ul");
   inOrder(itemsFor(o,st)).forEach(i=>{
     const li=el("li"), ln=el("div","ln");
-    ln.append(el("span","q",String(i.qty)),el("span",null,i.name+(i.st==="both"?(st==="salad"?" · 샐러드 반쪽":" · 샌드위치 반쪽"):"")));
+    ln.append(el("span","q",String(i.qty)),el("span",null,barName(i,st)));
     li.append(ln);
     const ops=shownOpts(i).filter(op=>i.st!=="both"||!op.st||op.st===st);
     if(ops.length){const w=el("div","ops");ops.forEach(op=>w.append(el("span","op"+(op.k?" key":""),optText(op))));li.append(w);}
@@ -2476,6 +2494,7 @@ function ticket(o,st){
     ul.append(li);
   });
   t.append(ul);
+  if(st==="salad"){const dr=drinksOf(o); if(dr.length){const w=el("div","drinks"); w.append(el("div","dh","🥤 같이 나갈 음료 (샌드위치바에서 만들어요)")); dr.forEach(x=>w.append(el("div","dl",x.q+" · "+x.t))); t.append(w);}}
   if(o.memo)t.append(el("div","memo",o.memo));
   const other=st==="salad"?"sandwich":"salad", foot=el("div","tfoot");
   if(needs(o)[other])foot.append(el("div","other",ST_NAME[other]+": "+(d[other]?"완료":"만드는 중")));
