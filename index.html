@@ -164,6 +164,11 @@ input.qty{width:4.2em;padding:6px 4px;border:1.5px solid var(--line);border-radi
 .editbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--sand-soft);border:1.5px solid var(--sand);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-weight:600}
 .editbar button{margin-left:auto}
 .lhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.relaywarn{background:var(--late-soft);border:2px solid var(--late);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:1.05rem}
+.relaywarn button{font:inherit;font-weight:700;margin-left:8px;padding:6px 12px;border-radius:8px;border:0;background:var(--btn);color:var(--btn-ink);cursor:pointer}
+.relaywarn .s{margin-top:4px;font-size:.95rem}
+.apptag{display:inline-block;padding:1px 8px;border-radius:999px;background:#2ac1bc;color:#fff;font-size:.85rem;font-weight:700}
+.apptag.요기요{background:#fa0050}.apptag.쿠팡이츠{background:#00a5e5}
 .lhead h2{margin:0!important}
 .lhead button{margin-left:auto}
 .lhead .kf{display:inline-flex;gap:0}
@@ -489,7 +494,8 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
     </form>
   </section>
   <section class="panel" aria-labelledby="lTitle">
-    <div class="lhead"><h2 id="lTitle">오늘 주문</h2><button type="button" class="linkbtn" id="sumBtn">📋 마감 요약 · 달력</button><button type="button" class="linkbtn" id="soundBtn2" style="margin-left:0">🔔 알림음 켜기</button><button type="button" class="linkbtn" id="slipWBtn" style="margin-left:0" title="영수증 프린터 종이 폭">🖨 전표 종이 79mm</button><button type="button" class="linkbtn" id="serBtn" style="margin-left:0" title="영수증 프린터(COM4)에 연결">🔌 영수증 프린터 연결하기</button><span class="kf" role="group" aria-label="포장/배달만 보기"><button type="button" class="linkbtn" data-kf="">전체</button><button type="button" class="linkbtn" data-kf="포장">포장만</button><button type="button" class="linkbtn" data-kf="배달">배달만</button></span></div>
+    <div class="lhead"><h2 id="lTitle">오늘 주문</h2><button type="button" class="linkbtn" id="sumBtn">📋 마감 요약 · 달력</button><button type="button" class="linkbtn" id="soundBtn2" style="margin-left:0">🔔 알림음 켜기</button><button type="button" class="linkbtn" id="slipWBtn" style="margin-left:0" title="영수증 프린터 종이 폭">🖨 전표 종이 79mm</button><button type="button" class="linkbtn" id="serBtn" style="margin-left:0" title="영수증 프린터(COM4)에 연결">🔌 영수증 프린터 연결하기</button><button type="button" class="linkbtn" id="relayBtn" style="margin-left:0" title="배민·요기요·쿠팡이츠 전표를 받아 프린터로 넘기고 주문판에 넣어요">🛵 배달앱 전표 받기 꺼짐</button><span class="kf" role="group" aria-label="포장/배달만 보기"><button type="button" class="linkbtn" data-kf="">전체</button><button type="button" class="linkbtn" data-kf="포장">포장만</button><button type="button" class="linkbtn" data-kf="배달">배달만</button></span></div>
+    <div class="relaywarn" id="relayWarn" hidden><b>⚠️ 배달앱 전표 받기가 멈췄어요.</b> 지금은 배민·요기요·쿠팡이츠 전표가 종이로 안 나와요. <button type="button" id="relayRetry">다시 켜기</button><div class="s">급하면: 배달앱 프린터 설정을 COM4 로 돌리면 바로 원래대로 나와요.</div></div>
     <div class="olist" id="orderList"><p class="empty">오늘 들어온 주문이 아직 없어요. 왼쪽에서 첫 주문을 넣으면 여기와 태블릿에 바로 떠요.</p></div>
     <details class="done" id="outWrap" hidden>
       <summary id="outSum">나간 주문</summary>
@@ -1580,7 +1586,7 @@ document.addEventListener("paste",e=>{
 $("scanBox").addEventListener("drop",e=>{e.preventDefault(); runScan([...((e.dataTransfer&&e.dataTransfer.files)||[])]);});
 
 /* ---------- 오늘 마감 요약: today's finished orders, in the order the ledger is written ---------- */
-function signText(o){if(isGuest(o))return (o.kind==="배달"?"배달":"포장")+" · 일반 손님 (장부 없음)"+(o.phone4?" · 뒷자리 "+o.phone4:""); return o.kind==="배달"?(o.phone4?"배달 · 전화 뒷자리 "+o.phone4:"배달 · 전화 뒷자리 (안 적어 둠)"):"포장 · 손님 싸인";}
+function signText(o){if(o.src)return (o.kind==="배달"?"배달":"포장")+" · "+o.src+" (앱 결제, 장부 없음)"; if(isGuest(o))return (o.kind==="배달"?"배달":"포장")+" · 일반 손님 (장부 없음)"+(o.phone4?" · 뒷자리 "+o.phone4:""); return o.kind==="배달"?(o.phone4?"배달 · 전화 뒷자리 "+o.phone4:"배달 · 전화 뒷자리 (안 적어 둠)"):"포장 · 손님 싸인";}
 // 마감 요약은 날짜를 골라 볼 수 있어요 (사장님 요청 2026-10-21: 바쁜 날은 다음 날 장부 정리). 지난 날 주문은 저장 공간에 그대로 남아 있어요.
 const dayStr=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
 const daysAgo=n=>{const d=new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate()-n); return dayStr(d);};
@@ -1762,7 +1768,9 @@ function renderSummary(){
     el("div","big","주문 "+all.length+"건 · "+won(sum(all))),
     el("div","s","포장 "+pk.length+"건 "+won(sum(pk))+" · 배달 "+dl.length+"건 "+won(sum(dl))+(fees?" (배달비 "+won(fees)+" 포함)":"")),
     el("div","s","장부에 옮긴 것 "+logged+" / "+books.length+"건 — 옮겨 적은 줄은 왼쪽 네모를 눌러 표시하세요."));
-  if(gs.length)top.append(el("div","s","일반 손님 "+gs.length+"건 "+won(sum(gs))+" (장부 없음)"));
+  const ap=gs.filter(o=>o.src), gn=gs.filter(o=>!o.src);
+  if(gn.length)top.append(el("div","s","일반 손님 "+gn.length+"건 "+won(sum(gn))+" (장부 없음)"));
+  if(ap.length)top.append(el("div","s","배달앱 "+ap.length+"건 "+won(sum(ap))+" (앱 결제, 장부 없음)"));
   if(left.length)top.append(el("div","s",(isToday?"아직 안 나간 주문 ":"'포장 완료'를 안 누른 주문 ")+left.length+"건 ("+won(sum(left))+")은 맨 아래에 있어요."));
   const row=o=>{
     const r=el("div","sumrow"+(o.logged?" logged":""));
@@ -1778,7 +1786,7 @@ function renderSummary(){
   if(left.length){parts.push(el("div","sec",isToday?"아직 안 나간 주문":"'포장 완료'를 안 누른 주문")); left.forEach(o=>parts.push(row(o)));}
   if(!parts.length)rows.replaceChildren(el("p","empty",isToday?"오늘 주문이 아직 없어요.":"이 날 주문이 없어요."));
   else rows.replaceChildren(...parts);
-  const by=new Map(); all.forEach(o=>{const k=isGuest(o)?"일반 손님":deptLabel(o)||"(과 없음)"; const e=by.get(k)||{n:0,t:0}; e.n++; e.t+=o.total||0; by.set(k,e);});
+  const by=new Map(); all.forEach(o=>{const k=o.src||(isGuest(o)?"일반 손님":deptLabel(o)||"(과 없음)"); const e=by.get(k)||{n:0,t:0}; e.n++; e.t+=o.total||0; by.set(k,e);});
   $("deptWrap").hidden=!by.size;
   $("deptSum").replaceChildren(...[...by].sort((a,b)=>b[1].t-a[1].t).flatMap(([k,e])=>[el("span",null,k),el("span",null,e.n+"건"),el("span",null,won(e.t))]));
 }
@@ -1985,14 +1993,15 @@ function serLabel(){
 }
 async function serKnown(){
   if(!serAvail())return null;
-  try{const ps=await navigator.serial.getPorts(); serPort=ps[0]||null;}
+  try{const ps=await navigator.serial.getPorts(); const k=portIdx().tx; serPort=(k!=null&&ps[k])||(ps.length===1?ps[0]:null)||ps[0]||null;}
   catch(e){if(e&&e.name==="SecurityError")serBlocked=true; serPort=null;}
   serLabel(); return serPort;
 }
 async function serChoose(){
   if(!navigator.serial){toast("이 브라우저는 프린터 칸(COM)에 연결할 수 없어요. 크롬에서 열어 주세요.");return null;}
+  if(relay.on){toast("배달앱 전표 받기 중에는 프린터 칸을 바꿀 수 없어요. 먼저 끄고 바꿔 주세요.");return serPort;}
   toast("뜨는 목록에서 COM4(통신 포트)를 골라 주세요.");
-  try{serPort=await navigator.serial.requestPort(); serLabel(); toast("영수증 프린터를 연결했어요. 이제 전표 버튼을 누르면 바로 나와요."); return serPort;}
+  try{serPort=await navigator.serial.requestPort(); await savePortIdx({tx:serPort}); serLabel(); toast("영수증 프린터를 연결했어요. 이제 전표 버튼을 누르면 바로 나와요."); return serPort;}
   catch(e){
     if(e&&e.name==="SecurityError"){serBlocked=true; serLabel(); toast("이 화면에서는 프린터 칸 연결이 막혀 있어요.");}
     else if(e&&e.name==="NotFoundError")toast("프린터 칸을 고르지 않았어요.");
@@ -2060,6 +2069,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 // Opens COM4 only while printing, then lets go, so 배민/요기요/쿠팡이츠 can keep using it.
 async function serPrint(o){return serSend(slipBytes(o));}
 async function serSend(bytes){
+  if(relay.on)return relayPrint(bytes); // 배달앱 전표 받기 중엔 프린터 칸을 계속 열어 두고 있어요
   for(let t=0;t<3;t++){
     try{
       await serPort.open({baudRate:SER.baud});
@@ -2100,6 +2110,259 @@ async function printSlip(o){
     toast("이 화면에서는 프린터 연결도 인쇄도 막혀 있어요. 알려주시면 다른 방법으로 바꿀게요.");
   } finally { serBusy=false; }
 }
+/* ---------- 🛵 배달앱 전표 받기 (2026-10-22 선정님 요청) ----------
+   배민·요기요·쿠팡이츠 프로그램은 전표를 가상 포트 COM10 으로 보내요 (com0com 으로 COM10↔COM11 이 이어져 있고,
+   쿠팡이츠는 COM10 으로 가는 윈도우 프린터 '쿠팡시험'). 카운터 화면이 COM11 에서 받아 그대로 COM4 프린터로 넘기고
+   (종이 전표는 지금처럼 나와요), 글자를 읽어 주문판에 배달 주문으로 넣어요.
+   카운터 크롬 주문판이 꺼져 있으면 배달 전표가 안 나와요 → 급하면 배달앱 프린터를 COM4 로 돌리면 원래대로. ---------- */
+// ---- 배달앱 전표 읽기 (글자만). 같은 코드를 시험(node)에서도 써요.
+// 전표 한 장씩 자르기: 자르기 명령(GS V)에서 나눠요.
+function escSplit(b){
+  const parts=[]; let st=0;
+  for(let i=0;i<b.length;i++){
+    if(b[i]===0x1d&&b[i+1]===0x56){const m=b[i+2]; const end=i+((m===0x41||m===0x42||m===65||m===66)?4:3); parts.push(b.slice(st,end)); st=end; i=end-1;}
+  }
+  if(st<b.length)parts.push(b.slice(st));
+  return parts;
+}
+// 프린터 명령을 걸러내고 글자만 (EUC-KR). 0x00 은 요기요가 글자 사이에 넣어요.
+function escText(b){
+  const out=[];
+  for(let i=0;i<b.length;i++){
+    const c=b[i];
+    if(c===0x1b){const d=b[i+1];
+      if(d===0x40||d===0x32||d===0x3c||d===0x69||d===0x6d)i+=1;
+      else if(d===0x2a){const m=b[i+2],nL=b[i+3]||0,nH=b[i+4]||0;i+=4+(nL+nH*256)*((m===32||m===33)?3:1);}
+      else i+=2;
+      continue;}
+    if(c===0x1d){const d=b[i+1];
+      if(d===0x56)i+=(b[i+2]===0x41||b[i+2]===0x42)?3:2;
+      else if(d===0x4c||d===0x57)i+=3;
+      else if(d===0x76&&b[i+2]===0x30){const xL=b[i+4],xH=b[i+5],yL=b[i+6],yH=b[i+7];i+=7+(xL+xH*256)*(yL+yH*256);}
+      else if(d===0x6b){const m=b[i+2];if(m<=6){let j=i+3;while(j<b.length&&b[j]!==0)j++;i=j;}else i+=3+(b[i+3]||0);}
+      else if(d===0x28){const pL=b[i+3]||0,pH=b[i+4]||0;i+=4+pL+pH*256;}
+      else i+=2;
+      continue;}
+    if(c===0x1c){const d=b[i+1];i+=(d===0x21||d===0x2d)?2:1;continue;}
+    if(c===0x10||c===0x12){i+=2;continue;}
+    if(c===0x0a||c>=0x20)out.push(c);
+  }
+  return new TextDecoder("euc-kr").decode(new Uint8Array(out));
+}
+const slipNum=s=>parseInt(String(s||"").replace(/[^\d-]/g,""),10)||0;
+function slipHM(s){
+  const m=String(s).match(/(오전|오후|AM|PM)?\s*(\d{1,2})\s*[:시]\s*(\d{2})/i); if(!m)return "";
+  let h=+m[2]; const pm=/오후|PM/i.test(m[1]||""), am=/오전|AM/i.test(m[1]||"");
+  if(pm&&h<12)h+=12; if(am&&h===12)h=0;
+  return h<24?String(h).padStart(2,"0")+":"+m[3]:"";
+}
+// 전표 글자 → {src, test, no, kind, addr, phone, memo, due, items:[{name,qty,price,opts:[{v,p}]}], fee, total}
+function parseSlip(text){
+  const lines=text.split("\n").map(l=>l.replace(/\s+$/,"")), head=lines.slice(0,6).join(" ");
+  const isDash=l=>/^\s*[-=─━_]{8,}\s*$/.test(l);
+  const all=lines.join("\n");
+  const r={src:"배달앱",test:false,no:"",kind:"배달",addr:"",phone:"",memo:"",due:"",items:[],fee:0,total:0,raw:text.trim()};
+  if(/coupang\s*eats|쿠팡\s*이츠/i.test(all))r.src="쿠팡이츠";
+  else if(/요기요|yogiyo/i.test(head))r.src="요기요";
+  else if(/배달의\s*민족|배민|baemin|(배달|포장|픽업)\s*주문\s*전표|안심번호는 주문접수/i.test(all))r.src="배민";
+  else if(/요기요/.test(all))r.src="요기요";
+  r.test=/\[\s*테스트\s*\]|테스트를 완료|테스트 가게|테스트 출력|Plain Text/.test(all);
+  const no=all.match(/주문\s*번호\s*[:：]?\s*(#?[0-9A-Za-z-]{2,20})/); if(no)r.no=no[1];
+  if(!r.no&&r.src==="쿠팡이츠"){const ci=lines.findIndex(l=>/coupang\s*eats/i.test(l)); const c=lines.slice(ci+1,ci+5).map(l=>l.trim()).find(l=>/^[0-9A-Z]{4,12}$/.test(l)); if(c)r.no=c;}
+  const tags=lines.slice(0,8).map(l=>(l.match(/\[([^\]]+)\]/)||[])[1]).filter(t=>t&&!/고객용|매장용|테스트/.test(t));
+  if(/픽업|포장\s*주문|방문\s*포장/.test(head))r.kind="포장";
+  const grab=(re)=>{ // 제목 줄 다음부터 구분선 전까지
+    const i=lines.findIndex(l=>re.test(l)); if(i<0)return [];
+    const first=lines[i].replace(re,"").replace(/^\s*[:：]\s*/,"").trim(), out=first?[first]:[];
+    const stop=/^\s*(배달\s*(주소|예정|시간)|도착|픽업|주소|연락처|전화|안심|결제|주문\s*(번호|일자|시간|매장)|메뉴|요청\s*사항)/;
+    for(let j=i+1;j<lines.length&&!isDash(lines[j])&&lines[j].trim()&&!stop.test(lines[j]);j++)out.push(lines[j].trim());
+    return out;};
+  const ad=grab(/^\s*(배달\s*주소|주소)\s*[:：]?/);
+  if(ad.length){const road=ad.find(l=>/도로명/.test(l))||ad[0]; r.addr=road.replace(/^\(?도로명\)?\s*/,"").replace(/^\(지번\)\s*/,"").trim();}
+  const ph=all.match(/(연락처|전화\s*번호|안심\s*번호|휴대폰|고객\s*번호)\s*[:：]?\s*(0\d[\d\s-]{7,14}\d)/); if(ph)r.phone=ph[2].replace(/\s/g,"");
+  const memo=grab(/^\s*(요청\s*사항|고객\s*요청|가게\s*요청)\s*[:：]?/); r.memo=tags.concat(memo).join(" / ").slice(0,200);
+  const due=lines.find(l=>/(배달\s*시간|도착\s*예정|픽업\s*시간|배달\s*예정|조리\s*완료)/.test(l)); if(due)r.due=slipHM(due.replace(/^.*?(시간|예정|완료)\s*[:：]?/,""));
+  lines.forEach(l=>{const m=l.match(/^\s*(합\s*계|주문\s*금액|결제\s*금액|총\s*결제\s*금액|총\s*금액|총\s*주문\s*금액)\s*[:：]?\s*(-?[\d,]+)\s*원?\s*$/); if(m)r.total=Math.max(r.total,slipNum(m[2]));
+    const f=l.match(/^\s*배달\s*(료|팁|비)\s*[:：]?\s*([\d,]+)\s*원?\s*$/); if(f)r.fee=slipNum(f[2]);});
+  // 메뉴 줄: "메뉴(명) 수량 금액" 머리줄 다음부터
+  let i=lines.findIndex(l=>/메뉴/.test(l)&&/수량/.test(l));
+  if(i>=0){
+    i++; if(i<lines.length&&isDash(lines[i]))i++;
+    let cur=null;
+    for(;i<lines.length;i++){
+      const l=lines[i]; if(!l.trim())continue;
+      if(isDash(l)||/^\s*(배달\s*(료|팁|비)|합\s*계|주문\s*금액|결제\s*금액|총|할인|쿠폰|\[)/.test(l))break;
+      const m=l.match(/^(.*?\S)\s+(\d{1,3})(?:\s+(-?[\d,]+)\s*원?)?\s*$/);
+      const opt=/^\s*([-+ㄴ└·>*]|\s{2,})/.test(l);
+      const name=(m?m[1]:l).replace(/^\s*[-+ㄴ└·>*]\s*/,"").replace(/^new\s*\/\/\s*/i,"").trim();
+      if(!name)continue;
+      if(opt&&cur){ // 옵션 줄: 배민은 "ㄴ 아보카도추가   2,500" 처럼 금액만 있어요
+        const t=l.replace(/^\s*[-+ㄴ└·>*]\s*/,"").trim(), two=t.match(/^(.*?\S)\s+(\d{1,3})\s+(-?[\d,]+)\s*원?$/), one=t.match(/^(.*?\S)\s+(-?[\d,]+)\s*원?$/);
+        cur.opts.push(two?{v:two[1],p:slipNum(two[3])}:one?{v:one[1],p:r.src==="배민"?slipNum(one[2]):0}:{v:name,p:0});continue;}
+      if(!m){ if(cur)cur.opts.push({v:name,p:0}); continue; }
+      cur={name,qty:Math.max(1,+m[2]),price:m[3]?slipNum(m[3]):0,opts:[]}; r.items.push(cur);
+    }
+  }
+  return r;
+}
+// 한 번에 들어온 전표 묶음 → 주문들 (고객용·매장용처럼 같은 주문 두 장은 하나로)
+function slipsFrom(bytes){
+  const got=escSplit(bytes).map(escText).filter(t=>t.trim()).map(parseSlip);
+  const out=[];
+  got.forEach(p=>{
+    const same=p.no&&out.find(o=>o.src===p.src&&o.no===p.no);
+    if(!same){out.push(p);return;}
+    if(p.items.length>same.items.length||(p.items.some(i=>i.price)&&!same.items.some(i=>i.price))){const keep=Object.assign({},same); Object.assign(same,p); ["addr","phone","memo","due","fee","total"].forEach(k=>{if(!same[k])same[k]=keep[k];});}
+    else ["addr","phone","memo","due","fee","total"].forEach(k=>{if(!same[k])same[k]=p[k];});
+    same.raw+="\n\n"+p.raw;
+  });
+  return out;
+}
+// ---- 받는 칸(COM11)·프린터 칸(COM4) 기억: 허락받은 칸 목록에서 몇 번째인지 (크롬은 칸 이름을 알려주지 않아요)
+function portIdx(){try{return JSON.parse(localStorage.getItem("bn_ports")||"{}")||{};}catch(e){return {};}}
+async function savePortIdx(p){
+  try{
+    const ps=await navigator.serial.getPorts(), cur={}, tx=p.tx||serPort, rx=p.rx||relay.rx;
+    if(tx&&ps.indexOf(tx)>=0)cur.tx=ps.indexOf(tx);
+    if(rx&&rx!==tx&&ps.indexOf(rx)>=0)cur.rx=ps.indexOf(rx);
+    cur.n=ps.length; localStorage.setItem("bn_ports",JSON.stringify(cur));
+  }catch(e){}
+}
+const relay={on:false,want:false,starting:false,rx:null,tx:null,reader:null,writer:null,chain:Promise.resolve(),buf:[],timer:null,last:0,offAsk:0};
+try{relay.want=localStorage.getItem("bn_relay")==="1";}catch(e){}
+function relayWant(v){relay.want=v; try{localStorage.setItem("bn_relay",v?"1":"0");}catch(e){}}
+function relayLabel(){
+  const b=$("relayBtn"); if(!b)return;
+  b.textContent=relay.on?(relay.offAsk?"정말 끌까요? 끄면 배달 전표가 안 나와요 (한 번 더)":"🛵 배달앱 전표 받는 중"):relay.starting?"🛵 켜는 중…":"🛵 배달앱 전표 받기 꺼짐";
+  b.classList.toggle("on",relay.on&&!relay.offAsk);
+  $("relayWarn").hidden=!(relay.want&&!relay.on&&!relay.starting);
+}
+async function startRelay(ask){
+  if(relay.on||relay.starting)return;
+  if(!navigator.serial){if(ask)toast("이 브라우저는 프린터 칸(COM)을 못 써요. 크롬에서 열어 주세요.");return;}
+  relay.starting=true; relayLabel();
+  try{
+    const ps=await navigator.serial.getPorts(), k=portIdx(), ok=k.n===ps.length;
+    let tx=(ok&&k.tx!=null&&ps[k.tx])||serPort||(ps.length===1?ps[0]:null);
+    let rx=ok&&k.rx!=null&&ps[k.rx]&&ps[k.rx]!==tx?ps[k.rx]:null;
+    if(!tx){if(ask)toast("먼저 '🔌 영수증 프린터 연결하기'를 눌러 COM4 를 골라 주세요.");return;}
+    if(!rx){
+      if(!ask)return;
+      toast("목록에서 'COM11' 을 골라 주세요. (배달앱 전표가 들어오는 칸)");
+      try{rx=await navigator.serial.requestPort();}catch(e){toast("받는 칸을 고르지 않았어요.");return;}
+      if(rx===tx){toast("그건 프린터 칸(COM4)이에요. 다시 눌러서 COM11 을 골라 주세요.");return;}
+    }
+    try{await rx.open({baudRate:9600});}
+    catch(e){toast("받는 칸(COM11)을 열지 못했어요. '배달 전표 읽기 시험' 창이 열려 있으면 닫고 다시 켜 주세요.");return;}
+    try{await tx.open({baudRate:SER.baud});}
+    catch(e){await rx.close().catch(()=>{}); toast("프린터 칸(COM4)을 열지 못했어요. 배달앱 프린터 설정이 아직 COM4 면 COM10 으로 바꿔 주세요.");return;}
+    relay.rx=rx; relay.tx=tx; serPort=tx; relay.writer=tx.writable.getWriter(); relay.chain=Promise.resolve(); relay.buf=[];
+    relay.on=true; relayWant(true); await savePortIdx({tx,rx}); serLabel();
+    relayRead(); relayClean();
+    if(ask)toast("배달앱 전표 받기를 켰어요. 배달앱에서 '테스트 출력'을 눌러 확인해 보세요.");
+  }catch(e){if(ask)toast("배달앱 전표 받기를 켜지 못했어요. ("+(e&&e.name||"")+")");}
+  finally{relay.starting=false; relayLabel();}
+}
+async function relayRead(){
+  const rx=relay.rx;
+  while(relay.on&&rx.readable){
+    const rd=rx.readable.getReader(); relay.reader=rd;
+    try{for(;;){const {value,done}=await rd.read(); if(done)break; if(value&&value.length)relayGot(value);}}
+    catch(e){/* 잠깐 끊긴 글자는 건너뛰고 계속 받아요. 칸이 사라지면 readable 이 없어져 멈춰요 */}
+    finally{try{rd.releaseLock();}catch(e){} if(relay.reader===rd)relay.reader=null;}
+  }
+  if(relay.on)relayStop(true);
+}
+function relayGot(chunk){
+  relay.last=Date.now();
+  const w=relay.writer;
+  relay.chain=relay.chain.then(()=>w.write(chunk)).catch(()=>{if(relay.on)relayStop(true);});
+  relay.buf.push(chunk);
+  clearTimeout(relay.timer); relay.timer=setTimeout(relayJob,1500);
+}
+// 주문판이 뽑는 전표·장보기 전표: 배달앱 전표가 다 나간 뒤에 이어서 보내요 (섞이지 않게)
+async function relayPrint(bytes){
+  for(let t=0;t<30&&Date.now()-relay.last<1200;t++)await sleep(200);
+  if(!relay.on)return "busy";
+  const w=relay.writer, p=relay.chain.then(()=>w.write(bytes)); relay.chain=p.catch(()=>{});
+  try{await p;return "ok";}catch(e){if(relay.on)relayStop(true);return "busy";}
+}
+async function relayStop(broken){
+  const was=relay.on; relay.on=false; relay.offAsk=0; clearTimeout(relay.timer);
+  if(!broken)relayWant(false);
+  try{if(relay.reader)await relay.reader.cancel();}catch(e){}
+  await sleep(50);
+  try{if(relay.writer){await relay.writer.close().catch(()=>{}); relay.writer.releaseLock();}}catch(e){}
+  relay.writer=null;
+  if(relay.rx)await relay.rx.close().catch(()=>{});
+  if(relay.tx)await relay.tx.close().catch(()=>{});
+  relayLabel(); serLabel();
+  if(broken&&was){toast("⚠️ 배달앱 전표 받기가 멈췄어요. '다시 켜기'를 눌러 주세요."); try{playChime();}catch(e){}}
+  else if(!broken)toast("배달앱 전표 받기를 껐어요. 배달앱 프린터 설정을 COM4 로 돌려야 전표가 나와요.");
+}
+function relayJob(){
+  const n=relay.buf.reduce((s,c)=>s+c.length,0), b=new Uint8Array(n); let o=0; relay.buf.forEach(c=>{b.set(c,o);o+=c.length;}); relay.buf=[];
+  let got=[]; try{got=slipsFrom(b);}catch(e){return;}
+  if(!got.length)return;
+  const real=got.filter(p=>!p.test);
+  if(!real.length){toast("🛵 "+got[0].src+" 테스트 전표를 받아서 프린터로 넘겼어요. 잘 돼요! (주문판엔 안 넣어요)");return;}
+  real.forEach(addAppOrder);
+}
+// 배달앱 메뉴 이름 → 주문판 메뉴 이름 (못 찾으면 null: 전표 글자 그대로, 두 바 모두에 떠요)
+// 글자·숫자만 남겨 비교 ("(현미밥)오리훈제 샐러드" = "현미밥 오리훈제 샐러드"). 배달앱마다 다른 이름은 APP_ALIAS 에.
+const APP_ALIAS=[["훈제오리","오리훈제"],["통밀식빵샌드위치","통밀식빵"],["우유식빵샌드위치","우유식빵"]];
+const akey=s=>{let k=String(s||"").replace(/\[[^\]]*\]/g,"").replace(/[^가-힣a-zA-Z0-9]/g,"").toLowerCase(); APP_ALIAS.forEach(([a,b])=>{k=k.split(a.toLowerCase()).join(b.toLowerCase());}); return k;};
+function appMenuName(n){
+  const names=Object.keys(MENU_IDX), k=akey(n);
+  return names.find(x=>akey(x)===k)
+    ||names.filter(x=>akey(x).length>=3&&k.includes(akey(x))).sort((a,b)=>akey(b).length-akey(a).length)[0]||null;
+}
+// 옵션 글자 → 그 메뉴 옵션 이름 ("아보카도추가" → "아보카도 추가"). '기본 OO' 0원은 기본값이라 빼요.
+function appOpt(menu,v){
+  v=v.includes(":")?v.split(":").pop().trim():v;
+  const m=MENU_IDX[menu]; if(!m)return v;
+  const all=m.groups.flatMap(g=>G[g].o.map(o=>o[0])), k=akey(v);
+  return all.find(x=>akey(x)===k)||all.filter(x=>akey(x).length>=2&&k.includes(akey(x))).sort((a,b)=>akey(b).length-akey(a).length)[0]
+    ||(k.length>=2?all.filter(x=>akey(x).includes(k)).sort((a,b)=>akey(a).length-akey(b).length)[0]:null)||v;
+}
+function appItem(it){
+  const menu=appMenuName(it.name);
+  const r=scanItem({menu,printed:it.name,qty:it.qty,bar:"both",
+    options:it.opts.filter(o=>!(/^기본\s/.test(o.v)&&!o.p)).map(o=>({value:appOpt(menu,o.v)})),note:""}).item;
+  const price=(it.price||0)+it.opts.reduce((s,o)=>s+(o.p||0),0);
+  if(price)r.unit=Math.round(price/Math.max(1,r.qty));
+  return {name:r.name,qty:r.qty,st:r.st,unit:r.unit||0,opts:r.opts||[],note:r.note||""};
+}
+async function addAppOrder(p){
+  if(!col){toast("🛵 "+p.src+" 전표는 프린터로 넘겼지만, 로그인이 안 돼 있어 주문판엔 못 넣었어요.");return;}
+  if(p.no&&orders.some(o=>o.src===p.src&&o.appNo===p.no)){toast("🛵 "+p.src+" "+p.no+" 는 이미 들어온 주문이라 다시 넣지 않았어요.");return;}
+  relayClean();
+  const items=p.items.map(appItem);
+  if(!items.length)items.push({name:"전표 확인 필요 (메뉴를 못 읽었어요)",qty:1,st:"both",unit:0,opts:[],note:""});
+  const food=items.reduce((s,i)=>s+i.unit*i.qty,0), digits=(p.phone||"").replace(/\D/g,"");
+  const body={day:today(),createdAt:Date.now(),no:nextNo(),org:"",dept:p.src,floor:"",guest:true,src:p.src,appNo:p.no||"",
+    due:p.due||"",kind:p.kind,memo:p.memo||"",items,fee:p.fee||0,total:p.total||food+(p.fee||0),
+    phone4:digits.slice(-4),phone:p.phone||"",addr:p.addr||"",raw:(p.raw||"").slice(0,4000),from:"relay",printedAt:Date.now(),done:{salad:false,sandwich:false}};
+  try{await col.add(body); toast("🛵 "+p.src+" 주문이 주문판에 들어왔어요.");}
+  catch(e){toast("🛵 "+p.src+" 주문을 주문판에 넣지 못했어요. 종이 전표를 보고 직접 넣어 주세요.");}
+}
+// 손님 주소·전화번호·전표 글자는 하루만: 지난 날 배달앱 주문에서 지워요
+let relayCleaned=false;
+function relayClean(){
+  if(relayCleaned||!col||!window.firebase)return; relayCleaned=true;
+  const del=firebase.firestore.FieldValue.delete();
+  col.where("from","==","relay").get().then(s=>s.docs.forEach(d=>{const o=d.data()||{};
+    if(o.day<today()&&(o.addr||o.phone||o.raw))d.ref.update({addr:del,phone:del,raw:del}).catch(()=>{});})).catch(()=>{});
+}
+$("relayBtn").onclick=()=>{
+  if(!relay.on){startRelay(true);return;}
+  if(!relay.offAsk){relay.offAsk=Date.now(); relayLabel(); setTimeout(()=>{relay.offAsk=0; relayLabel();},4000); return;}
+  relayStop(false);
+};
+$("relayRetry").onclick=()=>startRelay(true);
+window.addEventListener("beforeunload",e=>{if(relay.on){e.preventDefault(); e.returnValue="";}});
+relayLabel();
+if(relay.want)setTimeout(()=>{if(mode==="counter")startRelay(false);},800);
 $("serBtn").onclick=()=>serChoose();
 if(navigator.serial)navigator.serial.addEventListener("disconnect",()=>{serPort=null;serLabel();});
 serKnown();
@@ -2109,7 +2372,7 @@ window.addEventListener("afterprint",()=>setTimeout(()=>document.body.classList.
 function render(){ if(mode==="counter"){renderCounter(); renderSummary(); renderResList();} else {renderStation(mode); renderBatch();} renderFull(); }
 let confirmId=null;
 const hm=ms=>{const d=new Date(ms);return pad(d.getHours())+":"+pad(d.getMinutes());};
-const deptLabel=o=>isGuest(o)?"일반 손님"+(o.phone4?" "+o.phone4:""):[o.org&&o.org!=="기타"?o.org:"",o.dept,o.floor?"("+o.floor+")":""].filter(Boolean).join(" ");
+const deptLabel=o=>o.src?o.src+(o.appNo?" "+o.appNo:""):isGuest(o)?"일반 손님"+(o.phone4?" "+o.phone4:""):[o.org&&o.org!=="기타"?o.org:"",o.dept,o.floor?"("+o.floor+")":""].filter(Boolean).join(" ");
 const itemsText=o=>inOrder(o.items).map(i=>i.name+" "+i.qty+(shownOpts(i).length?" ("+shownOpts(i).map(optText).join(", ")+")":"")+(i.note?" [요청: "+i.note+"]":"")).join(" / ");
 function editBtn(o){const b=el("button","linkbtn","고치기");b.type="button";b.disabled=busy.has(o.id);b.onclick=()=>o.reserved?openRes(o):startEdit(o);return b;}
 function cancelBtn(o){
@@ -2127,7 +2390,8 @@ function readyCard(o){
   if(o.reserved&&resInfo(o))r.append(el("div","s",resInfo(o)));
   if(o.memo)r.append(el("div","s","메모: "+o.memo));
   if(o.total)r.append(el("div","s","금액 "+moneyText(o)));
-  if(isGuest(o))r.append(el("div","sign","일반 손님 · 장부 없음"));
+  if(o.src)r.append(el("div","sign",o.src+" 주문 · 앱 결제 · 장부 없음"));
+  else if(isGuest(o))r.append(el("div","sign","일반 손님 · 장부 없음"));
   else if(o.kind==="배달")r.append(el("div","sign",o.phone4?"장부 싸인: 전화 뒷자리 "+o.phone4:"장부 싸인: 전화 뒷자리 (안 적어 둠)"));
   else r.append(el("div","sign","장부 싸인: 손님이 가져갈 때 받기"));
   const act=el("div","act");
