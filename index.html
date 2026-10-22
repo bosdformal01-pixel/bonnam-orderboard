@@ -92,6 +92,26 @@ input.qty{width:4.2em;padding:6px 4px;border:1.5px solid var(--line);border-radi
 .msearch{width:100%;margin-bottom:8px}
 .menu-grid button kbd{font:inherit;font-size:.7rem;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-left:4px}
 .sumtop{display:grid;gap:4px;font-variant-numeric:tabular-nums}
+/* 판매 순위 (2026-10-22 선정님 요청) */
+.rkbox{display:grid;gap:12px}
+.rksum{display:grid;gap:4px;font-variant-numeric:tabular-nums}
+.rksum .big{font-size:1.25rem;font-weight:700}
+.rksum .s{color:var(--muted);font-size:.92rem}
+.rklist{display:grid;gap:4px}
+.rkrow{display:grid;grid-template-columns:2.2em minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-variant-numeric:tabular-nums;position:relative;overflow:hidden}
+.rkrow .bar{position:absolute;left:0;top:0;bottom:0;background:var(--sand-soft)}
+.rkrow>span{position:relative}
+.rkrow .no{font-weight:700;text-align:center;color:var(--muted)}
+.rkrow.hi .no{color:var(--ink)}
+.rkrow .nm{font-weight:700;overflow-wrap:anywhere}
+.rkrow .ct{text-align:right;font-weight:700;min-width:3.5em}
+.rkrow .am{text-align:right;color:var(--muted);min-width:6.5em}
+.rkmore{justify-self:start}
+.xlbox{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:12px;border:1.5px dashed var(--line);border-radius:10px}
+.xlbox button{padding:10px 18px;border-radius:10px;border:0;background:var(--salad);color:var(--on-accent);font-weight:700;font-size:1rem}
+.xlbox button:disabled{opacity:.5}
+.xlbox .s{color:var(--muted);font-size:.9rem;flex:1 1 220px}
+@media (max-width:520px){.rkrow .am{min-width:0}}
 .sumtop .big{font-size:1.25rem;font-weight:700}
 .sumtop .s{color:var(--muted);font-size:.92rem}
 .sumrows{display:grid;gap:6px}
@@ -551,12 +571,20 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
 <div class="overlay" id="sumOverlay" hidden>
   <div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="sumTitle">
     <div class="sheet-head"><h2 id="sumTitle">오늘 마감 요약</h2><button type="button" class="linkbtn x" id="sumClose">닫기</button></div>
-    <div class="row" id="sumDays"><button type="button" class="chip calbtn" id="calOpen">📅 달력</button><button type="button" class="chip" data-sday="0">오늘</button><button type="button" class="chip" data-sday="1">어제</button><button type="button" class="chip" data-sday="2">그저께</button><input type="date" id="sumDate" aria-label="날짜 고르기"></div>
+    <div class="row" id="sumDays"><button type="button" class="chip calbtn" id="calOpen">📅 달력</button><button type="button" class="chip" data-sday="0">오늘</button><button type="button" class="chip" data-sday="1">어제</button><button type="button" class="chip" id="rankOpen">📊 판매 순위</button></div>
     <div class="cal" id="calBox" hidden>
       <div class="calhead"><button type="button" class="linkbtn" id="calPrev" aria-label="지난 달">◀</button><b id="calMonth"></b><button type="button" class="linkbtn" id="calNext" aria-label="다음 달">▶</button><button type="button" class="linkbtn" id="calToday">이번 달</button></div>
       <div class="calsum" id="calSum"></div>
       <div class="calgrid" id="calGrid"></div>
       <p class="calnote">날짜를 누르면 그날 주문을 자세히 봐요. 📅 표시는 미리 받아 둔 예약 주문이에요.</p>
+    </div>
+    <div class="rkbox" id="rankBox" hidden>
+      <div class="row" id="rankPer"><button type="button" class="chip" data-rk="w0">이번 주</button><button type="button" class="chip" data-rk="w1">지난 주</button><button type="button" class="chip" data-rk="m0">이번 달</button><button type="button" class="chip" data-rk="m1">지난 달</button></div>
+      <div class="rksum" id="rankSum"></div>
+      <div class="row" id="rankCat"><button type="button" class="chip" data-rc="">전체</button><button type="button" class="chip" data-rc="샐러드">샐러드</button><button type="button" class="chip" data-rc="샌드위치">샌드위치·토스트</button><button type="button" class="chip" data-rc="세트">세트</button><button type="button" class="chip" data-rc="음료">음료</button></div>
+      <div class="rklist" id="rankList"></div>
+      <button type="button" class="linkbtn rkmore" id="rankMore" hidden></button>
+      <div class="xlbox"><button type="button" id="xlBtn">📥 엑셀로 받기</button><span class="s" id="xlNote"></span></div>
     </div>
     <div class="sumtop" id="sumTop"></div>
     <div class="sumrows" id="sumRows"></div>
@@ -1548,8 +1576,8 @@ const daysAgo=n=>{const d=new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate(
 let sumDay=null, sumOrders=[], sumUnsub=null, sumLoading=false;
 function setSumDay(day){
   if(!day)day=today();
-  sumView="day"; if(calUnsub){calUnsub();calUnsub=null;}
-  sumDay=day; $("sumDate").value=day;
+  sumView="day"; if(calUnsub){calUnsub();calUnsub=null;} stopRank();
+  sumDay=day;
   if(sumUnsub){sumUnsub();sumUnsub=null;}
   sumOrders=[]; sumLoading=false;
   if(day!==today()&&col){
@@ -1559,14 +1587,14 @@ function setSumDay(day){
   }
   renderSummary();
 }
-function closeSummary(){$("sumOverlay").hidden=true; if(sumUnsub){sumUnsub();sumUnsub=null;} if(calUnsub){calUnsub();calUnsub=null;}}
+function closeSummary(){$("sumOverlay").hidden=true; if(sumUnsub){sumUnsub();sumUnsub=null;} if(calUnsub){calUnsub();calUnsub=null;} stopRank();}
 
 /* ---------- 매출 달력 (2026-10-21 선정님 요청): 날짜별 판매 금액, 누르면 그날 마감 요약. 앞으로의 날짜엔 받아 둔 예약 ---------- */
 let sumView="day", calYM=null, calUnsub=null, calOrders=null;
 function openCal(ym){
   sumView="cal"; calYM=ym||(sumDay||today()).slice(0,7);
   if(sumUnsub){sumUnsub();sumUnsub=null;}
-  if(calUnsub){calUnsub();calUnsub=null;}
+  if(calUnsub){calUnsub();calUnsub=null;} stopRank();
   calOrders=null;
   if(col)calUnsub=col.where("day",">=",calYM+"-01").where("day","<=",calYM+"-31").onSnapshot(
     snap=>{calOrders=snap.docs.map(d=>d.data()); renderSummary();},()=>{calOrders=false; renderSummary();});
@@ -1607,10 +1635,100 @@ $("calOpen").onclick=()=>openCal();
 $("calPrev").onclick=()=>openCal(shiftYM(calYM,-1));
 $("calNext").onclick=()=>openCal(shiftYM(calYM,1));
 $("calToday").onclick=()=>openCal(today().slice(0,7));
+/* ---------- 판매 순위 + 엑셀로 받기 (2026-10-22 선정님 요청): 주·월별 많이 나간 메뉴, 그 기간 주문 기록을 엑셀로 (백업용) ---------- */
+let rankPer="m0", rankCat="", rankAll=false, rankUnsub=null, rankOrders=null, rankRange=null;
+const RANK_GRP={"샐러드":"샐러드","현미밥 샐러드":"샐러드","샌드위치":"샌드위치","토스트":"샌드위치","세트 (반반)":"세트","커피":"음료","차·에이드·스무디":"음료","주스·음료":"음료"};
+const CAT_OF={}; MENU.forEach(c=>c.items.forEach(([n])=>{CAT_OF[n]=RANK_GRP[c.cat]||"기타";}));
+const RANK_GRP_LABEL={"샐러드":"샐러드","샌드위치":"샌드위치·토스트","세트":"세트","음료":"음료","기타":"기타"};
+function stopRank(){if(rankUnsub){rankUnsub();rankUnsub=null;}}
+function rankPeriod(per){
+  const t=new Date(); t.setHours(12,0,0,0); let a, b;
+  if(per[0]==="w"){a=new Date(t); a.setDate(a.getDate()-((a.getDay()+6)%7)-(per==="w1"?7:0)); b=new Date(a); b.setDate(b.getDate()+6);}  // 월요일부터 일요일까지
+  else{a=new Date(t.getFullYear(),t.getMonth()-(per==="m1"?1:0),1,12); b=new Date(a.getFullYear(),a.getMonth()+1,0,12);}
+  const from=dayStr(a), to=dayStr(b)<today()?dayStr(b):today();
+  return {from,to,full:dayStr(b)};
+}
+const mdLabel=d=>{const [,m,dd]=d.split("-").map(Number); return m+"월 "+dd+"일";};
+const rangeLabel=r=>r.from===r.to?mdLabel(r.from):(r.from.slice(0,7)===r.to.slice(0,7)?mdLabel(r.from)+" ~ "+Number(r.to.slice(8))+"일":mdLabel(r.from)+" ~ "+mdLabel(r.to));
+function openRank(per){
+  if(per)rankPer=per;
+  sumView="rank"; rankAll=false;
+  if(sumUnsub){sumUnsub();sumUnsub=null;} if(calUnsub){calUnsub();calUnsub=null;} stopRank();
+  rankRange=rankPeriod(rankPer); rankOrders=null;
+  if(col)rankUnsub=col.where("day",">=",rankRange.from).where("day","<=",rankRange.to).onSnapshot(
+    snap=>{rankOrders=snap.docs.map(d=>Object.assign({id:d.id},d.data())).filter(o=>!o.example); renderSummary();},()=>{rankOrders=false; renderSummary();});
+  else rankOrders=[];
+  renderSummary();
+}
+function rankRows(list){
+  const by=new Map();
+  list.forEach(o=>(o.items||[]).forEach(i=>{const e=by.get(i.name)||{n:i.name,cat:CAT_OF[i.name]||"기타",q:0,amt:0}; e.q+=i.qty||0; e.amt+=(i.unit||0)*(i.qty||0); by.set(i.name,e);}));
+  return [...by.values()].sort((a,b)=>b.q-a.q||b.amt-a.amt||a.n.localeCompare(b.n,"ko"));
+}
+function renderRank(){
+  const r=rankRange; $("sumTitle").textContent=(rankPer[0]==="m"?Number(r.from.slice(5,7))+"월":rankPer==="w0"?"이번 주":"지난 주")+" 판매 순위";
+  document.querySelectorAll("[data-rk]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.rk===rankPer)));
+  document.querySelectorAll("[data-rc]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.rc===rankCat)));
+  const sum=$("rankSum"), list=$("rankList"), more=$("rankMore");
+  if(!rankOrders){sum.replaceChildren(el("div","s",rankOrders===null?"불러오는 중이에요…":"주문을 불러오지 못했어요. 다시 눌러 주세요.")); list.replaceChildren(); more.hidden=true; $("xlBtn").disabled=true; $("xlNote").textContent=""; return;}
+  const total=rankOrders.reduce((s,o)=>s+(o.total||0),0), n=rankOrders.length;
+  sum.replaceChildren(el("div","big",rangeLabel(r)+" · 주문 "+n+"건 · "+won(total)),
+    el("div","s",r.to<r.full?"오늘까지 들어온 주문이에요. 많이 나간 메뉴부터 보여요.":"많이 나간 메뉴부터 보여요. 막대가 길수록 많이 나간 거예요."));
+  const rows=rankRows(rankOrders).filter(e=>!rankCat||e.cat===rankCat);
+  if(rankCat&&rows.length)sum.append(el("div","s",RANK_GRP_LABEL[rankCat]+" 합계 "+rows.reduce((s,e)=>s+e.q,0)+"개 · "+won(rows.reduce((s,e)=>s+e.amt,0))));
+  if(!rows.length){list.replaceChildren(el("p","empty",n?"이 종류는 이 기간에 나간 게 없어요.":"이 기간에 주문이 없어요.")); more.hidden=true;}
+  else{
+    const max=rows[0].q||1, shown=rankAll?rows:rows.slice(0,10);
+    list.replaceChildren(...shown.map((e,i)=>{const d=el("div","rkrow"+(i<3?" hi":"")); const bar=el("span","bar"); bar.style.width=Math.round(e.q/max*100)+"%";
+      d.append(bar,el("span","no",String(i+1)),el("span","nm",e.n),el("span","ct",e.q+"개"),el("span","am",won(e.amt))); return d;}));
+    more.hidden=rows.length<=10; more.textContent=rankAll?"접기 ▴":"나머지 "+(rows.length-10)+"개 메뉴 더 보기 ▾";
+  }
+  $("xlBtn").disabled=!n;
+  $("xlNote").textContent=n?"위 기간("+rangeLabel(r)+") 주문 "+n+"건을 엑셀 파일로 저장해요. 날짜·과·메뉴·금액이 한 줄씩 들어가요. 백업용이에요.":"이 기간에는 받을 주문이 없어요.";
+}
+$("rankOpen").onclick=()=>openRank();
+document.querySelectorAll("[data-rk]").forEach(b=>b.onclick=()=>openRank(b.dataset.rk));
+document.querySelectorAll("[data-rc]").forEach(b=>b.onclick=()=>{rankCat=b.dataset.rc; rankAll=false; renderSummary();});
+$("rankMore").onclick=()=>{rankAll=!rankAll; renderSummary();};
+let xlsxLib=null;
+function loadXlsx(){
+  if(window.XLSX)return Promise.resolve(window.XLSX);
+  if(!xlsxLib)xlsxLib=new Promise((ok,no)=>{const sc=document.createElement("script"); sc.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; sc.onload=()=>window.XLSX?ok(window.XLSX):no(); sc.onerror=()=>{xlsxLib=null; no();}; document.head.append(sc);});
+  return xlsxLib;
+}
+function orderSheetRows(list){
+  const head=["날짜","받은 시각","예약","포장/배달","주문한 곳","메뉴","개수","금액(원)","배달비(원)","장부에 옮김","손님 확인","메모"];
+  const rows=list.slice().sort((a,b)=>(a.day||"").localeCompare(b.day||"")||(a.createdAt||0)-(b.createdAt||0)).map(o=>[
+    o.day||"", o.createdAt?hm(o.createdAt):"", o.reserved?"예약 "+(o.due||"")+" 까지":"", o.kind||"", deptLabel(o)||"", itemsText(o), qtySum(o), o.total||0, o.fee||0,
+    isGuest(o)?"(장부 없음)":o.logged?"옮김":"", signText(o), o.memo||""]);
+  return [head].concat(rows);
+}
+async function downloadExcel(){
+  if(!rankOrders||!rankOrders.length)return;
+  const r=rankRange, name="복남이샌드_주문_"+r.from+"~"+r.to;
+  const orderRows=orderSheetRows(rankOrders);
+  const rankSheet=[["순위","메뉴","종류","개수","금액(원)"]].concat(rankRows(rankOrders).map((e,i)=>[i+1,e.n,RANK_GRP_LABEL[e.cat],e.q,e.amt]));
+  const btn=$("xlBtn"); btn.disabled=true;
+  try{
+    const X=await loadXlsx(), wb=X.utils.book_new();
+    const ws=X.utils.aoa_to_sheet(orderRows); ws["!cols"]=[10,8,14,8,22,60,6,10,9,10,26,24].map(w=>({wch:w}));
+    const ws2=X.utils.aoa_to_sheet(rankSheet); ws2["!cols"]=[6,26,14,8,12].map(w=>({wch:w}));
+    X.utils.book_append_sheet(wb,ws,"주문 기록"); X.utils.book_append_sheet(wb,ws2,"메뉴별 합계");
+    X.writeFile(wb,name+".xlsx");
+    toast("엑셀 파일을 저장했어요. '다운로드' 폴더를 봐 주세요.");
+  }catch(e){
+    // 엑셀 도구를 못 불러오면 엑셀에서 열리는 CSV로 대신 저장
+    const csv="﻿"+orderRows.map(row=>row.map(v=>{const t=String(v); return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t;}).join(",")).join("\r\n");
+    const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})); a.download=name+".csv"; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+    toast("엑셀(CSV) 파일로 저장했어요. '다운로드' 폴더를 봐 주세요.");
+  }finally{btn.disabled=false;}
+}
+$("xlBtn").onclick=downloadExcel;
 function renderSummary(){
   if($("sumOverlay").hidden)return;
-  const cal=sumView==="cal";
-  $("calBox").hidden=!cal; $("sumTop").hidden=cal; $("sumRows").hidden=cal; $("calOpen").setAttribute("aria-pressed",String(cal));
+  const cal=sumView==="cal", rk=sumView==="rank";
+  $("calBox").hidden=!cal; $("rankBox").hidden=!rk; $("sumTop").hidden=cal||rk; $("sumRows").hidden=cal||rk; $("calOpen").setAttribute("aria-pressed",String(cal)); $("rankOpen").setAttribute("aria-pressed",String(rk));
+  if(rk){$("deptWrap").hidden=true; document.querySelectorAll("[data-sday]").forEach(b=>b.setAttribute("aria-pressed","false")); renderRank(); return;}
   if(cal){$("deptWrap").hidden=true; document.querySelectorAll("[data-sday]").forEach(b=>b.setAttribute("aria-pressed","false")); renderCal(); return;}
   const isToday=!sumDay||sumDay===today(), day=isToday?today():sumDay, isFuture=day>today();
   document.querySelectorAll("[data-sday]").forEach(b=>b.setAttribute("aria-pressed",String(daysAgo(Number(b.dataset.sday))===day)));
@@ -1655,7 +1773,6 @@ function renderSummary(){
 }
 $("sumBtn").onclick=()=>{$("sumOverlay").hidden=false; setSumDay(today());};
 document.querySelectorAll("[data-sday]").forEach(b=>b.onclick=()=>setSumDay(daysAgo(Number(b.dataset.sday))));
-$("sumDate").addEventListener("change",()=>{ if($("sumDate").value)setSumDay($("sumDate").value); });
 $("sumClose").onclick=closeSummary;
 
 /* ---------- form overlay for station tablets ---------- */
