@@ -2087,7 +2087,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 // Opens COM4 only while printing, then lets go, so 배민/요기요/쿠팡이츠 can keep using it.
 async function serPrint(o){return serSend(slipBytes(o));}
 async function serSend(bytes){
-  if(relay.on)return relayPrint(bytes); // 배달앱 전표 받기 중엔 프린터 칸을 계속 열어 두고 있어요
+  if(relay.on)return relayPrint(bytes); // 배달앱 전표 받기 중엔 배달 전표와 섞이지 않게 줄 세워 보내요
   for(let t=0;t<3;t++){
     try{
       await serPort.open({baudRate:SER.baud});
@@ -2132,6 +2132,7 @@ async function printSlip(o){
    배민·요기요·쿠팡이츠 프로그램은 전표를 가상 포트 COM10 으로 보내요 (com0com 으로 COM10↔COM11 이 이어져 있고,
    쿠팡이츠는 COM10 으로 가는 윈도우 프린터 '쿠팡시험'). 카운터 화면이 COM11 에서 받아 그대로 COM4 프린터로 넘기고
    (종이 전표는 지금처럼 나와요), 글자를 읽어 주문판에 배달 주문으로 넣어요.
+   COM4 는 보낼 때만 잠깐 열어요. 네이버 주문 프로그램은 COM10 을 못 골라서 COM4 로 바로 뽑아요.
    카운터 크롬 주문판이 꺼져 있으면 배달 전표가 안 나와요 → 급하면 배달앱 프린터를 COM4 로 돌리면 원래대로. ---------- */
 // ---- 배달앱 전표 읽기 (글자만). 같은 코드를 시험(node)에서도 써요.
 // 전표 한 장씩 자르기: 자르기 명령(GS V)에서 나눠요.
@@ -2247,7 +2248,7 @@ async function savePortIdx(p){
     cur.n=ps.length; localStorage.setItem("bn_ports",JSON.stringify(cur));
   }catch(e){}
 }
-const relay={on:false,want:false,starting:false,rx:null,tx:null,reader:null,writer:null,chain:Promise.resolve(),buf:[],timer:null,last:0,offAsk:0};
+const relay={on:false,want:false,starting:false,rx:null,tx:null,reader:null,chain:Promise.resolve(),buf:[],pend:[],ptimer:null,timer:null,last:0,offAsk:0};
 try{relay.want=localStorage.getItem("bn_relay")==="1";}catch(e){}
 function relayWant(v){relay.want=v; try{localStorage.setItem("bn_relay",v?"1":"0");}catch(e){}}
 function relayLabel(){
@@ -2273,9 +2274,7 @@ async function startRelay(ask){
     }
     try{await rx.open({baudRate:9600});}
     catch(e){toast("받는 칸(COM11)을 열지 못했어요. '배달 전표 읽기 시험' 창이 열려 있으면 닫고 다시 켜 주세요.");return;}
-    try{await tx.open({baudRate:SER.baud});}
-    catch(e){await rx.close().catch(()=>{}); toast("프린터 칸(COM4)을 열지 못했어요. 배달앱 프린터 설정이 아직 COM4 면 COM10 으로 바꿔 주세요.");return;}
-    relay.rx=rx; relay.tx=tx; serPort=tx; relay.writer=tx.writable.getWriter(); relay.chain=Promise.resolve(); relay.buf=[];
+    relay.rx=rx; relay.tx=tx; serPort=tx; relay.chain=Promise.resolve(); relay.buf=[]; relay.pend=[];
     relay.on=true; relayWant(true); await savePortIdx({tx,rx}); serLabel();
     relayRead(); relayClean();
     if(ask)toast("배달앱 전표 받기를 켰어요. 배달앱에서 '테스트 출력'을 눌러 확인해 보세요.");
@@ -2292,29 +2291,46 @@ async function relayRead(){
   }
   if(relay.on)relayStop(true);
 }
+// 프린터 칸(COM4)은 보낼 때만 잠깐 열고 바로 놓아요. 그래야 COM10 을 못 고르는 네이버 주문 프로그램도
+// 지금처럼 COM4 로 바로 뽑을 수 있어요 (2026-10-22). 네이버가 뽑는 중이라 못 열면 1초마다 다시 해 봐요.
+async function txWrite(bytes){
+  const tx=relay.tx||serPort; if(!tx)return "busy";
+  for(let t=0;t<20;t++){
+    try{
+      await tx.open({baudRate:SER.baud});
+      try{const w=tx.writable.getWriter(); try{await w.write(bytes);}finally{await w.close().catch(()=>{}); try{w.releaseLock();}catch(e){}}}
+      finally{await tx.close().catch(()=>{});}
+      return "ok";
+    }catch(e){await sleep(1000);}
+  }
+  return "busy";
+}
+function relayFlush(){
+  const n=relay.pend.reduce((s,c)=>s+c.length,0); if(!n)return;
+  const b=new Uint8Array(n); let o=0; relay.pend.forEach(c=>{b.set(c,o);o+=c.length;}); relay.pend=[];
+  relay.chain=relay.chain.then(()=>txWrite(b)).then(r=>{
+    if(r!=="ok"){toast("⚠️ 배달앱 전표를 프린터(COM4)로 못 넘겼어요. 배달앱에서 다시 뽑아 주세요."); try{playChime();}catch(e){}}
+  }).catch(()=>{});
+}
 function relayGot(chunk){
   relay.last=Date.now();
-  const w=relay.writer;
-  relay.chain=relay.chain.then(()=>w.write(chunk)).catch(()=>{if(relay.on)relayStop(true);});
+  relay.pend.push(chunk); clearTimeout(relay.ptimer); relay.ptimer=setTimeout(relayFlush,500);
   relay.buf.push(chunk);
   clearTimeout(relay.timer); relay.timer=setTimeout(relayJob,1500);
 }
 // 주문판이 뽑는 전표·장보기 전표: 배달앱 전표가 다 나간 뒤에 이어서 보내요 (섞이지 않게)
 async function relayPrint(bytes){
   for(let t=0;t<30&&Date.now()-relay.last<1200;t++)await sleep(200);
-  if(!relay.on)return "busy";
-  const w=relay.writer, p=relay.chain.then(()=>w.write(bytes)); relay.chain=p.catch(()=>{});
-  try{await p;return "ok";}catch(e){if(relay.on)relayStop(true);return "busy";}
+  const p=relay.chain.then(()=>txWrite(bytes)); relay.chain=p.catch(()=>{});
+  try{return await p;}catch(e){return "busy";}
 }
 async function relayStop(broken){
   const was=relay.on; relay.on=false; relay.offAsk=0; clearTimeout(relay.timer);
   if(!broken)relayWant(false);
   try{if(relay.reader)await relay.reader.cancel();}catch(e){}
   await sleep(50);
-  try{if(relay.writer){await relay.writer.close().catch(()=>{}); relay.writer.releaseLock();}}catch(e){}
-  relay.writer=null;
+  clearTimeout(relay.ptimer); relayFlush(); // 받아 둔 전표는 마저 프린터로
   if(relay.rx)await relay.rx.close().catch(()=>{});
-  if(relay.tx)await relay.tx.close().catch(()=>{});
   relayLabel(); serLabel();
   if(broken&&was){toast("⚠️ 배달앱 전표 받기가 멈췄어요. '다시 켜기'를 눌러 주세요."); try{playChime();}catch(e){}}
   else if(!broken)toast("배달앱 전표 받기를 껐어요. 배달앱 프린터 설정을 COM4 로 돌려야 전표가 나와요.");
