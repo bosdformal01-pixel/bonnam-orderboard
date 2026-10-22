@@ -778,7 +778,7 @@ const MENU=[
   ["2인세트",14500,["halfSand"]],
   ["쌈밥 샐러드 세트",10000,SL,"salad"],["유부초밥 샐러드 세트",10000,SL,"salad"]]},
  // 단체 주문: 일반 메뉴판엔 안 보이고, 📅 예약 주문의 메뉴 찾기에서만 나와요 ('단체' 로 찾기)
- {cat:"단체 주문",st:"both",hidden:1,items:[
+ {cat:"단체 주문",chip:"단체",st:"both",hidden:1,items:[
   ["단체① 반개 포장 (10개 이상)",3500,["grpSandS"],"sandwich"],
   ["단체② 반개 + 샐러드 (2개 이상)",7250,["grpSandS","grpDress"]],
   ["단체③ 박스: 샌드위치 + 샐러드 또는 과일 + 음료",10000,["grpSandB","grpSideB","grpDrink"]],
@@ -1031,7 +1031,10 @@ function renderRecent(){
 /* ---------- menu + option sheet ---------- */
 function renderCats(){
   const box=$("catChips"); box.replaceChildren();
-  MENU.forEach((c,i)=>{if(c.hidden)return; const b=el("button","chip",c.cat);b.type="button";b.setAttribute("aria-pressed",String(i===curCat));b.onclick=()=>{curCat=i;renderCats();renderMenu();};box.append(b);});
+  // 단체 주문 칸은 📅 예약 주문 창에서만, 맨 앞에 '단체' 로 보여요 (선정님 요청 2026-10-22)
+  if(!resMode&&MENU[curCat].hidden)curCat=0;
+  const order=MENU.map((c,i)=>i).filter(i=>!MENU[i].hidden||resMode).sort((a,b)=>(MENU[b].hidden?1:0)-(MENU[a].hidden?1:0));
+  order.forEach(i=>{const c=MENU[i]; const b=el("button","chip",c.chip||c.cat);b.type="button";b.setAttribute("aria-pressed",String(i===curCat));b.onclick=()=>{curCat=i;renderCats();renderMenu();};box.append(b);});
 }
 function menuMatches(q){
   const nq=norm(q), onlyCho=/^[ㄱ-ㅎ]+$/.test(nq), out=[]; // 초성만 쓰면 초성으로, 글자를 쓰면 글자로 찾기
@@ -1044,7 +1047,7 @@ function renderMenu(){
   if(q&&!list.length){box.append(el("p","empty","'"+q+"' 메뉴가 없어요. 아래 칸에 직접 써도 돼요."));return;}
   list.forEach((m,i)=>{const b=el("button");b.type="button";b.append(m.n);
     if(q&&i===0)b.append(el("kbd",null,"Enter"));
-    b.append(el("span","who",(q?m.cat+" · ":"")+ST_NAME[m.st]+" · "+won(m.price)));
+    b.append(el("span","who",(q?m.cat+" · ":"")+(m.st==="both"&&!(MENU_IDX[m.n]||{}).half?"두 곳 다":ST_NAME[m.st])+" · "+won(m.price)));
     b.onclick=()=>openOpt({name:m.n,base:m.price,st:m.st,groups:m.groups},null);box.append(b);});
 }
 $("menuSearch").addEventListener("input",renderMenu);
@@ -1160,7 +1163,7 @@ function renderPicked(){
     total+=(it.unit||0)*it.qty;
     const r=el("div","pick"); if(idx===bumpIdx)r.classList.add("bump");
     const nm=el("button","nm"); nm.type="button";
-    const head=el("b"); head.append(el("span","tag "+it.st,it.st==="both"&&!MENU_IDX[it.name]?"두 곳 다":ST_NAME[it.st])," ",it.name); nm.append(head);
+    const head=el("b"); head.append(el("span","tag "+it.st,it.st==="both"&&!(MENU_IDX[it.name]||{}).half?"두 곳 다":ST_NAME[it.st])," ",it.name); nm.append(head);
     const ot=(it.opts||[]).map(optText).concat(it.note?["요청: "+it.note]:[]).join(" · ");
     if(ot)nm.append(el("span","ops",ot));
     if(it.groups&&(it.groups.length||MENU_IDX[it.name])){nm.title="눌러서 옵션 바꾸기";nm.onclick=()=>openOpt({name:it.name,base:it.base,st:it.st,groups:it.groups},idx);}
@@ -1378,6 +1381,7 @@ function openRes(o){
     draft.items=[]; (o.items||[]).map(rebuildItem).forEach(i=>addDraftItem(i)); bumpIdx=-1; renderPicked();
   }
   updatePhoneBox(); renderResChips();
+  curCat=MENU.findIndex(c=>c.hidden); renderCats(); renderMenu();
   $("resListOverlay").hidden=true;
   $("resSlot").append($("formPanel")); $("resOverlay").hidden=false;
   if(finePointer()&&!o)$("resMon").focus();
@@ -1391,6 +1395,7 @@ function closeRes(quiet){
   $("memoLbl").textContent="주문 전체 메모"; $("memo").placeholder="예: 수저 10개, 영수증 따로"; $("submitBtn").textContent="주문 넣기";
   $("resOverlay").hidden=true; $("counterView").prepend($("formPanel"));
   resetForm(); restoreStash(); updatePhoneBox(); renderCounter();
+  curCat=0; renderCats(); renderMenu();
   return true;
 }
 async function saveRes(){
