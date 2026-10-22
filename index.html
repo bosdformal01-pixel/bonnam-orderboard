@@ -168,7 +168,7 @@ input.qty{width:4.2em;padding:6px 4px;border:1.5px solid var(--line);border-radi
 .relaywarn button{font:inherit;font-weight:700;margin-left:8px;padding:6px 12px;border-radius:8px;border:0;background:var(--btn);color:var(--btn-ink);cursor:pointer}
 .relaywarn .s{margin-top:4px;font-size:.95rem}
 .apptag{display:inline-block;padding:1px 8px;border-radius:999px;background:#2ac1bc;color:#fff;font-size:.85rem;font-weight:700}
-.apptag.요기요{background:#fa0050}.apptag.쿠팡이츠{background:#00a5e5}
+.apptag.요기요{background:#fa0050}.apptag.네이버{background:#03c75a}.apptag.쿠팡이츠{background:#00a5e5}
 .lhead h2{margin:0!important}
 .lhead button{margin-left:auto}
 .lhead .kf{display:inline-flex;gap:0}
@@ -498,8 +498,8 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
     </form>
   </section>
   <section class="panel" aria-labelledby="lTitle">
-    <div class="lhead"><h2 id="lTitle">오늘 주문</h2><button type="button" class="linkbtn" id="sumBtn">📋 마감 요약 · 달력</button><button type="button" class="linkbtn" id="soundBtn2" style="margin-left:0">🔔 알림음 켜기</button><button type="button" class="linkbtn" id="slipWBtn" style="margin-left:0" title="영수증 프린터 종이 폭">🖨 전표 종이 79mm</button><button type="button" class="linkbtn" id="serBtn" style="margin-left:0" title="영수증 프린터(COM4)에 연결">🔌 영수증 프린터 연결하기</button><button type="button" class="linkbtn" id="relayBtn" style="margin-left:0" title="배민·요기요·쿠팡이츠 전표를 받아 프린터로 넘기고 주문판에 넣어요">🛵 배달앱 전표 받기 꺼짐</button><span class="kf" role="group" aria-label="포장/배달만 보기"><button type="button" class="linkbtn" data-kf="">전체</button><button type="button" class="linkbtn" data-kf="포장">포장만</button><button type="button" class="linkbtn" data-kf="배달">배달만</button></span></div>
-    <div class="relaywarn" id="relayWarn" hidden><b>⚠️ 배달앱 전표 받기가 멈췄어요.</b> 지금은 배민·요기요·쿠팡이츠 전표가 종이로 안 나와요. <button type="button" id="relayRetry">다시 켜기</button><div class="s">급하면: 배달앱 프린터 설정을 COM4 로 돌리면 바로 원래대로 나와요.</div></div>
+    <div class="lhead"><h2 id="lTitle">오늘 주문</h2><button type="button" class="linkbtn" id="sumBtn">📋 마감 요약 · 달력</button><button type="button" class="linkbtn" id="soundBtn2" style="margin-left:0">🔔 알림음 켜기</button><button type="button" class="linkbtn" id="slipWBtn" style="margin-left:0" title="영수증 프린터 종이 폭">🖨 전표 종이 79mm</button><button type="button" class="linkbtn" id="serBtn" style="margin-left:0" title="영수증 프린터(COM4)에 연결">🔌 영수증 프린터 연결하기</button><button type="button" class="linkbtn" id="relayBtn" style="margin-left:0" title="배민·요기요·쿠팡이츠·네이버 전표를 받아 프린터로 넘기고 주문판에 넣어요">🛵 배달앱 전표 받기 꺼짐</button><span class="kf" role="group" aria-label="포장/배달만 보기"><button type="button" class="linkbtn" data-kf="">전체</button><button type="button" class="linkbtn" data-kf="포장">포장만</button><button type="button" class="linkbtn" data-kf="배달">배달만</button></span></div>
+    <div class="relaywarn" id="relayWarn" hidden><b>⚠️ 배달앱 전표 받기가 멈췄어요.</b> 지금은 배민·요기요·쿠팡이츠·네이버 전표가 종이로 안 나와요. <button type="button" id="relayRetry">다시 켜기</button><div class="s">급하면: 배달앱 프린터 설정을 COM4 로 돌리면 바로 원래대로 나와요.</div></div>
     <div class="olist" id="orderList"><p class="empty">오늘 들어온 주문이 아직 없어요. 왼쪽에서 첫 주문을 넣으면 여기와 태블릿에 바로 떠요.</p></div>
     <details class="done" id="outWrap" hidden>
       <summary id="outSum">나간 주문</summary>
@@ -2181,6 +2181,7 @@ function parseSlip(text){
   const all=lines.join("\n");
   const r={src:"배달앱",test:false,no:"",kind:"배달",addr:"",phone:"",memo:"",due:"",items:[],fee:0,total:0,raw:text.trim()};
   if(/coupang\s*eats|쿠팡\s*이츠/i.test(all))r.src="쿠팡이츠";
+  else if(/네이버|naver|스마트\s*주문/i.test(head))r.src="네이버"; // 네이버 주문 (포장·테이블 미리주문), 2026-10-22
   else if(/요기요|yogiyo/i.test(head))r.src="요기요";
   else if(/배달의\s*민족|배민|baemin|(배달|포장|픽업)\s*주문\s*전표|안심번호는 주문접수/i.test(all))r.src="배민";
   else if(/요기요/.test(all))r.src="요기요";
@@ -2188,7 +2189,7 @@ function parseSlip(text){
   const no=all.match(/주문\s*번호\s*[:：]?\s*(#?[0-9A-Za-z-]{2,20})/); if(no)r.no=no[1];
   if(!r.no&&r.src==="쿠팡이츠"){const ci=lines.findIndex(l=>/coupang\s*eats/i.test(l)); const c=lines.slice(ci+1,ci+5).map(l=>l.trim()).find(l=>/^[0-9A-Z]{4,12}$/.test(l)); if(c)r.no=c;}
   const tags=lines.slice(0,8).map(l=>(l.match(/\[([^\]]+)\]/)||[])[1]).filter(t=>t&&!/고객용|매장용|테스트/.test(t));
-  if(/픽업|포장\s*주문|방문\s*포장/.test(head))r.kind="포장";
+  if(/픽업|포장\s*주문|방문\s*포장/.test(head)||(r.src==="네이버"&&!/배달\s*주소/.test(all)))r.kind="포장";
   const grab=(re)=>{ // 제목 줄 다음부터 구분선 전까지
     const i=lines.findIndex(l=>re.test(l)); if(i<0)return [];
     const first=lines[i].replace(re,"").replace(/^\s*[:：]\s*/,"").trim(), out=first?[first]:[];
