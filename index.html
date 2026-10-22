@@ -702,7 +702,13 @@ const G={
  // 2인세트 샌드위치: 햄에그가 기본으로 눌려 있고, 한 번 더 누르면 빠져서 '샌드위치 없음'으로 찍혀요 (선정님 요청 2026-10-21)
  halfSand:{l:"반반 샌드위치",key:1,d:0,emptyAs:"샌드위치 없음",p:1,st:"sandwich",o:[["햄에그 샌드위치"],["인기가요 샌드위치",500],["베이컨에그 샌드위치",500],["게살 샌드위치",500],["치킨 스파이시 샌드위치",1000],["치킨 데리야끼 샌드위치",1000],["바질아보카도 샌드위치",2000],["깻잎불고기 샌드위치",2000]]},
  // 1인세트는 음료 없이 8,000원. 처음엔 아무 음료도 안 눌려 있고, 안 고르면 '음료 없음'으로 찍혀요. 아메리카노 누르면 10,000원 (선정님 요청 2026-10-21)
- set1Drink:{l:"음료",key:1,emptyAs:"음료 없음",hint:"안 고르면 음료 없음",p:1,st:"sandwich",o:[["아이스 아메리카노",2000],["감귤주스",2000],["오렌지주스",2000],["복숭아 아이스티",2000],["해독주스 250ml",3500],["토당주스 250ml",3500],["ABC 주스 250ml",3500],["레몬에이드",4000],["자몽에이드",4000]]},
+ /* 단체 주문 (네이버 '단체주문' 가격표, 2026-10-22 선정님이 사진으로 보내 줌). 값은 햄에그(E) 기준에서 더하는 금액.
+    A 깻잎불고기·바질아보카도·치킨텐더·베이컨아보카도·리코타 / B 통새우 / C 달콤·파인크랩·닭가슴살 / D 게살·베이컨에그·햄치즈·에그에그·인기가요 / E 햄에그 */
+ grpSandS:{l:"샌드위치",req:1,nod:1,key:1,st:"sandwich",o:[["깻잎불고기",1000],["바질아보카도",1000],["치킨텐더",1000],["베이컨아보카도",1000],["리코타",1000],["통새우",800],["달콤 (에그)",500],["달콤 (감자)",500],["달콤 (단호박)",500],["파인크랩",500],["닭가슴살 (데리)",500],["닭가슴살 (매운데리)",500],["닭가슴살 (크랜베리)",500],["게살",300],["베이컨에그",300],["햄치즈",300],["에그에그",300],["인기가요",300],["햄에그"]]},
+ grpSandB:{l:"샌드위치",req:1,nod:1,key:1,st:"sandwich",o:[["깻잎불고기",2000],["바질아보카도",2000],["치킨텐더",2000],["베이컨아보카도",2000],["리코타",2000],["통새우",1500],["달콤 (에그)",1000],["달콤 (감자)",1000],["달콤 (단호박)",1000],["파인크랩",1000],["닭가슴살 (데리)",1000],["닭가슴살 (매운데리)",1000],["닭가슴살 (크랜베리)",1000],["게살",500],["베이컨에그",500],["햄치즈",500],["에그에그",500],["인기가요",500],["햄에그"]]},
+ grpSideB:{l:"샐러드 또는 과일",req:1,nod:1,key:1,st:"salad",o:[["샐러드"],["과일"]]},
+ grpDrink:{l:"박스 음료",req:1,nod:1,key:1,drink:1,st:"sandwich",o:[["팩음료",1000],["오렌지주스",1500],["감귤주스",1500],["딸기우유",3500],["해독주스",3500],["토당주스",3500],["ABC주스",3500]]},
+ set1Drink:{l:"음료",key:1,drink:1,emptyAs:"음료 없음",hint:"안 고르면 음료 없음",p:1,st:"sandwich",o:[["아이스 아메리카노",2000],["감귤주스",2000],["오렌지주스",2000],["복숭아 아이스티",2000],["해독주스 250ml",3500],["토당주스 250ml",3500],["ABC 주스 250ml",3500],["레몬에이드",4000],["자몽에이드",4000]]},
  s2d1:{l:"샐러드1 드레싱",req:1,key:1,d:0,hideDef:1,p:1,st:"salad",o:null},
  s2t1:{l:"샐러드1 토핑",m:1,p:1,st:"salad",o:[["견과류"],["스위트콘"],["구운두부",500],["에그마요 추가",1000],["감자샐러드 추가",1000],["단호박샐러드 추가",1000],["닭가슴살 추가",1500],["불고기 추가",1500],["오리훈제 추가",1500],["수제리코타치즈 추가",1500],["새우 2마리 추가",1500],["치킨텐더 추가",1500],["과일 2종 추가",1500],["아보카도 반개 추가",2500]]},
  s2d2:{l:"샐러드2 드레싱",req:1,key:1,d:0,hideDef:1,p:1,st:"salad",o:null},
@@ -770,6 +776,12 @@ const MENU=[
   ["1인세트",8000,["set1Drink"]],
   ["2인세트",14500,["halfSand"]],
   ["쌈밥 샐러드 세트",10000,SL,"salad"],["유부초밥 샐러드 세트",10000,SL,"salad"]]},
+ // 단체 주문: 일반 메뉴판엔 안 보이고, 📅 예약 주문의 메뉴 찾기에서만 나와요 ('단체' 로 찾기)
+ {cat:"단체 주문",st:"both",hidden:1,items:[
+  ["단체① 반개 포장 (10개 이상)",3500,["grpSandS"],"sandwich"],
+  ["단체② 반개 + 샐러드 (2개 이상)",7250,["grpSandS"]],
+  ["단체③ 박스: 샌드위치 + 샐러드 또는 과일 + 음료",10000,["grpSandB","grpSideB","grpDrink"]],
+  ["단체④ 박스: 샌드위치 + 샐러드 + 과일 + 음료",15000,["grpSandB","grpDrink"]]]},
  {cat:"토스트",st:"sandwich",items:[["카야토스트",6500,["kaya"]],["전남친토스트",6500,[]],["악마토스트",6500,[]]]},
  {cat:"커피",st:"sandwich",items:[["아메리카노",2500,["temp"]],["카페라떼",3000,["temp"]],["카페모카",3500,["temp"]],["바닐라라떼",3500,["temp"]],["카라멜마끼야또",3500,["temp"]],["초코라떼",3000,["temp"]]]},
  {cat:"차·에이드·스무디",st:"sandwich",items:[["유자꿀차",2500,["temp"]],["수제레몬청꿀차",3000,["temp"]],["수제레몬에이드",4000,[]],["자몽에이드",4000,[]],["유자에이드",4000,[]],["복숭아아이스티",2500,[]],["플레인요거트 스무디",4000,[]],["딸기요거트 스무디",4500,[]],["블루베리요거트 스무디",4500,[]]]},
@@ -1018,11 +1030,11 @@ function renderRecent(){
 /* ---------- menu + option sheet ---------- */
 function renderCats(){
   const box=$("catChips"); box.replaceChildren();
-  MENU.forEach((c,i)=>{const b=el("button","chip",c.cat);b.type="button";b.setAttribute("aria-pressed",String(i===curCat));b.onclick=()=>{curCat=i;renderCats();renderMenu();};box.append(b);});
+  MENU.forEach((c,i)=>{if(c.hidden)return; const b=el("button","chip",c.cat);b.type="button";b.setAttribute("aria-pressed",String(i===curCat));b.onclick=()=>{curCat=i;renderCats();renderMenu();};box.append(b);});
 }
 function menuMatches(q){
   const nq=norm(q), onlyCho=/^[ㄱ-ㅎ]+$/.test(nq), out=[]; // 초성만 쓰면 초성으로, 글자를 쓰면 글자로 찾기
-  MENU.forEach(c=>c.items.forEach(([n,price,groups,ist])=>{ if(norm(n).includes(nq)||(onlyCho&&cho(n).includes(nq)))out.push({n,price,groups,st:ist||c.st,cat:c.cat}); }));
+  MENU.forEach(c=>{if(c.hidden&&!resMode)return; c.items.forEach(([n,price,groups,ist])=>{ if(norm(n).includes(nq)||(onlyCho&&cho(n).includes(nq)))out.push({n,price,groups,st:ist||c.st,cat:c.cat}); });});
   return out;
 }
 function renderMenu(){
@@ -1041,7 +1053,7 @@ $("menuSearch").addEventListener("keydown",e=>{
 });
 let sheet=null; // {name,base,st,groups,sel:{gid:Set(idx)},qty,editIdx}
 // Required single-choice groups start on their first option (사장님 요청: 필수 옵션은 맨 앞이 기본).
-const defIdx=gid=>{const g=G[gid]; return g.d!=null?g.d:(g.req&&!g.m?0:null);};
+const defIdx=gid=>{const g=G[gid]; return g.d!=null?g.d:(g.req&&!g.m&&!g.nod?0:null);}; // nod: 처음엔 아무것도 안 눌림 (꼭 직접 고르기)
 // 처음에 눌려 있는 칸들 (여러 개 기본이 있는 그룹은 ds)
 const defSet=gid=>G[gid].ds?G[gid].ds:(defIdx(gid)!=null?[defIdx(gid)]:[]);
 function openOpt(m,editIdx){
@@ -1260,7 +1272,7 @@ const packItems=()=>draft.items.map(i=>({name:i.name,qty:i.qty,st:i.st,unit:i.un
 
 /* ---------- 주문 고치기 ---------- */
 let editing=null;
-const MENU_IDX={}; MENU.forEach(c=>c.items.forEach(([n,price,groups,ist])=>{MENU_IDX[n]={base:price,st:ist||c.st,groups};}));
+const MENU_IDX={}; MENU.forEach(c=>c.items.forEach(([n,price,groups,ist])=>{MENU_IDX[n]={base:price,st:ist||c.st,groups,half:c.cat==="세트 (반반)"};}));
 // what one bar has to make, to tell whether an edit changed that bar's work
 // counts per (menu + that bar's options + note), so merging or reordering lines doesn't look like a change
 function sigFor(items,st){
@@ -1481,7 +1493,7 @@ let sampleFn=null, scanLim=null, scanCtl=null;
 });
 function scanCatalog(){
   const used=new Set(), lines=["[메뉴] 이름 | 만드는 곳 | 고를 수 있는 옵션 그룹"];
-  MENU.forEach(c=>c.items.forEach(([n,price,groups,ist])=>{groups.forEach(g=>used.add(g)); lines.push(n+" | "+(ist||c.st)+" | "+(groups.join(",")||"-"));}));
+  MENU.filter(c=>!c.hidden).forEach(c=>c.items.forEach(([n,price,groups,ist])=>{groups.forEach(g=>used.add(g)); lines.push(n+" | "+(ist||c.st)+" | "+(groups.join(",")||"-"));}));
   lines.push("","[옵션 그룹] 그룹id: 이름 (한 개만/여러 개) = 값들");
   [...used].forEach(g=>{const x=G[g]; lines.push(g+": "+x.l+" ("+(x.m?"여러 개":"한 개만")+") = "+x.o.map(o=>o[0]).join(" / "));});
   lines.push("","[과 목록] "+allDepts().map(d=>d.name).join(", "));
@@ -1658,7 +1670,7 @@ $("calNext").onclick=()=>openCal(shiftYM(calYM,1));
 $("calToday").onclick=()=>openCal(today().slice(0,7));
 /* ---------- 판매 순위 + 엑셀로 받기 (2026-10-22 선정님 요청): 주·월별 많이 나간 메뉴, 그 기간 주문 기록을 엑셀로 (백업용) ---------- */
 let rankPer="m0", rankCat="", rankAll=false, rankUnsub=null, rankOrders=null, rankRange=null;
-const RANK_GRP={"샐러드":"샐러드","현미밥 샐러드":"샐러드","샌드위치":"샌드위치","토스트":"샌드위치","세트 (반반)":"세트","커피":"음료","차·에이드·스무디":"음료","주스·음료":"음료"};
+const RANK_GRP={"단체 주문":"세트","샐러드":"샐러드","현미밥 샐러드":"샐러드","샌드위치":"샌드위치","토스트":"샌드위치","세트 (반반)":"세트","커피":"음료","차·에이드·스무디":"음료","주스·음료":"음료"};
 const CAT_OF={}; MENU.forEach(c=>c.items.forEach(([n])=>{CAT_OF[n]=RANK_GRP[c.cat]||"기타";}));
 const RANK_GRP_LABEL={"샐러드":"샐러드","샌드위치":"샌드위치·토스트","세트":"세트","음료":"음료","기타":"기타"};
 function stopRank(){if(rankUnsub){rankUnsub();rankUnsub=null;}}
@@ -1818,6 +1830,7 @@ const FULL_GROUPS=[
   {l:"샐러드",cats:["샐러드","현미밥 샐러드"]},
   {l:"샌드위치·토스트",cats:["샌드위치","토스트"]},
   {l:"세트 (반반)",cats:["세트 (반반)"]},
+  {l:"단체 주문",cats:["단체 주문"]},
   {l:"주스·음료",cats:["주스·음료","차·에이드·스무디","커피"]},
   {l:"목록에 없는 메뉴",cats:[]}];
 const ITEM_GRP={}, ITEM_RANK={};
@@ -1905,7 +1918,7 @@ function pinBtn(o,cls){
   b.title="모든 화면에서 이 주문을 맨 앞에 둬요"; b.onclick=()=>write(o.id,ref=>ref.update({pin:o.pin?0:Date.now()})); return b;
 }
 // 반반 세트만 '반쪽'을 붙여요. 직접 쓴 메뉴를 '두 곳 다'로 보낸 건 이름 그대로 (2026-10-22)
-const isHalf=i=>i.st==="both"&&!!MENU_IDX[i.name]&&MENU_IDX[i.name].st==="both";
+const isHalf=i=>i.st==="both"&&!!MENU_IDX[i.name]&&MENU_IDX[i.name].half;
 const barName=(i,st)=>i.name+(isHalf(i)?(st==="salad"?" · 샐러드 반쪽":" · 샌드위치 반쪽"):"");
 // 음료는 샌드위치바(사모님)가 만들지만, 샐러드바 표에도 '같이 나갈 음료'로 보여 줘요 (선정님 요청 2026-10-22)
 const DRINK_CATS=["커피","차·에이드·스무디","주스·음료"];
@@ -1914,7 +1927,7 @@ function drinksOf(o){
   const out=[];
   (o.items||[]).forEach(i=>{
     if(DRINK_SET.has(i.name)){const ops=shownOpts(i).map(optText); out.push({q:i.qty,t:i.name+(ops.length?" ("+ops.join(", ")+")":"")});}
-    else (i.opts||[]).forEach(op=>{if(op.gid==="set1Drink"&&op.v!==G.set1Drink.emptyAs)out.push({q:i.qty,t:op.v+" ("+i.name+")"});});
+    else (i.opts||[]).forEach(op=>{const g=op.gid&&G[op.gid]; if(g&&g.drink&&op.v!==g.emptyAs)out.push({q:i.qty,t:op.v+" ("+i.name+")"});});
   });
   return out;
 }
