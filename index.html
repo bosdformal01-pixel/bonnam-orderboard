@@ -2176,7 +2176,8 @@ function serLabel(){
 }
 async function serKnown(){
   if(!serAvail())return null;
-  try{const ps=await navigator.serial.getPorts(); const k=portIdx().tx; serPort=(k!=null&&ps[k])||(ps.length===1?ps[0]:null)||ps[0]||null;}
+  // 기억한 순번은 허락받은 칸 수가 그대로일 때만 믿어요. 칸 목록이 바뀌었으면 엉뚱한 칸(COM10 등)에 보내지 말고 다시 골라 달라고 해요 (2026-10-23).
+  try{const ps=await navigator.serial.getPorts(), k=portIdx(); serPort=(k.n===ps.length&&k.tx!=null&&ps[k.tx])||(ps.length===1?ps[0]:null)||null;}
   catch(e){if(e&&e.name==="SecurityError")serBlocked=true; serPort=null;}
   serLabel(); return serPort;
 }
@@ -2295,7 +2296,7 @@ async function portWrite(port,bytes){
   }
 }
 const SER_MSG={
-  busy:"프린터 칸(COM4)을 다른 프로그램이 쓰고 있어요. 잠시 뒤 다시 눌러 주세요.",
+  busy:"프린터 칸(COM4)을 다른 프로그램이 쓰고 있어요. 잠시 뒤 다시 눌러 주세요. 계속 이러면 '🔌 영수증 프린터' 버튼을 눌러 COM4 를 다시 골라 주세요.",
   noanswer:"영수증 프린터가 대답이 없어요. 프린터 전원·종이·뚜껑을 보고, 프린터를 껐다 켠 뒤 다시 눌러 주세요."
 };
 function markPrinted(o){ if(col)write(o.id,ref=>ref.update({printedAt:Date.now()})); }
