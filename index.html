@@ -351,13 +351,11 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
 .rcard .s{color:var(--muted);font-size:.92rem;overflow-wrap:anywhere}
 .rcard .act{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
 .overlay.top3{z-index:45}
-.appstat{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.appstat button{padding:7px 12px;border-radius:999px;border:2px solid var(--salad);background:var(--salad-soft);color:var(--ink);font:inherit;font-weight:700;cursor:pointer;display:flex;gap:6px;align-items:center}
-.appstat button .dot{width:10px;height:10px;border-radius:50%;background:var(--salad)}
+.appstat{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.appstat button{padding:4px 9px;border-radius:999px;border:2px solid var(--salad);background:var(--salad);color:var(--on-accent);font:inherit;font-size:.85rem;font-weight:700;cursor:pointer}
 .appstat button:disabled{cursor:default;opacity:1}
 .appstat button.off{border-color:var(--late);background:var(--late);color:var(--on-accent)}
-.appstat button.off .dot{background:var(--on-accent)}
-.appstat .late{font-weight:800;color:var(--late)}
+.appstat .late{font-weight:800;font-size:.85rem;color:var(--late)}
 @media (prefers-reduced-motion:no-preference){.appstat.late button.off{animation:pulse 1.2s ease-in-out infinite}}
 .sheet.peak{max-width:520px;border:3px solid var(--late);margin-top:10vh}
 .sheet.peak h2{font-family:var(--display);font-weight:400;font-size:1.6rem;margin:0;color:var(--late)}
@@ -1607,7 +1605,7 @@ function renderAppStat(){
   box.replaceChildren(...PEAK_APPS.map(a=>{
     const off=peakOff.includes(a), b=el("button",off?"off":"");
     b.type="button"; b.title=off?a+" 꺼짐 · 다시 켰으면 눌러 주세요":a+" 켜짐 · 껐으면 눌러 주세요";
-    b.append(el("span","dot"),document.createTextNode(a+(off?" 꺼짐":" 켜짐")));
+    b.textContent=a; b.setAttribute("aria-label",a+(off?" 꺼짐":" 켜짐"));
     if(mode==="counter")b.onclick=()=>savePeakOff(off?peakOff.filter(x=>x!==a):[...peakOff,a]); else b.disabled=true; // 태블릿은 보기만
     return b;}), ...(late?[el("span","late","⚠️ 다시 켜세요!")]:[]));
 }
