@@ -145,6 +145,7 @@ input.qty{width:4.2em;padding:6px 4px;border:1.5px solid var(--line);border-radi
 .orow{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:4px}
 .orow .h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
 .orow .t{font-variant-numeric:tabular-nums;font-weight:700;font-size:1.1rem}
+.h .ago{font-weight:800;color:var(--late);font-variant-numeric:tabular-nums;white-space:nowrap}
 .orow .d{font-weight:700;font-size:1.1rem}
 .orow .s{color:var(--muted);font-size:.92rem;overflow-wrap:anywhere}
 .orow .act{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
@@ -1998,7 +1999,7 @@ function renderFull(){
   if(!fullId||$("fullOverlay").hidden)return;
   const o=orders.find(x=>x.id===fullId); const box=$("fullBody");
   if(!o){box.replaceChildren(el("p","empty","이 주문은 취소됐어요."));return;}
-  const head=el("div","fullhead"); const fn=noTag(o); if(fn)head.append(fn); head.append(el("b",null,o.due||"--:--"),el("span","fd",cardLabel(o)),el("span","kindtag",o.kind||""),appTag(o));
+  const head=el("div","fullhead"); const fn=noTag(o); if(fn)head.append(fn); head.append(el("b",null,o.due||(noDueApp(o)?hm(o.createdAt)+" 받음":"--:--")),el("span","fd",cardLabel(o)),el("span","kindtag",o.kind||""),appTag(o));
   if(o.editedAt)head.append(el("span","ex","수정됨 "+hm(o.editedAt)));
   if(o.reserved)head.append(resTag());
   const parts=[head];
@@ -2086,8 +2087,12 @@ function drinksOf(o){
 const itemsFor=(o,st)=>(o.items||[]).filter(i=>i.st===st||i.st==="both");
 const needs=o=>({salad:itemsFor(o,"salad").length>0,sandwich:itemsFor(o,"sandwich").length>0});
 function isReady(o){const n=needs(o),d=o.done||{};return !o.out&&(n.salad||n.sandwich)&&(!n.salad||!!d.salad)&&(!n.sandwich||!!d.sandwich);}
+// 배달앱 주문은 예상 시간이 없어서 "시간 미정" 대신 받은 시각과 받은 지 몇 분인지 보여요 (2026-10-24 선정님 요청)
+const noDueApp=o=>!o.due&&!!o.src&&!!o.createdAt;
+const timeLabel=o=>o.due||(noDueApp(o)?hm(o.createdAt)+" 받음":"시간 미정");
+function agoText(o){const m=Math.max(0,Math.floor((Date.now()-o.createdAt)/60000)); return m?"받은 지 "+m+"분":"방금 받음";}
 function dueText(o,done){
-  if(!o.due)return"시간 미정"; if(done)return"";
+  if(!o.due)return done?"":noDueApp(o)?agoText(o):"시간 미정"; if(done)return"";
   const m=minsTo(o.due); if(m==null)return"";
   if(m<0)return -m+"분 지남"; if(m===0)return"지금"; return m+"분 남음";
 }
@@ -2136,7 +2141,7 @@ function slipNode(o){
   // ---- 배달 정보: 영수증 맨 위 (사용자 요청 2026-10-19: 주문번호·건물/층 빼고, 연락처는 적었을 때만) ----
   if(!g)w.append(el("div","x2 dp",o.dept||"")); // 일반 손님은 영수증에 안 찍음 (화면에만)
   if(o.addr)w.append(el("div",null,"주소: "+o.addr));
-  w.append(rw(dl?"배달시간":"픽업시간",o.due?o.due+" 까지":"미정"));
+  w.append(noDueApp(o)?rw("받은 시간",hm(o.createdAt)):rw(dl?"배달시간":"픽업시간",o.due?o.due+" 까지":"미정"));
   if(o.phone)w.append(rw("연락처",o.phone)); else if(o.phone4)w.append(rw("연락처","뒷자리 "+o.phone4));
   if(o.memo)w.append(el("div",null,"요청사항: "+o.memo));
   if(!g)w.append(rw("결제","장부"));
@@ -2221,7 +2226,7 @@ function slipBytes(o){
   // ---- 배달 정보 (맨 위) ----
   if(!g){raw(0x1d,0x21,0x11, 0x1b,0x45,1); wrapW(o.dept||"",Math.floor(W/2)).forEach(t=>ln(t)); raw(0x1d,0x21,0x00, 0x1b,0x45,0);}
   if(o.addr)wrapLn("주소: "+o.addr,"  ");
-  raw(0x1b,0x45,1); ln(lr(dl?"배달시간":"픽업시간",o.due?o.due+" 까지":"미정",W)); raw(0x1b,0x45,0);
+  raw(0x1b,0x45,1); ln(noDueApp(o)?lr("받은 시간",hm(o.createdAt),W):lr(dl?"배달시간":"픽업시간",o.due?o.due+" 까지":"미정",W)); raw(0x1b,0x45,0);
   if(o.phone)ln(lr("연락처",o.phone,W)); else if(o.phone4)ln(lr("연락처","뒷자리 "+o.phone4,W));
   if(o.memo)wrapLn("요청사항: "+o.memo,"  ");
   if(!g)ln(lr("결제","장부",W));
@@ -2658,7 +2663,7 @@ function cancelBtn(o){
 }
 function readyCard(o){
   const r=el("div","ready"), nt=readyNew.get(o.id); if(nt&&Date.now()-nt<60000)r.classList.add("flash"); if(editing===o.id)r.classList.add("isedit");
-  const h=el("div","h"); h.append(...[noTag(o),el("span","t",o.due||"시간 미정"),el("span","d",cardLabel(o)),el("span","kindtag",o.kind||""),appTag(o)].filter(Boolean));
+  const h=el("div","h"); h.append(...[noTag(o),el("span","t",timeLabel(o)),noDueApp(o)?el("span","ago",agoText(o)):null,el("span","d",cardLabel(o)),el("span","kindtag",o.kind||""),appTag(o)].filter(Boolean));
   if(o.example)h.append(el("span","ex","예시"));
   if(o.reserved){h.append(resTag()); r.classList.add("isres");}
   r.append(h, el("div","s",itemsText(o)));
@@ -2678,7 +2683,7 @@ function readyCard(o){
 }
 function makingRow(o){
   const r=el("div","orow"), h=el("div","h"); if(editing===o.id)r.classList.add("isedit");
-  h.append(...[noTag(o),el("span","t",o.due||"시간 미정"),el("span","d",cardLabel(o)),el("span","tag both",o.kind||""),appTag(o)].filter(Boolean));
+  h.append(...[noTag(o),el("span","t",timeLabel(o)),noDueApp(o)?el("span","ago",agoText(o)):null,el("span","d",cardLabel(o)),el("span","tag both",o.kind||""),appTag(o)].filter(Boolean));
   if(o.example)h.append(el("span","ex","예시"));
   if(o.editedAt)h.append(el("span","ex","수정됨 "+hm(o.editedAt)));
   if(o.pin)h.append(el("span","ptag pin","📌 먼저"));
@@ -2735,7 +2740,7 @@ function ticket(o,st){
   const nt=newIds.get(o.id); if(nt&&Date.now()-nt<60000&&!isDone)t.classList.add("new");
   const kind=el("div","kind"); const nt0=noTag(o); if(nt0)kind.append(nt0," "); kind.append(el("span","kindtag",o.kind||"")); t.append(kind);
   if(o.pin&&!isDone){t.classList.add("pinned"); t.append(el("div","pinbar","📌 먼저 할 주문"));}
-  const due=el("div","due"); due.append(el("b",null,o.due||"--:--"),el("span",null,dueText(o,isDone))); t.append(due);
+  const due=el("div","due"); due.append(el("b",null,o.due||(noDueApp(o)?hm(o.createdAt):"--:--")),el("span",null,dueText(o,isDone))); t.append(due);
   if((o.org&&o.org!=="기타")||o.floor)t.append(el("div","org",[o.org!=="기타"?o.org:"",o.floor].filter(Boolean).join(" · ")));
   if(o.reserved)t.classList.add("isres");
   const dept=el("div","dept"); if(srcOf(o)!=="전화")dept.append(appTag(o)," "); dept.append(isGuest(o)?cardLabel(o):o.dept||""); if(o.example)dept.append(" ",el("span","ex","예시")); if(o.editedAt)dept.append(" ",el("span","ex","수정됨 "+hm(o.editedAt))); t.append(dept);
