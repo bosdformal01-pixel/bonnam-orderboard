@@ -339,6 +339,8 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
 .reshint{font-weight:700;color:var(--res);min-height:1.5em}
 .restag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:.8rem;font-weight:800;background:var(--res);color:#fff;white-space:nowrap}
 .ticket.isres{border-color:var(--res)}
+.chk{background:#fde8e6;color:#b42318;border:2px solid #e5484d;border-radius:8px;padding:6px 10px;margin:6px 0;font-weight:700;overflow-wrap:anywhere}
+.chk button{margin-left:8px}
 .ticket .resline{font-weight:700;color:var(--res);overflow-wrap:anywhere}
 .orow.isres,.ready.isres{box-shadow:inset 6px 0 0 var(--res)}
 #resNew{margin-left:auto}
@@ -2002,7 +2004,7 @@ function renderFull(){
   const head=el("div","fullhead"); const fn=noTag(o); if(fn)head.append(fn); head.append(el("b",null,o.due||(noDueApp(o)?hm(o.createdAt)+" 받음":"--:--")),el("span","fd",cardLabel(o)),el("span","kindtag",o.kind||""),appTag(o));
   if(o.editedAt)head.append(el("span","ex","수정됨 "+hm(o.editedAt)));
   if(o.reserved)head.append(resTag());
-  const parts=[head];
+  const parts=[head]; {const ck=checkLine(o,false); if(ck)parts.push(ck);}
   const groups=FULL_GROUPS.map(()=>[]); inOrder(o.items).forEach(i=>groups[grpOf(i)].push(i));
   groups.forEach((list,gi)=>{ if(!list.length)return;
     const w=el("section","fgrp"), h=el("h3",null,FULL_GROUPS[gi].l); h.append(el("span","n",list.reduce((s,i)=>s+i.qty,0)+"개")); w.append(h);
@@ -2389,7 +2391,7 @@ function parseSlip(text){
   const lines=text.split("\n").map(l=>l.replace(/\s+$/,"")), head=lines.slice(0,6).join(" ");
   const isDash=l=>/^\s*[-=─━_]{8,}\s*$/.test(l);
   const all=lines.join("\n");
-  const r={src:"배달앱",test:false,no:"",kind:"배달",addr:"",phone:"",memo:"",due:"",items:[],fee:0,total:0,raw:text.trim()};
+  const r={src:"배달앱",test:false,no:"",kind:"배달",addr:"",phone:"",memo:"",due:"",items:[],fee:0,total:0,menuSum:0,cnt:0,warn:[],check:"",raw:text.trim()};
   if(/coupang\s*eats|쿠팡\s*이츠/i.test(all))r.src="쿠팡이츠";
   else if(/네이버|naver|스마트\s*주문/i.test(head))r.src="네이버"; // 네이버 주문 (포장·테이블 미리주문), 2026-10-22
   else if(/요기요|yogiyo/i.test(head))r.src="요기요";
@@ -2412,6 +2414,7 @@ function parseSlip(text){
   const memo=grab(/^\s*(요청\s*사항|고객\s*요청|가게\s*요청)\s*[:：]?/); r.memo=tags.concat(memo).join(" / ").slice(0,200);
   const due=lines.find(l=>/(배달\s*시간|도착\s*예정|픽업\s*시간|배달\s*예정|조리\s*완료)/.test(l)); if(due)r.due=slipHM(due.replace(/^.*?(시간|예정|완료)\s*[:：]?/,""));
   lines.forEach(l=>{const m=l.match(/^\s*(합\s*계|주문\s*금액|결제\s*금액|총\s*결제\s*금액|총\s*금액|총\s*주문\s*금액)\s*[:：]?\s*(?:\d{1,3}\s+)?(-?[\d,]+)\s*원?\s*$/); if(m)r.total=Math.max(r.total,slipNum(m[2]));
+    const ms=l.match(/^\s*(주문\s*금액|합\s*계)\s*[:：]?\s*(?:(\d{1,3})\s+)?(-?[\d,]+)\s*원?\s*$/); if(ms&&!r.menuSum){r.menuSum=slipNum(ms[3]); if(ms[2])r.cnt=+ms[2];}
     const f=l.match(/^\s*배달\s*(료|팁|비)\s*[:：]?\s*([\d,]+)\s*원?\s*$/); if(f)r.fee=slipNum(f[2]);});
   // 메뉴 줄: "메뉴(명) 수량 금액" 머리줄 다음부터
   let i=lines.findIndex(l=>/메뉴/.test(l)&&/수량/.test(l));
@@ -2425,6 +2428,7 @@ function parseSlip(text){
     const numOnly=l=>l.match(/^\s*(?:(\d{1,3})\s+)?(-?\d{1,3}(?:,\d{3})+|-?\d+)\s*원?\s*$/);
     const isEnd=l=>isDash(l)||/^\s*(배달\s*(료|팁|비)|합\s*계|주문\s*금액|결제\s*금액|총|할인|쿠폰|\[)/.test(l);
     const nextLine=k=>{for(let j=k+1;j<lines.length;j++)if(lines[j].trim())return lines[j]; return "";};
+    let pre="";
     for(;i<lines.length;i++){
       const l=lines[i]; if(!l.trim())continue;
       if(isEnd(l))break;
@@ -2437,13 +2441,15 @@ function parseSlip(text){
       }
       const m=l.match(/^(.*?\S)\s+(\d{1,3})(?:\s+(-?[\d,]+)\s*원?)?\s*$/);
       const mark=/^\s*[-+ㄴ└·>*]/.test(l);
-      if(!m&&!mark){ // 수량 없는 이름 줄: 다음 줄이 숫자만이면 새 메뉴예요
-        const nx=nextLine(i);
-        if(nx&&!isEnd(nx)&&numOnly(nx)){
-          const name=l.replace(/^new\s*\/\/\s*/i,"").trim();
-          if(cur)delete cur.wrap;
-          cur={name,qty:1,price:0,opts:[],wrap:true}; r.items.push(cur); continue;
-        }
+      if(!m&&!mark&&!/^\s{2,}/.test(l)){ // 수량 없는 이름 줄 (옵션 표시 └ - + 가 없으면 메뉴예요)
+        const l0=l.replace(/^new\s*\/\/\s*/i,"").trim(), nx=nextLine(i), name=(pre.endsWith("\u0000")?pre.slice(0,-1)+l0:(pre+" "+l0)).trim(); pre="";
+        if(cur)delete cur.wrap;
+        if(nx&&!isEnd(nx)&&numOnly(nx)){cur={name,qty:1,price:0,opts:[],wrap:true}; r.items.push(cur); continue;}
+        // 이름이 두 줄로 나뉜 경우: 다음 줄도 메뉴 줄이면 이름을 이어 붙여요
+        // (줄을 꽉 채우고 넘어간 이름은 낱말 중간에서 끊긴 거라 띄어 쓰지 않아요)
+        if(nx&&!isEnd(nx)&&!/^\s*[-+ㄴ└·>*]/.test(nx)&&nx.match(/^(.*?\S)\s+(\d{1,3})(?:\s+(-?[\d,]+)\s*원?)?\s*$/)){pre=name+(cw(l)>=40?"\u0000":""); continue;}
+        // 수량·금액을 못 찾은 메뉴: 앞 메뉴에 붙이지 않고 따로 넣고, 확인하라고 알려요
+        cur={name,qty:1,price:0,opts:[]}; r.items.push(cur); r.warn.push("'"+name+"' 수량·금액을 못 읽었어요"); continue;
       }
       const opt=/^\s*([-+ㄴ└·>*]|\s{2,})/.test(l);
       const name=(m?m[1]:l).replace(/^\s*[-+ㄴ└·>*]\s*/,"").replace(/^new\s*\/\/\s*/i,"").trim();
@@ -2453,10 +2459,17 @@ function parseSlip(text){
         cur.opts.push(two?{v:two[1],p:slipNum(two[3])}:one?{v:one[1],p:r.src==="배민"?slipNum(one[2]):0}:{v:name,p:0});continue;}
       if(!m){ if(cur)cur.opts.push({v:name,p:0}); continue; }
       if(cur)delete cur.wrap;
-      cur={name,qty:Math.max(1,+m[2]),price:m[3]?slipNum(m[3]):0,opts:[]}; r.items.push(cur);
+      cur={name:(pre.endsWith("\u0000")?pre.slice(0,-1)+name:(pre+" "+name)).trim(),qty:Math.max(1,+m[2]),price:m[3]?slipNum(m[3]):0,opts:[]}; r.items.push(cur); pre="";
     }
-    r.items.forEach(it=>delete it.wrap);
+    r.items.forEach(it=>{if(it.wrap)r.warn.push("'"+it.name+"' 수량·금액을 못 읽었어요"); delete it.wrap;});
+    // 스스로 맞춰 보기 (2026-10-25): 전표의 '주문금액 (개수) 금액'과 읽은 메뉴를 비교해서 다르면 확인하라고 알려요
+    const amt=r.items.reduce((s,it)=>s+(it.price||0)+it.opts.reduce((t,o)=>t+(o.p||0),0),0);
+    const qty=r.items.reduce((s,it)=>s+it.qty,0);
+    if(r.cnt&&r.cnt!==qty&&r.cnt!==r.items.length)r.warn.push("전표 메뉴 "+r.cnt+"개인데 "+qty+"개만 읽었어요");
+    if(r.menuSum&&amt!==r.menuSum&&amt+r.fee!==r.menuSum)r.warn.push("전표 금액 "+r.menuSum.toLocaleString("ko-KR")+"원과 읽은 금액 "+amt.toLocaleString("ko-KR")+"원이 달라요");
   }
+  if(!r.items.length&&!r.test)r.warn.push("메뉴를 못 읽었어요");
+  r.check=[...new Set(r.warn)].join(" · ");
   return r;
 }
 // 한 번에 들어온 전표 묶음 → 주문들 (고객용·매장용처럼 같은 주문 두 장은 하나로)
@@ -2647,8 +2660,10 @@ async function addAppOrder(p){
   const food=items.reduce((s,i)=>s+i.unit*i.qty,0), digits=(p.phone||"").replace(/\D/g,"");
   const body={day:today(),createdAt:Date.now(),no:nextNo(),org:"",dept:p.src,floor:"",guest:true,src:p.src,appNo:p.no||"",
     due:p.due||"",kind:p.kind,memo:p.memo||"",items,fee:p.fee||0,total:p.total||food+(p.fee||0),
-    phone4:digits.slice(-4),phone:p.phone||"",addr:p.addr||"",raw:(p.raw||"").slice(0,4000),from:"relay",printedAt:Date.now(),done:{salad:false,sandwich:false}};
-  try{await col.add(body); toast("🛵 "+p.src+" 주문이 주문판에 들어왔어요.");}
+    phone4:digits.slice(-4),phone:p.phone||"",addr:p.addr||"",raw:(p.raw||"").slice(0,4000),from:"relay",check:p.check||"",printedAt:Date.now(),done:{salad:false,sandwich:false}};
+  try{await col.add(body);
+    if(body.check){toast("⚠️ "+p.src+" 주문이 들어왔는데 전표와 다를 수 있어요. 종이 전표와 맞춰 보세요. ("+body.check+")"); try{playChime();}catch(e){}}
+    else toast("🛵 "+p.src+" 주문이 주문판에 들어왔어요.");}
   catch(e){toast("🛵 "+p.src+" 주문을 주문판에 넣지 못했어요. 종이 전표를 보고 직접 넣어 주세요.");}
 }
 // 손님 주소·전화번호·전표 글자는 하루만: 지난 날 배달앱 주문에서 지워요
@@ -2702,12 +2717,19 @@ function cancelBtn(o){
   del.onclick=()=>{ if(confirmId!==o.id){confirmId=o.id;renderCounter();setTimeout(()=>{if(confirmId===o.id){confirmId=null;renderCounter();}},4000);return;} confirmId=null; if(editing===o.id)stopEdit(); write(o.id,ref=>ref.delete()); };
   return del;
 }
+// 배달앱 전표를 읽은 게 종이 전표와 안 맞을 수 있을 때 (2026-10-25). 카운터에서 '맞춰 봤어요'를 누르면 사라져요.
+function checkLine(o,canOk){
+  if(!o.check||o.checkOk)return null;
+  const d=el("div","chk","⚠️ 종이 전표와 다를 수 있어요. 메뉴를 종이 전표와 맞춰 보세요. ("+o.check+")");
+  if(canOk){const b=el("button","linkbtn","맞춰 봤어요"); b.type="button"; b.disabled=busy.has(o.id); b.onclick=()=>write(o.id,ref=>ref.update({checkOk:true})); d.append(b);}
+  return d;
+}
 function readyCard(o){
   const r=el("div","ready"), nt=readyNew.get(o.id); if(nt&&Date.now()-nt<60000)r.classList.add("flash"); if(editing===o.id)r.classList.add("isedit");
   const h=el("div","h"); h.append(...[noTag(o),el("span","t",timeLabel(o)),noDueApp(o)?el("span","ago",agoText(o)):null,el("span","d",cardLabel(o)),el("span","kindtag",o.kind||""),appTag(o)].filter(Boolean));
   if(o.example)h.append(el("span","ex","예시"));
   if(o.reserved){h.append(resTag()); r.classList.add("isres");}
-  r.append(h, el("div","s",itemsText(o)));
+  r.append(h); {const ck=checkLine(o,true); if(ck)r.append(ck);} r.append(el("div","s",itemsText(o)));
   if(o.reserved&&resInfo(o))r.append(el("div","s",resInfo(o)));
   if(o.memo)r.append(el("div","s","메모: "+o.memo));
   if(o.total)r.append(el("div","s","금액 "+moneyText(o)));
@@ -2730,7 +2752,7 @@ function makingRow(o){
   if(o.pin)h.append(el("span","ptag pin","📌 먼저"));
   if(o.reserved){h.append(resTag()); r.classList.add("isres");}
   if(o.total)h.append(el("span","s",moneyText(o)));
-  r.append(h, el("div","s",itemsText(o)));
+  r.append(h); {const ck=checkLine(o,true); if(ck)r.append(ck);} r.append(el("div","s",itemsText(o)));
   if(o.reserved&&resInfo(o))r.append(el("div","s",resInfo(o)));
   if(o.kind==="배달"&&o.phone4&&!o.phone&&!isGuest(o))r.append(el("div","s","전화 뒷자리: "+o.phone4));
   if(o.memo)r.append(el("div","s","메모: "+o.memo));
@@ -2785,6 +2807,7 @@ function ticket(o,st){
   if((o.org&&o.org!=="기타")||o.floor)t.append(el("div","org",[o.org!=="기타"?o.org:"",o.floor].filter(Boolean).join(" · ")));
   if(o.reserved)t.classList.add("isres");
   const dept=el("div","dept"); if(srcOf(o)!=="전화")dept.append(appTag(o)," "); dept.append(isGuest(o)?cardLabel(o):o.dept||""); if(o.example)dept.append(" ",el("span","ex","예시")); if(o.editedAt)dept.append(" ",el("span","ex","수정됨 "+hm(o.editedAt))); t.append(dept);
+  {const ck=checkLine(o,false); if(ck)t.append(ck);}
   if(o.reserved)t.append(el("div","resline","📅 예약 주문 · 총 "+qtySum(o)+"개"));
   const ul=el("ul");
   inOrder(itemsFor(o,st)).forEach(i=>{
