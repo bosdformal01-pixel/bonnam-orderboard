@@ -163,6 +163,47 @@ function slipText(o,variant){
     report.push({t,variant,no:o.no,lines:o.items.length,qty:o.items.reduce((s,i)=>s+i.qty,0),sets:o.items.filter(i=>i.menu===SET1).reduce((s,i)=>s+i.qty,0),total:o.food+o.fee,ok:!fail.length,fail});
     console.log(`주문 ${t} (${variant}) ${o.no} 메뉴 ${o.items.length}줄 ${num(o.food+o.fee)}원 → ${fail.length?"실패\n  - "+fail.join("\n  - "):"성공"}`);
   }
+  // ---------- 쿠팡이츠 실제 주문 (2026-10-26, 17NCDZ): "[new]" 꼬리표 + 긴 이름 ----------
+  // 그때는 "[new] …" 줄을 메뉴 끝으로 읽어서 깻잎불고기만 들어왔어요. 이름이 넘치는 세 가지 모양을 다 봐요.
+  const CP=[["깻잎불고기 샌드위치","깻잎불고기샌드위치",2,17000],["[new] 치폴레 새우&크래미 샌드위치","치폴레새우샌드위치",1,9000],["치킨스파이시 샌드위치","치킨스파이시샌드위치",1,7500]];
+  const CW=40, cpLine=(left,q,a)=>{const right=padL(String(q),4)+padL(a,9); return left+" ".repeat(Math.max(1,CW-cw(left)-cw(right)))+right;};
+  for(const v of ["oneline","qtynext","namenext"]){
+    const L=["coupang eats    [고객용]","----------------------------------------","      17NCD"+v[0].toUpperCase(),"","    사장님 쿠팡이츠로 대박나세요!","----------------------------------------",
+      "메뉴                       수량     금액","----------------------------------------"];
+    CP.forEach(([m,,q,a])=>{
+      if(cw(m)+14<=CW||v==="oneline")L.push(cpLine(m,q,num(a)));
+      else if(v==="qtynext"){const k=m.lastIndexOf(" "); L.push(m.slice(0,k)); L.push(cpLine(m.slice(k+1),q,num(a)));}
+      else {const k=m.lastIndexOf(" "); L.push(cpLine(m.slice(0,k),q,num(a))); L.push(m.slice(k+1));}
+      L.push(cpLine(" + 기본 뚱 샌드",q,"0"),cpLine(" + 통밀식빵 샌드위치",q,"0"));
+    });
+    L.push("----------------------------------------","주문금액"+padL("33,500",CW-cw("주문금액")),"----------------------------------------","요청사항: 수저포크X","거래일시: 2026-10-26 18:29:00","");
+    const text=L.join("\n");
+    fs.writeFileSync(path.join(OUT,`쿠팡이츠_${v}.txt`),text);
+    const res=await pg.evaluate(async text=>{
+      const map=ksMap(), bytes=[0x1b,0x40];
+      for(const ch of text){ if(ch==="\n"){bytes.push(0x0d,0x0a);continue;} const k=ch.charCodeAt(0); if(k<0x80)bytes.push(k); else{const m=map.get(ch); if(!m)throw new Error("인코딩 안 됨: "+ch); bytes.push(...m);} }
+      bytes.push(0x1d,0x56,0x42,0x00);
+      const before=window.__added.length;
+      for(let i=0;i<bytes.length;i+=64){relayGot(new Uint8Array(bytes.slice(i,i+64))); await new Promise(r=>setTimeout(r,15));}
+      for(let k=0;k<80&&window.__added.length===before;k++)await new Promise(r=>setTimeout(r,100));
+      const id=window.__added[window.__added.length-1], ord=window.__added.length>before?orders.find(x=>x.id===id):null;
+      return {ord:ord&&JSON.parse(JSON.stringify(ord)),parsed:parseSlip(escText(new Uint8Array(bytes)))};
+    },text);
+    const fail=[], P=res.parsed, ord=res.ord;
+    if(!ord)fail.push("주문판에 안 들어옴");
+    if(P.src!=="쿠팡이츠")fail.push("어느 앱인지 '"+P.src+"'");
+    if(P.no!=="17NCD"+v[0].toUpperCase())fail.push("주문번호 '"+P.no+"'");
+    if(P.check)fail.push("확인 경고: "+P.check);
+    if(P.items.length!==3)fail.push(`메뉴 ${P.items.length}/3: `+P.items.map(i=>i.name).join(", "));
+    CP.forEach(([m,b,q,a],k)=>{const p=P.items[k]||{opts:[]}, oi=(ord&&ord.items[k])||{};
+      if(p.qty!==q||p.price!==a)fail.push(`${m} 수량·금액 ${p.qty}/${p.price}`);
+      if(p.opts.length!==2)fail.push(`${m} 옵션 `+JSON.stringify(p.opts));
+      if(oi.name!==b)fail.push(`'${m}' → 주문판 '${oi.name}' (기대 '${b}')`);
+      if(oi.unit!==a/q)fail.push(`${b} 단가 ${oi.unit}≠${a/q} (전표 금액 그대로)`);});
+    if(ord&&ord.total!==33500)fail.push("합계 "+ord.total);
+    report.push({t:"쿠팡이츠",variant:v,ok:!fail.length,fail});
+    console.log(`쿠팡이츠 17NCDZ (${v}) → ${fail.length?"실패\n  - "+fail.join("\n  - "):"성공"}`);
+  }
   fs.writeFileSync(path.join(OUT,"report.json"),JSON.stringify(report,null,1));
   console.log(`\n${report.filter(r=>r.ok).length}/${report.length} 성공`+(errs.length?"\n페이지 오류: "+errs.join(" | "):""));
   await b.close(); srv.close();
