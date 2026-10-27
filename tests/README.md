@@ -9,3 +9,12 @@ SEED=777 node tests/relay-e2e.js . out 200
 ```
 
 주문판의 전표 읽기(parseSlip, appItem)를 고친 뒤에는 꼭 돌려서 모두 '성공'인지 봐요.
+
+## 쿠팡이츠·요기요 모든 조합
+
+```
+node tests/relay-combos.js     # 주문판 모든 메뉴 × 모든 옵션 × 이름 모양 × 수량 × 줄바꿈 모양 × 뒤 메뉴 (약 17만 6천 건, 1분)
+APPS=쿠팡이츠,요기요 node tests/relay-e2e.js . out 200   # 앱을 골라 끝까지 시험 (기본은 배민·쿠팡이츠·요기요 번갈아)
+```
+
+둘 다 100% 성공이어야 해요.
