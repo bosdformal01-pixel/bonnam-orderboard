@@ -1,8 +1,9 @@
-// 배민 전표 → 주문판 → 전표 출력 끝까지 시험 (가짜 COM 칸·가짜 저장소)
+// 배민·쿠팡이츠·요기요 전표 → 주문판 → 전표 출력 끝까지 시험 (가짜 COM 칸·가짜 저장소)
+// APPS=배민 처럼 앱을 골라 돌릴 수 있어요 (기본: 세 앱을 번갈아). PORT 로 칸 번호를 바꾸면 여러 개를 함께 돌릴 수 있어요.
 const {chromium}=require('playwright');const http=require('http'),fs=require('fs'),path=require('path');
 const ROOT=process.argv[2]||path.join(__dirname,'..'), OUT=process.argv[3]||'out';
 fs.mkdirSync(OUT,{recursive:true});
-const srv=http.createServer((q,s)=>{let p=path.join(ROOT,q.url.split('?')[0].split('#')[0]);if(p.endsWith('/'))p+='index.html';fs.readFile(p,(e,d)=>{if(e){s.statusCode=404;s.end();return;}s.end(d);});}).listen(8770);
+const srv=http.createServer((q,s)=>{let p=path.join(ROOT,q.url.split('?')[0].split('#')[0]);if(p.endsWith('/'))p+='index.html';fs.readFile(p,(e,d)=>{if(e){s.statusCode=404;s.end();return;}s.end(d);});}).listen(+(process.env.PORT||8770));
 
 // ---------- 시험 주문 만들기 ----------
 let seed=+(process.env.SEED||20261025); const rnd=()=>{seed=(seed*1103515245+12345)%2147483648; return seed/2147483648;};
@@ -66,7 +67,7 @@ function slipText(o,variant){
     let nm=it.menu;
     // 일부러 길게: 이름이 한 줄을 넘으면 배민이 이름을 두 줄로 나누는 경우도 시험
     // 42칸을 넘는 이름은 42칸에서 낱말 중간이라도 끊고, 아니면 낱말 사이에서 끊어요
-    if(variant==="split"&&ix===0){let a,b; if(cw(nm)>W){[a,b]=splitName(nm,W);} else {const k=nm.lastIndexOf(" ",Math.floor(nm.length*0.6)); a=nm.slice(0,k); b=nm.slice(k+1);} L.push(a); L.push(...line(b,it.qty,num(it.price*it.qty)));}
+    if(variant==="split"&&ix===0){let a,b; if(cw(nm)>W){[a,b]=splitName(nm,W);} else {const k=nm.lastIndexOf(" ",Math.floor(nm.length*0.6)); if(k>0){a=nm.slice(0,k); b=nm.slice(k+1);} else {const h=Math.ceil(nm.length/2); a=nm.slice(0,h); b=nm.slice(h);}} /* 띄어쓰기가 없으면 가운데서 끊어요 */ L.push(a); L.push(...line(b,it.qty,num(it.price*it.qty)));}
     else L.push(...line(nm,it.qty,num(it.price*it.qty)));
     it.opts.forEach((op,k)=>{
       const amt=num(op.p*it.qty);
@@ -81,12 +82,40 @@ function slipText(o,variant){
   L.push("------------------------------------------", ...line("총 결제금액",null,num(o.food+o.fee)),"------------------------------------------","");
   return L.join("\n");
 }
+// ---------- 쿠팡이츠 전표 글자 (40칸) ----------
+// 긴 이름은 세 가지로 넘쳐요: 한 줄에 다 (oneline) / 이름 앞부분만 윗줄, 수량·금액은 아랫줄 (qtynext) / 수량·금액은 윗줄, 이름 끝만 아랫줄 (namenext)
+const CPW=40, cpL=(left,q,a)=>{const right=padL(String(q),4)+padL(a,9); return left+" ".repeat(Math.max(1,CPW-cw(left)-cw(right)))+right;};
+function cpText(o,v){
+  const L=["coupang eats    [고객용]","----------------------------------------","      "+o.no,"","    사장님 쿠팡이츠로 대박나세요!","----------------------------------------",
+    "메뉴                       수량     금액","----------------------------------------"];
+  o.items.forEach(it=>{
+    const m=it.menu, a=num(it.price*it.qty), k=m.lastIndexOf(" ");
+    if(cw(m)+14<=CPW||v==="oneline"||k<0)L.push(cpL(m,it.qty,a));
+    else if(v==="qtynext"){L.push(m.slice(0,k)); L.push(cpL(m.slice(k+1),it.qty,a));}
+    else {L.push(cpL(m.slice(0,k),it.qty,a)); L.push(m.slice(k+1));}
+    it.opts.forEach(op=>L.push(cpL(" + "+op.v,it.qty,num(op.p*it.qty))));
+  });
+  L.push("----------------------------------------","주문금액"+padL(num(o.food),CPW-cw("주문금액")),"----------------------------------------","요청사항: 수저포크X","거래일시: 2026-10-27 18:29:00","");
+  return L.join("\n");
+}
+// ---------- 요기요 전표 글자 (42칸, 메뉴명 칸 28칸에서 낱말 중간이라도 끊고 나머지는 다음 줄: 2026-10-26 #1079 'ML') ----------
+const yoL=(l,q,a)=>{let a1="",n=0;for(const c of l){if(n+cw(c)>28)break;a1+=c;n+=cw(c);} const rest=l.slice(a1.length);
+  const t=a1+" ".repeat(30-cw(a1))+String(q)+(a?padL(a,42-31):""); return rest?[t,rest]:[t];};
+function yoText(o){
+  const L=["[고객용]","요기요 요기배달 [실속]","------------------------------------------","주문번호: #"+o.no,"결제방법: 요기요결제완료","------------------------------------------","요청사항:","수저, 포크 O","------------------------------------------",
+    "배달주소:","(도로명) 시험시 시험구 시험로 1","------------------------------------------","연락처: 0504-1234-5678","------------------------------------------","메뉴명                      수량      가격","------------------------------------------"];
+  o.items.forEach(it=>{L.push(...yoL(it.menu,it.qty,num(it.price*it.qty))); it.opts.forEach(op=>L.push(...yoL("- "+op.v,it.qty,op.p?num(op.p*it.qty):"")));});
+  L.push("배달료:"+padL(num(o.fee),42-cw("배달료:")),"[요기패스X 적용 주문]","표기된 배달료는 요기요가 지원합니다.","------------------------------------------","합계:"+padL(num(o.food+o.fee),42-cw("합계:")),"------------------------------------------",
+    "주문매장: 복남이샌드-울산동구점","주문일자: 2026년 10월 27일(화) 오후 12:05","");
+  return L.join("\n");
+}
+const APPS=(process.env.APPS||"배민,쿠팡이츠,요기요").split(",");
 // ---------- 돌리기 ----------
 (async()=>{
   const b=await chromium.launch(); const pg=await b.newPage({viewport:{width:1100,height:900}});
   const errs=[]; pg.on('pageerror',e=>errs.push(e.message));
   await pg.route(/gstatic/,r=>r.abort());
-  await pg.goto('http://localhost:8770/index.html#counter'); await pg.waitForTimeout(600);
+  await pg.goto('http://localhost:'+(process.env.PORT||8770)+'/index.html#counter'); await pg.waitForTimeout(600);
   await pg.evaluate(()=>{
     window.__com4=[]; window.__added=[];
     const port={writable:null,readable:null,
@@ -98,12 +127,15 @@ function slipText(o,variant){
   });
   const report=[]; const N=+(process.argv[4]||10);
   for(let t=1;t<=N;t++){
-    const o=makeOrder(t), variant=["plain","optwrap","split"][t%3];
-    const text=slipText(o,variant);
-    fs.writeFileSync(path.join(OUT,`주문${t}_배민전표.txt`),text);
-    const res=await pg.evaluate(async([text,o])=>{
+    const app=APPS[(t-1)%APPS.length], o=makeOrder(t), k3=Math.floor((t-1)/APPS.length)%3;
+    if(app==="쿠팡이츠")o.fee=0; // 쿠팡이츠 전표엔 배달팁 줄이 없어요
+    const variant=app==="배민"?["plain","optwrap","split"][k3]:app==="쿠팡이츠"?["oneline","qtynext","namenext"][k3]:"cut28";
+    const text=app==="배민"?slipText(o,variant):app==="쿠팡이츠"?cpText(o,variant):yoText(o);
+    fs.writeFileSync(path.join(OUT,`주문${t}_${app}전표.txt`),text);
+    const nul=app==="요기요"; // 요기요는 글자 사이에 0x00 을 넣어 보내요
+    const res=await pg.evaluate(async([text,o,nul])=>{
       const map=ksMap(), bytes=[0x1b,0x40];
-      for(const ch of text){ if(ch==="\n"){bytes.push(0x0a,0x0d);continue;} const k=ch.charCodeAt(0); if(k<0x80)bytes.push(k); else{const m=map.get(ch); if(!m)throw new Error("인코딩 안 됨: "+ch); bytes.push(...m);} }
+      for(const ch of text){ if(ch==="\n"){bytes.push(0x0a,0x0d);continue;} const k=ch.charCodeAt(0); if(k<0x80)bytes.push(k); else{const m=map.get(ch); if(!m)throw new Error("인코딩 안 됨: "+ch); bytes.push(...m);} if(nul)bytes.push(0);}
       bytes.push(0x1b,0x64,3,0x1d,0x56,0x42,0x00);
       window.__com4=[]; const before=window.__added.length;
       // 시리얼처럼 64바이트씩 잘라서 들여보내기
@@ -120,11 +152,11 @@ function slipText(o,variant){
       const tix={}; ["salad","sandwich"].forEach(st=>{tix[st]=needs(ord)[st]?ticket(ord,st).innerText:"";});
       return {ord:JSON.parse(JSON.stringify(ord)),passOK,passLen:pass.length,slip,slipCut:sb.length>3&&sb[sb.length-3]===0x56,tix,
         parsed:parseSlip(escText(new Uint8Array(bytes)))};
-    },[text,o]);
+    },[text,o,nul]);
     const fail=[...(res.fail||[])];
     if(!res.fail){
       const ord=res.ord, P=res.parsed;
-      if(!res.passOK)fail.push("COM4로 넘긴 배민 전표가 원본과 다름");
+      if(!res.passOK)fail.push("COM4로 넘긴 "+app+" 전표가 원본과 다름");
       if(ord.check)fail.push("확인 경고: "+ord.check);
       if(P.items.length!==o.items.length)fail.push(`메뉴 줄 수 ${P.items.length}/${o.items.length}`);
       o.items.forEach((it,i)=>{
@@ -132,7 +164,7 @@ function slipText(o,variant){
         if((p.name||"").replace(/\s/g,"")!==it.menu.replace(/\s/g,""))fail.push(`${i+1}번째 이름 '${p.name}' ≠ '${it.menu}'`);
         if(p.qty!==it.qty)fail.push(`${it.menu} 수량 ${p.qty}≠${it.qty}`);
         if(p.price!==it.price*it.qty)fail.push(`${it.menu} 금액 ${p.price}≠${it.price*it.qty}`);
-        if(p.opts.length!==it.opts.length||p.opts.some((x,k)=>x.v!==it.opts[k].v||x.p!==it.opts[k].p*it.qty))fail.push(`${it.menu} 옵션 다름: `+JSON.stringify(p.opts));
+        if(p.opts.length!==it.opts.length||p.opts.some((x,k)=>x.v.replace(/\s/g,"")!==it.opts[k].v.replace(/\s/g,"")||x.p!==it.opts[k].p*it.qty))fail.push(`${it.menu} 옵션 다름: `+JSON.stringify(p.opts));
         if(oi.name!==it.board)fail.push(`'${it.menu}' → 주문판 '${oi.name}' (기대 '${it.board}')`);
         const unit=it.price+it.opts.reduce((s,x)=>s+x.p,0); if(oi.unit!==unit)fail.push(`${it.board} 단가 ${oi.unit}≠${unit}`);
         if(oi.qty!==it.qty)fail.push(`${it.board} 주문판 수량 ${oi.qty}`);
@@ -160,8 +192,8 @@ function slipText(o,variant){
       fs.writeFileSync(path.join(OUT,`주문${t}_샐러드바.txt`),res.tix.salad);
       fs.writeFileSync(path.join(OUT,`주문${t}_샌드위치바.txt`),res.tix.sandwich);
     }
-    report.push({t,variant,no:o.no,lines:o.items.length,qty:o.items.reduce((s,i)=>s+i.qty,0),sets:o.items.filter(i=>i.menu===SET1).reduce((s,i)=>s+i.qty,0),total:o.food+o.fee,ok:!fail.length,fail});
-    console.log(`주문 ${t} (${variant}) ${o.no} 메뉴 ${o.items.length}줄 ${num(o.food+o.fee)}원 → ${fail.length?"실패\n  - "+fail.join("\n  - "):"성공"}`);
+    report.push({t,app,variant,no:o.no,lines:o.items.length,qty:o.items.reduce((s,i)=>s+i.qty,0),sets:o.items.filter(i=>i.menu===SET1).reduce((s,i)=>s+i.qty,0),total:o.food+o.fee,ok:!fail.length,fail});
+    console.log(`주문 ${t} ${app} (${variant}) ${o.no} 메뉴 ${o.items.length}줄 ${num(o.food+o.fee)}원 → ${fail.length?"실패\n  - "+fail.join("\n  - "):"성공"}`);
   }
   // ---------- 쿠팡이츠 실제 주문 (2026-10-26, 17NCDZ): "[new]" 꼬리표 + 긴 이름 ----------
   // 그때는 "[new] …" 줄을 메뉴 끝으로 읽어서 깻잎불고기만 들어왔어요. 이름이 넘치는 세 가지 모양을 다 봐요.
@@ -203,6 +235,45 @@ function slipText(o,variant){
     if(ord&&ord.total!==33500)fail.push("합계 "+ord.total);
     report.push({t:"쿠팡이츠",variant:v,ok:!fail.length,fail});
     console.log(`쿠팡이츠 17NCDZ (${v}) → ${fail.length?"실패\n  - "+fail.join("\n  - "):"성공"}`);
+  }
+  // ---------- 요기요 실제 주문 (2026-10-26 #1079, #1080) ----------
+  // #1079: 옵션 "뷰티/다이어트/피부미용/250ML" 의 "ML" 이 다음 줄로 넘어가서 'ML 1' 메뉴가 따로 생겼어요.
+  // 요기요는 글자 사이에 0x00 을 넣어 보내요. 메뉴명 칸 30, 수량, 가격 (42칸).
+  const yoLine=(l,q,a)=>{let a1="",n=0;for(const c of l){if(n+cw(c)>28)break;a1+=c;n+=cw(c);} const rest=l.slice(a1.length);
+    const t=a1+" ".repeat(30-cw(a1))+String(q)+(a?padL(a,42-31):""); return rest?[t,rest]:[t];};
+  const YO=[
+    {no:"#1079",fee:2000,items:[["1인 유부초밥 세트",2,22000,["견과류","스위트콘","오리엔탈 드레싱"]],["복남이해독주스 (보틀)",2,8000,["뷰티/다이어트/피부미용/250ML"]]],
+     want:[["유부초밥 샐러드 세트",2,11000],["복남이해독주스 (보틀)",2,4000]],wantOpt:"뷰티/다이어트/피부미용/250ML"},
+    {no:"#1080",fee:3000,items:[["깻잎불고기 샌드위치",1,8500,["통밀식빵 샌드위치","기본 뚱샌드","소스 적게","치킨 종이 포장"]],["미니 샐러드",1,5000,["오리엔탈 드레싱"]]],n:1, // 미니 샐러드는 옵션 줄 ("- 미니 샐러드 1 5,000")
+     want:null},
+  ];
+  for(const y of YO){
+    const L=["[고객용]","요기요 요기배달 [실속]","------------------------------------------","주문번호: "+y.no,"결제방법: 요기요결제완료","------------------------------------------","요청사항:","수저, 포크 O","------------------------------------------","연락처: 0504-1234-5678","------------------------------------------","메뉴명                      수량      가격","------------------------------------------"];
+    let sum=0;
+    y.items.forEach(([m,q,a,os])=>{ if(m==="미니 샐러드"){L.push(...yoLine("- "+m,q,num(a))); os.forEach(o=>L.push(...yoLine("- "+o,q,"")));}
+      else {L.push(...yoLine(m,q,num(a))); os.forEach(o=>L.push(...yoLine("- "+o,q,"")));} sum+=a;});
+    L.push("배달료:"+padL(num(y.fee),42-cw("배달료:")),"[요기패스X 적용 주문]","표기된 배달료는 요기요가 지원합니다.","------------------------------------------","합계:"+padL(num(sum+y.fee),42-cw("합계:")),"------------------------------------------","주문매장: 복남이샌드-울산동구점","주문일자: 2026년 10월 26일(월) 오후 12:05","");
+    const text=L.join("\n"); fs.writeFileSync(path.join(OUT,`요기요_${y.no.slice(1)}.txt`),text);
+    const res=await pg.evaluate(async text=>{
+      const map=ksMap(), bytes=[0x1b,0x40];
+      for(const ch of text){ if(ch==="\n"){bytes.push(0x0d,0x0a);continue;} const k=ch.charCodeAt(0); if(k<0x80)bytes.push(k,0); else{const m=map.get(ch); if(!m)throw new Error("인코딩 안 됨: "+ch); bytes.push(...m,0);} }
+      bytes.push(0x1d,0x56,0x42,0x00);
+      const before=window.__added.length;
+      for(let i=0;i<bytes.length;i+=64){relayGot(new Uint8Array(bytes.slice(i,i+64))); await new Promise(r=>setTimeout(r,15));}
+      for(let k=0;k<80&&window.__added.length===before;k++)await new Promise(r=>setTimeout(r,100));
+      const id=window.__added[window.__added.length-1], ord=window.__added.length>before?orders.find(x=>x.id===id):null;
+      return {ord:ord&&JSON.parse(JSON.stringify(ord)),parsed:parseSlip(escText(new Uint8Array(bytes))),txt:ord?itemsText(ord):""};
+    },text);
+    const fail=[], P=res.parsed, ord=res.ord;
+    if(!ord)fail.push("주문판에 안 들어옴");
+    if(P.src!=="요기요"||P.no!==y.no)fail.push(`앱·번호 ${P.src} ${P.no}`);
+    if(P.check)fail.push("확인 경고: "+P.check);
+    if(P.items.length!==(y.n||y.items.length))fail.push(`메뉴 ${P.items.length}/${y.n||y.items.length}: `+P.items.map(i=>i.name).join(", "));
+    if(ord&&ord.total!==y.items.reduce((t,i)=>t+i[2],0)+y.fee)fail.push("합계 "+ord.total);
+    if(y.wantOpt&&!P.items.some(i=>i.opts.some(o=>o.v===y.wantOpt)))fail.push("옵션 '"+y.wantOpt+"' 이 이어지지 않음");
+    (y.want||[]).forEach(([b,q,u],k)=>{const oi=(ord&&ord.items.find(i=>i.name===b))||{}; if(oi.qty!==q||oi.unit!==u)fail.push(`주문판 '${b}' ${oi.qty}개 ${oi.unit}원 (기대 ${q}개 ${u}원)`);});
+    report.push({t:"요기요",variant:y.no,ok:!fail.length,fail});
+    console.log(`요기요 ${y.no} → ${fail.length?"실패\n  - "+fail.join("\n  - "):"성공"}\n  주문판: ${res.txt}`);
   }
   fs.writeFileSync(path.join(OUT,"report.json"),JSON.stringify(report,null,1));
   console.log(`\n${report.filter(r=>r.ok).length}/${report.length} 성공`+(errs.length?"\n페이지 오류: "+errs.join(" | "):""));
