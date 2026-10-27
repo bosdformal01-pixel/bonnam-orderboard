@@ -67,7 +67,7 @@ function slipText(o,variant){
     let nm=it.menu;
     // 일부러 길게: 이름이 한 줄을 넘으면 배민이 이름을 두 줄로 나누는 경우도 시험
     // 42칸을 넘는 이름은 42칸에서 낱말 중간이라도 끊고, 아니면 낱말 사이에서 끊어요
-    if(variant==="split"&&ix===0){let a,b; if(cw(nm)>W){[a,b]=splitName(nm,W);} else {const k=nm.lastIndexOf(" ",Math.floor(nm.length*0.6)); if(k>0){a=nm.slice(0,k); b=nm.slice(k+1);} else {const h=Math.ceil(nm.length/2); a=nm.slice(0,h); b=nm.slice(h);}} // 띄어쓰기가 없으면 가운데서 끊어요 L.push(a); L.push(...line(b,it.qty,num(it.price*it.qty)));}
+    if(variant==="split"&&ix===0){let a,b; if(cw(nm)>W){[a,b]=splitName(nm,W);} else {const k=nm.lastIndexOf(" ",Math.floor(nm.length*0.6)); if(k>0){a=nm.slice(0,k); b=nm.slice(k+1);} else {const h=Math.ceil(nm.length/2); a=nm.slice(0,h); b=nm.slice(h);}} /* 띄어쓰기가 없으면 가운데서 끊어요 */ L.push(a); L.push(...line(b,it.qty,num(it.price*it.qty)));}
     else L.push(...line(nm,it.qty,num(it.price*it.qty)));
     it.opts.forEach((op,k)=>{
       const amt=num(op.p*it.qty);
