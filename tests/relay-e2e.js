@@ -204,6 +204,45 @@ function slipText(o,variant){
     report.push({t:"쿠팡이츠",variant:v,ok:!fail.length,fail});
     console.log(`쿠팡이츠 17NCDZ (${v}) → ${fail.length?"실패\n  - "+fail.join("\n  - "):"성공"}`);
   }
+  // ---------- 요기요 실제 주문 (2026-10-26 #1079, #1080) ----------
+  // #1079: 옵션 "뷰티/다이어트/피부미용/250ML" 의 "ML" 이 다음 줄로 넘어가서 'ML 1' 메뉴가 따로 생겼어요.
+  // 요기요는 글자 사이에 0x00 을 넣어 보내요. 메뉴명 칸 30, 수량, 가격 (42칸).
+  const yoLine=(l,q,a)=>{let a1="",n=0;for(const c of l){if(n+cw(c)>28)break;a1+=c;n+=cw(c);} const rest=l.slice(a1.length);
+    const t=a1+" ".repeat(30-cw(a1))+String(q)+(a?padL(a,42-31):""); return rest?[t,rest]:[t];};
+  const YO=[
+    {no:"#1079",fee:2000,items:[["1인 유부초밥 세트",2,22000,["견과류","스위트콘","오리엔탈 드레싱"]],["복남이해독주스 (보틀)",2,8000,["뷰티/다이어트/피부미용/250ML"]]],
+     want:[["유부초밥 샐러드 세트",2,11000],["복남이해독주스 (보틀)",2,4000]],wantOpt:"뷰티/다이어트/피부미용/250ML"},
+    {no:"#1080",fee:3000,items:[["깻잎불고기 샌드위치",1,8500,["통밀식빵 샌드위치","기본 뚱샌드","소스 적게","치킨 종이 포장"]],["미니 샐러드",1,5000,["오리엔탈 드레싱"]]],n:1, // 미니 샐러드는 옵션 줄 ("- 미니 샐러드 1 5,000")
+     want:null},
+  ];
+  for(const y of YO){
+    const L=["[고객용]","요기요 요기배달 [실속]","------------------------------------------","주문번호: "+y.no,"결제방법: 요기요결제완료","------------------------------------------","요청사항:","수저, 포크 O","------------------------------------------","연락처: 0504-1234-5678","------------------------------------------","메뉴명                      수량      가격","------------------------------------------"];
+    let sum=0;
+    y.items.forEach(([m,q,a,os])=>{ if(m==="미니 샐러드"){L.push(...yoLine("- "+m,q,num(a))); os.forEach(o=>L.push(...yoLine("- "+o,q,"")));}
+      else {L.push(...yoLine(m,q,num(a))); os.forEach(o=>L.push(...yoLine("- "+o,q,"")));} sum+=a;});
+    L.push("배달료:"+padL(num(y.fee),42-cw("배달료:")),"[요기패스X 적용 주문]","표기된 배달료는 요기요가 지원합니다.","------------------------------------------","합계:"+padL(num(sum+y.fee),42-cw("합계:")),"------------------------------------------","주문매장: 복남이샌드-울산동구점","주문일자: 2026년 10월 26일(월) 오후 12:05","");
+    const text=L.join("\n"); fs.writeFileSync(path.join(OUT,`요기요_${y.no.slice(1)}.txt`),text);
+    const res=await pg.evaluate(async text=>{
+      const map=ksMap(), bytes=[0x1b,0x40];
+      for(const ch of text){ if(ch==="\n"){bytes.push(0x0d,0x0a);continue;} const k=ch.charCodeAt(0); if(k<0x80)bytes.push(k,0); else{const m=map.get(ch); if(!m)throw new Error("인코딩 안 됨: "+ch); bytes.push(...m,0);} }
+      bytes.push(0x1d,0x56,0x42,0x00);
+      const before=window.__added.length;
+      for(let i=0;i<bytes.length;i+=64){relayGot(new Uint8Array(bytes.slice(i,i+64))); await new Promise(r=>setTimeout(r,15));}
+      for(let k=0;k<80&&window.__added.length===before;k++)await new Promise(r=>setTimeout(r,100));
+      const id=window.__added[window.__added.length-1], ord=window.__added.length>before?orders.find(x=>x.id===id):null;
+      return {ord:ord&&JSON.parse(JSON.stringify(ord)),parsed:parseSlip(escText(new Uint8Array(bytes))),txt:ord?itemsText(ord):""};
+    },text);
+    const fail=[], P=res.parsed, ord=res.ord;
+    if(!ord)fail.push("주문판에 안 들어옴");
+    if(P.src!=="요기요"||P.no!==y.no)fail.push(`앱·번호 ${P.src} ${P.no}`);
+    if(P.check)fail.push("확인 경고: "+P.check);
+    if(P.items.length!==(y.n||y.items.length))fail.push(`메뉴 ${P.items.length}/${y.n||y.items.length}: `+P.items.map(i=>i.name).join(", "));
+    if(ord&&ord.total!==y.items.reduce((t,i)=>t+i[2],0)+y.fee)fail.push("합계 "+ord.total);
+    if(y.wantOpt&&!P.items.some(i=>i.opts.some(o=>o.v===y.wantOpt)))fail.push("옵션 '"+y.wantOpt+"' 이 이어지지 않음");
+    (y.want||[]).forEach(([b,q,u],k)=>{const oi=(ord&&ord.items.find(i=>i.name===b))||{}; if(oi.qty!==q||oi.unit!==u)fail.push(`주문판 '${b}' ${oi.qty}개 ${oi.unit}원 (기대 ${q}개 ${u}원)`);});
+    report.push({t:"요기요",variant:y.no,ok:!fail.length,fail});
+    console.log(`요기요 ${y.no} → ${fail.length?"실패\n  - "+fail.join("\n  - "):"성공"}\n  주문판: ${res.txt}`);
+  }
   fs.writeFileSync(path.join(OUT,"report.json"),JSON.stringify(report,null,1));
   console.log(`\n${report.filter(r=>r.ok).length}/${report.length} 성공`+(errs.length?"\n페이지 오류: "+errs.join(" | "):""));
   await b.close(); srv.close();

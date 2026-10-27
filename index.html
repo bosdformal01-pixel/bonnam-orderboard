@@ -2455,7 +2455,7 @@ function parseSlip(text){
     const numOnly=l=>l.match(/^\s*(?:(\d{1,3})\s+)?(-?\d{1,3}(?:,\d{3})+|-?\d+)\s*원?\s*$/);
     const isEnd=l=>isDash(l)||/^\s*(배달\s*(료|팁|비)|합\s*계|주문\s*금액|결제\s*금액|총|할인|쿠폰|\[)/.test(l);
     const nextLine=k=>{for(let j=k+1;j<lines.length;j++)if(lines[j].trim())return lines[j]; return "";};
-    let pre="", curAt=-1, lastAt=-1;
+    let pre="", curAt=-1, optAt=-1, lastAt=-1;
     // 메뉴 이름 앞 꼬리표 "[new] 치폴레 새우&크래미 샌드위치" (2026-10-26 쿠팡이츠): '['로 시작해도 메뉴 끝이 아니에요.
     // 꼬리표 뒤에 글자가 이어질 때만 떼고, "[요기패스X 적용 주문]" 처럼 줄 전체가 괄호면 그대로 메뉴 끝이에요.
     const tagRe=/^\s*\[[^\]]{1,12}\]\s*(?=\S)/;
@@ -2478,7 +2478,13 @@ function parseSlip(text){
         // 수량·금액은 첫 줄에 있고 이름 뒷부분만 다음 줄로 넘어온 경우 (쿠팡이츠):
         //   [new] 치폴레 새우&크래미     1    9,000
         //   샌드위치
-        if(!pre&&cur&&!cur.wrap&&!cur.opts.length&&curAt===prevAt&&cur.cut&&!(nx&&!isEnd(nx)&&(numOnly(nx)||(!/^\s*[-+ㄴ└·>*]/.test(nx)&&/^(.*?\S)\s+(\d{1,3})(?:\s+(-?[\d,]+)\s*원?)?\s*$/.test(nx))))){cur.name+=" "+l0; delete cur.cut; continue;}
+        const nxTaken=nx&&!isEnd(nx)&&(numOnly(nx)||(!/^\s*[-+ㄴ└·>*]/.test(nx)&&/^(.*?\S)\s+(\d{1,3})(?:\s+(-?[\d,]+)\s*원?)?\s*$/.test(nx)));
+        if(!pre&&cur&&!cur.wrap&&!cur.opts.length&&curAt===prevAt&&cur.cut&&!nxTaken){cur.name+=" "+l0; delete cur.cut; continue;}
+        // 옵션 이름 뒷부분만 다음 줄로 넘어온 경우 (2026-10-26 요기요 #1079): 낱말 중간에서 끊겨서 띄우지 않고 붙여요
+        //   - 뷰티/다이어트/피부미용/250    2
+        //   ML
+        const lo=cur&&cur.opts[cur.opts.length-1];
+        if(!pre&&lo&&lo.cut&&optAt===prevAt&&!nxTaken){lo.v+=l0; delete lo.cut; continue;}
         pre="";
         if(cur){delete cur.wrap; delete cur.cut;}
         if(nx&&!isEnd(nx)&&numOnly(nx)){cur={name,qty:1,price:0,opts:[],wrap:true}; r.items.push(cur); continue;}
@@ -2493,13 +2499,15 @@ function parseSlip(text){
       if(!name)continue;
       if(opt&&cur){ // 옵션 줄: 배민은 "ㄴ 아보카도추가   2,500" 처럼 금액만 있어요
         const t=l.replace(/^\s*[-+ㄴ└·>*]\s*/,"").trim(), two=t.match(/^(.*?\S)\s+(\d{1,3})\s+(-?[\d,]+)\s*원?$/), one=t.match(/^(.*?\S)\s+(-?[\d,]+)\s*원?$/);
-        cur.opts.push(two?{v:two[1],p:slipNum(two[3])}:one?{v:one[1],p:r.src==="배민"?slipNum(one[2]):0}:{v:name,p:0});continue;}
+        const o=two?{v:two[1],p:slipNum(two[3])}:one?{v:one[1],p:r.src==="배민"?slipNum(one[2]):0}:{v:name,p:0};
+        if((two||one)&&cw(o.v)>=24)o.cut=true; // 옵션 이름 칸이 꽉 찼으면 다음 줄에 이어질 수 있어요
+        cur.opts.push(o); optAt=i; continue;}
       if(!m){ if(cur)cur.opts.push({v:name,p:0}); continue; }
       if(cur){delete cur.wrap; delete cur.cut;}
       cur={name:(pre.endsWith("\u0000")?pre.slice(0,-1)+name:(pre+" "+name)).trim(),qty:Math.max(1,+m[2]),price:m[3]?slipNum(m[3]):0,opts:[]}; r.items.push(cur); pre=""; curAt=i;
       if(cw(m[1])>=18)cur.cut=true; // 이름 칸이 꽉 찼으면 다음 줄에 이름이 이어질 수 있어요
     }
-    r.items.forEach(it=>{if(it.wrap)r.warn.push("'"+it.name+"' 수량·금액을 못 읽었어요"); delete it.wrap; delete it.cut;});
+    r.items.forEach(it=>{if(it.wrap)r.warn.push("'"+it.name+"' 수량·금액을 못 읽었어요"); delete it.wrap; delete it.cut; it.opts.forEach(o=>delete o.cut);});
     // 스스로 맞춰 보기 (2026-10-25): 전표의 '주문금액 (개수) 금액'과 읽은 메뉴를 비교해서 다르면 확인하라고 알려요
     const amt=r.items.reduce((s,it)=>s+(it.price||0)+it.opts.reduce((t,o)=>t+(o.p||0),0),0);
     const qty=r.items.reduce((s,it)=>s+it.qty,0);
@@ -2650,7 +2658,7 @@ function relayJob(){
 }
 // 배달앱 메뉴 이름 → 주문판 메뉴 이름 (못 찾으면 null: 전표 글자 그대로, 두 바 모두에 떠요)
 // 글자·숫자만 남겨 비교 ("(현미밥)오리훈제 샐러드" = "현미밥 오리훈제 샐러드"). 배달앱마다 다른 이름은 APP_ALIAS 에.
-const APP_ALIAS=[["훈제오리","오리훈제"],["통밀식빵샌드위치","통밀식빵"],["우유식빵샌드위치","우유식빵"],["치폴레새우크래미","치폴레새우"],["250보틀","250ml"],["500보틀","500ml"]];
+const APP_ALIAS=[["훈제오리","오리훈제"],["통밀식빵샌드위치","통밀식빵"],["우유식빵샌드위치","우유식빵"],["치폴레새우크래미","치폴레새우"],["250보틀","250ml"],["500보틀","500ml"],["유부초밥세트","유부초밥샐러드세트"],["쌈밥세트","쌈밥샐러드세트"]];
 const akey=s=>{let k=String(s||"").replace(/\[[^\]]*\]/g,"").replace(/[^가-힣a-zA-Z0-9]/g,"").toLowerCase(); APP_ALIAS.forEach(([a,b])=>{k=k.split(a.toLowerCase()).join(b.toLowerCase());}); return k;};
 // 괄호 속 글자를 뺀 이름도 비교해요: "토당주스(피로야가라)" = "토당주스 (보틀)" (2026-10-25)
 const pkey=s=>akey(String(s||"").replace(/\([^)]*\)/g,""));
