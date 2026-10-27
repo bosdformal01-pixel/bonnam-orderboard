@@ -766,7 +766,8 @@ const G={
  s2t2:{l:"샐러드2 토핑",m:1,p:1,st:"salad",o:null},
  /* 배민 옵션 그대로 (2026-10-21 선정님이 보낸 '배민 옵션 정리' 문서). 기본으로 고른 빵·양상추·드레싱은 태블릿·전표에 안 찍어요 */
  // 드레싱은 무료. 오리엔탈이 기본으로 눌려 있고, 한 번 더 누르면 빠져서 '드레싱 없음'으로 찍혀요 (선정님 요청 2026-10-21)
- bmDress:{l:"드레싱 (무료)",key:1,d:0,hideDef:1,emptyAs:"드레싱 없음",st:"salad",o:[["오리엔탈 드레싱"],["발사믹 드레싱"],["사우전아일랜드 드레싱"],["유자 드레싱"],["참깨 드레싱"],["스리라차마요 드레싱"],["흑임자 드레싱"],["케이준 드레싱"]]},
+ // 2개까지 무료로 골라요 (동구청 요청 시 두 개, 선정님 요청 2026-10-27). 처음 다른 걸 누르면 오리엔탈 대신 바뀌고, 그다음부터는 하나 더 붙어요
+ bmDress:{l:"드레싱 (무료)",m:1,max:2,swapDef:1,key:1,d:0,hideDef:1,emptyAs:"드레싱 없음",st:"salad",hint:"오리엔탈 기본 · 2개까지 · 다시 누르면 빠져요",o:[["오리엔탈 드레싱"],["발사믹 드레싱"],["사우전아일랜드 드레싱"],["유자 드레싱"],["참깨 드레싱"],["스리라차마요 드레싱"],["흑임자 드레싱"],["케이준 드레싱"]]},
  bmSalTop:{l:"샐러드 토핑 추가",m:1,max:2,o:[["스위트콘"],["견과류"],["슬라이스 햄 추가",700],["계란 추가",700],["찐 단호박 추가",1000],["구운두부",1000],["abc라페",1500],["에그마요 추가",1500],["감자샐러드 추가",1500],["단호박샐러드 추가",1500],["베이컨(3줄) 추가",2000],["현미밥 추가",2000],["닭가슴살 추가",2500],["닭다리살 추가",2500],["수제리코타치즈 추가",2500],["버터갈릭새우4p 추가",2500],["아보카도 추가",2500],["치킨텐더 2조각",2500],["과일 추가",3000],["우삼겹 추가",3000],["오리훈제 추가",3000],["소불고기 추가",3000],["연어 추가",5000]]},
  bmSauce:{l:"소스 따로 추가 (유료)",m:1,max:13,o:[["피클 추가",700],["할라피뇨 추가",700],["오리엔탈 드레싱",700],["발사믹 드레싱",700],["유자 드레싱",700],["참깨 드레싱",700],["흑임자 드레싱",700],["사우전 드레싱",700],["케이준 드레싱",700],["타르타르 드레싱",700],["스리라차 드레싱",700],["데리야끼 소스",700],["매운 데리야끼 소스",700],["치폴레 소스",700],["딸기쨈",1000],["바질 페스토(50g)",1500]]},
  bmMini:{l:"샐러드 토핑",m:1,max:2,o:[["견과류"],["스위트콘"],["구운두부",700],["abc라페",700],["에그마요 샐러드",1500],["감자 샐러드",1500],["단호박 샐러드",1500],["닭가슴살",1500],["수제리코타치즈",1500],["불고기",1500],["오리훈제",1500],["새우",1500],["과일2종",1500],["아보카도 반개",2500]]},
@@ -1157,7 +1158,7 @@ function openOpt(m,editIdx){
   let qty=1, note="";
   if(editIdx!=null){
     const it=draft.items[editIdx]; qty=it.qty; note=it.note||"";
-    m.groups.forEach(g=>{ if(G[g].ds&&(it.opts||[]).some(o=>o.gid===g))sel[g].clear(); });
+    m.groups.forEach(g=>{ if((G[g].ds||G[g].m&&defIdx(g)!=null)&&(it.opts||[]).some(o=>o.gid===g))sel[g].clear(); });
     (it.opts||[]).forEach(o=>{const gi=o.gid; if(sel[gi]){ if(G[gi].emptyAs&&o.v===G[gi].emptyAs){sel[gi].clear();return;} const k=G[gi].o.findIndex(x=>x[0]===o.v); if(k>=0)sel[gi].add(k);}});
     m.groups.forEach(g=>{ if(defIdx(g)!=null&&!G[g].m&&sel[g].size>1)sel[g].delete(defIdx(g)); });
   }
@@ -1180,7 +1181,7 @@ function renderOptGroups(){
     g.o.forEach(([v,p],i)=>{
       const b=el("button","chip",v); if(p)b.append(el("small",null,"+"+p.toLocaleString("ko-KR")));
       b.type="button"; b.setAttribute("aria-pressed",String(sheet.sel[gid].has(i)));
-      b.onclick=()=>{const s=sheet.sel[gid]; if(s.has(i)){ if(!(g.req&&!g.m&&s.size===1))s.delete(i);} else { if(!g.m)s.clear(); if(g.max&&s.size>=g.max){$("optMsg").textContent=g.l+"은(는) "+g.max+"개까지 골라요. 하나를 다시 눌러 빼고 골라 주세요.";return;} s.add(i);} $("optMsg").textContent=""; renderOptGroups();};
+      b.onclick=()=>{const s=sheet.sel[gid]; if(s.has(i)){ if(!(g.req&&!g.m&&s.size===1))s.delete(i);} else { if(!g.m||g.swapDef&&s.size===1&&s.has(defIdx(gid)))s.clear(); if(g.max&&s.size>=g.max){$("optMsg").textContent=g.l+"은(는) "+g.max+"개까지 골라요. 하나를 다시 눌러 빼고 골라 주세요.";return;} s.add(i);} $("optMsg").textContent=""; renderOptGroups();};
       chips.append(b);
     });
     wrap.append(lb,chips); box.append(wrap);
@@ -1239,7 +1240,9 @@ function isDefSet(i,gid){
   const dv=g.ds.map(k=>g.o[k][0]).sort();
   return vs.length===dv.length&&vs.every((v,k)=>v===dv[k]);
 }
-const shownOpts=i=>(i.opts||[]).filter(o=>!isDefOpt(o)&&!isDefSet(i,o.gid));
+// 드레싱 두 개(오리엔탈 + 다른 것)를 골랐으면 오리엔탈도 찍어요
+const soleInGrp=(i,o)=>!o.gid||(i.opts||[]).filter(x=>x.gid===o.gid).length===1;
+const shownOpts=i=>(i.opts||[]).filter(o=>!(isDefOpt(o)&&soleInGrp(i,o))&&!isDefSet(i,o.gid));
 // same menu + same options + same request → one line with a bigger count (사장님 요청: 같은 메뉴 한 줄로)
 const itemKey=i=>JSON.stringify([i.name,i.st,MENU_IDX[i.name]?0:(i.unit||0),(i.opts||[]).map(o=>(o.gid||o.g)+"="+o.v+(o.gid==="_free"?"@"+(o.p||0):"")).sort(),i.note||""]);
 let bumpIdx=-1;
@@ -1705,7 +1708,8 @@ function scanItem(r){
     let i=gid&&sel[gid]?G[gid].o.findIndex(x=>nsp(x[0])===nsp(v)):-1;
     if(i<0){gid=m.groups.find(g=>G[g].o.some(x=>nsp(x[0])===nsp(v))); i=gid?G[gid].o.findIndex(x=>nsp(x[0])===nsp(v)):-1;}
     if(i<0){if(v)extra.push(String(v));return;}
-    if(!G[gid].m)sel[gid].clear(); sel[gid].add(i);
+    if(!G[gid].m)sel[gid].clear(); else if(G[gid].max&&sel[gid].size>=G[gid].max&&!sel[gid].has(i)){extra.push(String(v));return;}
+    sel[gid].add(i);
   });
   m.groups.forEach(g=>{if(!sel[g].size)defSet(g).forEach(k=>sel[g].add(k));});
   const opts=[]; let unit=m.base;
