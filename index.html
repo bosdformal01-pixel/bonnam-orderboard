@@ -324,6 +324,7 @@ input.qty{width:4.2em;padding:6px 4px;border:1.5px solid var(--line);border-radi
 .fstat{display:flex;gap:6px;flex-wrap:wrap}
 .ticket .donebtn{padding:12px;border-radius:8px;border:0;background:var(--stc);color:var(--on-accent);font-weight:700;font-size:1.15rem}
 .ticket.isdone{opacity:.6;border-top-color:var(--line)}
+.ticket.peek{border-top-color:#9ec9e8;border-style:dashed}
 .ticket.isdone .donebtn{background:var(--line);color:var(--ink)}
 .ex{font-size:.75rem;font-weight:700;color:var(--late)}
 .onum{font-weight:800;font-variant-numeric:tabular-nums;border:1.5px solid var(--ink);border-radius:6px;padding:0 6px;font-size:.95rem}
@@ -2937,8 +2938,12 @@ function renderCounter(){
   if(making.length){parts.push(el("div","sec","만드는 중 "+making.length+"건"));making.forEach(o=>parts.push(makingRow(o)));}
   box.replaceChildren(...parts);
 }
+// 샐러드가 없는 주문도 음료가 있으면 샐러드바에 '같이 나갈 음료'로만 보여요 (선정님 요청 2026-10-28).
+// 만들고 완료 누르는 건 그대로 샌드위치바예요. 샌드위치바가 완료하면 샐러드바에서도 '다 만든 주문'으로 내려가요.
+const drinkPeek=(o,st)=>st==="salad"&&!needs(o).salad&&drinksOf(o).length>0;
 function ticket(o,st){
-  const d=o.done||{}, isDone=!!d[st], m=minsTo(o.due);
+  const peek=drinkPeek(o,st);
+  const d=o.done||{}, isDone=peek?!!(d.sandwich||o.out):!!d[st], m=minsTo(o.due);
   const t=el("article","ticket");
   if(isDone)t.classList.add("isdone"); else if(m!=null&&m<0)t.classList.add("late");
   const nt=newIds.get(o.id); if(nt&&Date.now()-nt<60000&&!isDone)t.classList.add("new");
@@ -2960,23 +2965,25 @@ function ticket(o,st){
     if(i.note)li.append(el("div","nt","요청: "+i.note));
     ul.append(li);
   });
-  t.append(ul);
+  if(!peek)t.append(ul); else t.classList.add("peek");
   if(st==="salad"){const dr=drinksOf(o); if(dr.length){const w=el("div","drinks"); w.append(el("div","dh","🥤 같이 나갈 음료 (샌드위치바에서 만들어요)")); dr.forEach(x=>w.append(el("div","dl",x.q+" · "+x.t))); t.append(w);}}
   if(o.memo)t.append(el("div","memo",o.memo));
   const other=st==="salad"?"sandwich":"salad", foot=el("div","tfoot");
   if(needs(o)[other])foot.append(el("div","other",ST_NAME[other]+": "+(d[other]?"완료":"만드는 중")));
-  if(!isDone)foot.append(pinBtn(o));
+  if(!isDone&&!peek)foot.append(pinBtn(o));
   const fb=el("button","linkbtn fullbtn","주문 전체 보기"); fb.type="button"; fb.onclick=()=>openFull(o.id); foot.append(fb);
   t.append(foot);
+  if(peek)return t; // 샐러드바가 만들 건 없어서 '다 만들었어요' 버튼은 없어요
   const b=el("button","donebtn",isDone?"완료 취소":"다 만들었어요");b.type="button";b.disabled=busy.has(o.id);
   b.onclick=()=>write(o.id,ref=>ref.update({["done."+st]:!isDone}));
   t.append(b);
   return t;
 }
 function renderStation(st){
-  const mine=sorted(orders.filter(o=>needs(o)[st]));
-  const todo=mine.filter(o=>!(o.done||{})[st]), done=mine.filter(o=>(o.done||{})[st]);
-  $("stCount").textContent="만들 주문 "+todo.length+"건";
+  const isDoneAt=o=>drinkPeek(o,st)?!!((o.done||{}).sandwich||o.out):!!(o.done||{})[st];
+  const mine=sorted(orders.filter(o=>needs(o)[st]||drinkPeek(o,st)));
+  const todo=mine.filter(o=>!isDoneAt(o)), done=mine.filter(o=>isDoneAt(o));
+  $("stCount").textContent="만들 주문 "+todo.filter(o=>!drinkPeek(o,st)).length+"건";
   const board=$("board");
   if(!todo.length)board.replaceChildren(el("p","empty",dbReady?"만들 주문이 없어요. 주문이 들어오면 여기 바로 떠요.":"주문 목록을 불러오는 중이에요."));
   else board.replaceChildren(...todo.map(o=>ticket(o,st)));
