@@ -725,7 +725,6 @@ const G={
  todang:{l:"용량",req:1,d:0,o:[["250ml"],["500ml",2500]]},
  abc:{l:"용량",req:1,d:0,o:[["250ml"],["500ml",2500]]},
  tobocado:{l:"용량",req:1,d:0,o:[["250ml"],["500ml",2000]]},
- soda:{l:"탄산",key:1,d:0,emptyAs:"사이다/콜라 없음",o:[["사이다"],["콜라"]]},
  ingayoJam:{l:"잼",o:[["잼 많이"],["잼 보통"]]},
  ingayoAdd:{l:"추가",m:1,o:[["치즈 1장 추가",500],["햄 1장 추가",500],["햄 2장 추가",1000]]},
  ingayoOff:{l:"빼기",m:1,o:[["치즈 빼기"]]},
@@ -839,7 +838,7 @@ const MENU=[
  {cat:"토스트",st:"sandwich",items:[["카야토스트",6500,["kaya"]],["전남친토스트",6500,[]],["악마토스트",6500,[]]]},
  {cat:"커피",st:"sandwich",items:[["아메리카노",2500,["temp"]],["카페라떼",3000,["temp"]],["카페모카",3500,["temp"]],["바닐라라떼",3500,["temp"]],["카라멜마끼야또",3500,["temp"]],["초코라떼",3000,["temp"]]]},
  {cat:"차·에이드·스무디",st:"sandwich",items:[["유자꿀차",2500,["temp"]],["수제레몬청꿀차",3000,["temp"]],["수제레몬에이드",4000,[]],["자몽에이드",4000,[]],["유자에이드",4000,[]],["복숭아아이스티",2500,[]],["플레인요거트 스무디",4000,[]],["딸기요거트 스무디",4500,[]],["블루베리요거트 스무디",4500,[]]]},
- {cat:"주스·음료",st:"sandwich",items:[["오렌지주스",2500,[]],["사과주스",1000,[]],["감귤주스",2500,[]],["복남이해독주스 (보틀)",3500,["detox"]],["토당주스 (보틀)",3500,["todang"]],["딸기생과일주스",4000,[]],["ABC 주스",3500,["abc"]],["탄산음료",1500,["soda"]],["토보카도 주스 (보틀)",3500,["tobocado"]]]}
+ {cat:"주스·음료",st:"sandwich",items:[["오렌지주스",2500,[]],["사과주스",1000,[]],["감귤주스",2500,[]],["복남이해독주스 (보틀)",3500,["detox"]],["토당주스 (보틀)",3500,["todang"]],["딸기생과일주스",4000,[]],["ABC 주스",3500,["abc"]],["콜라",1500,[]],["사이다",1500,[]],["토보카도 주스 (보틀)",3500,["tobocado"]]]}
 ];
 
 /* ---------- departments: 건물 층별 안내판 사진 그대로 (2026-10-16 선정님이 찍어 보내 줌). 보건소 2층 한 칸은 사진이 가려져 못 읽어서 뺐어요. ---------- */
@@ -1871,9 +1870,11 @@ function openRank(per){
   else rankOrders=[];
   renderSummary();
 }
+// 예전 '탄산음료' + 콜라/사이다 옵션 주문은 콜라·사이다 메뉴로 세요 (2026-10-30 콜라·사이다 따로 메뉴로)
+const sodaName=i=>i.name!=="탄산음료"?i.name:((i.opts||[]).map(o=>o.v).find(v=>v==="콜라"||v==="사이다")||i.name);
 function rankRows(list){
   const by=new Map();
-  list.forEach(o=>(o.items||[]).forEach(i=>{const e=by.get(i.name)||{n:i.name,cat:CAT_OF[i.name]||"기타",q:0,amt:0}; e.q+=i.qty||0; e.amt+=(i.unit||0)*(i.qty||0); by.set(i.name,e);}));
+  list.forEach(o=>(o.items||[]).forEach(i0=>{const i={...i0,name:sodaName(i0)}; const e=by.get(i.name)||{n:i.name,cat:CAT_OF[i.name]||"기타",q:0,amt:0}; e.q+=i.qty||0; e.amt+=(i.unit||0)*(i.qty||0); by.set(i.name,e);}));
   return [...by.values()].sort((a,b)=>b.q-a.q||b.amt-a.amt||a.n.localeCompare(b.n,"ko"));
 }
 function renderRank(){
@@ -2696,6 +2697,8 @@ function appOpt(menu,v){
 // 샌드위치·빵 → 샌드위치바, 음료 → 샌드위치바, 나머지(토핑·드레싱) → 샐러드바. 0원 오리엔탈 드레싱은 기본이라 안 찍어요.
 const appOptSt=v=>/샌드위치|토스트|식빵|베이글/.test(v)?"sandwich":/주스|음료|에이드|아메리카노|라떼|커피|아이스티|콜라|사이다|보틀|\d+\s*ml/i.test(v)?"sandwich":"salad";
 function appItem(it){
+  // 배달앱 '탄산음료' + 콜라/사이다 옵션 → 주문판 콜라·사이다 메뉴 (2026-10-30)
+  if(/탄산/.test(it.name)){const so=(it.opts||[]).find(o=>/콜라|사이다/.test(o.v)); if(so){it={...it,name:/콜라/.test(so.v)?"콜라":"사이다",price:(it.price||0)+(so.p||0),opts:it.opts.filter(o=>o!==so)};}}
   const menu=appMenuName(it.name), mi=MENU_IDX[menu];
   const known=v=>!!mi&&mi.groups.some(g=>G[g].o.some(x=>nsp(x[0])===nsp(v)));
   const opts=it.opts.filter(o=>!(/^기본\s/.test(o.v)&&!o.p)).map(o=>({o,value:appOpt(menu,o.v)}));
