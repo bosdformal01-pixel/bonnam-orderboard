@@ -365,12 +365,15 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
 .rcard .s{color:var(--muted);font-size:.92rem;overflow-wrap:anywhere}
 .rcard .act{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
 .overlay.top3{z-index:45}
-.appstat{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
-.appstat button{padding:4px 9px;border-radius:999px;border:2px solid var(--salad);background:var(--salad);color:var(--on-accent);font:inherit;font-size:.85rem;font-weight:700;cursor:pointer}
-.appstat button:disabled{cursor:default;opacity:1}
-.appstat button.off{border-color:var(--late);background:var(--late);color:var(--on-accent)}
-.appstat .late{font-weight:800;font-size:.85rem;color:var(--late)}
-@media (prefers-reduced-motion:no-preference){.appstat.late button.off{animation:pulse 1.2s ease-in-out infinite}}
+.appstat{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.appstat button{padding:5px 12px;border-radius:999px;border:2px solid var(--late);background:transparent;color:var(--late);font:inherit;font-size:.9rem;font-weight:800;cursor:pointer}
+.appstat .tm{font-weight:800;font-size:.95rem;color:var(--late);font-variant-numeric:tabular-nums}
+.appstat.on button.again{background:var(--salad);border-color:var(--salad);color:var(--on-accent)}
+.appstat.late .tm{font-size:1.05rem}
+@media (prefers-reduced-motion:no-preference){.appstat.late{animation:pulse 1.2s ease-in-out infinite}}
+.peakdur{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.peakdur button{padding:14px 8px;border:2px solid var(--late);border-radius:8px;background:var(--late-soft);color:var(--ink);font:inherit;font-size:1.2rem;font-weight:800;cursor:pointer}
+.cplist{display:flex;flex-direction:column;gap:6px;font-size:1.15rem;font-weight:700}
 .sheet.peak{max-width:520px;border:3px solid var(--late);margin-top:10vh}
 .sheet.peak h2{font-family:var(--display);font-weight:400;font-size:1.6rem;margin:0;color:var(--late)}
 .peakapps{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -435,7 +438,7 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
     <a href="#salad" data-mode="salad">샐러드바</a>
     <a href="#sandwich" data-mode="sandwich">샌드위치바</a>
   </nav>
-  <div class="appstat" id="appStat" role="group" aria-label="배달앱 켜짐/꺼짐"></div>
+  <div class="appstat" id="appStat" role="group" aria-label="배달앱 끄기 타이머" hidden></div>
   <div class="topr"><button type="button" class="bell" id="bellBtn" aria-label="알림" title="알림">🔔<span class="bn" id="bellN" hidden></span></button><div class="clock" id="clock">--:--</div></div>
 </div>
 <div class="bellpanel" id="bellPanel" hidden role="dialog" aria-label="알림">
@@ -690,8 +693,16 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
   <div class="sheet peak" role="alertdialog" aria-modal="true" aria-labelledby="peakTitle">
     <h2 id="peakTitle">피크 시간이에요. 배달앱 멈출까요?</h2>
     <div class="reshint" id="peakHint" style="color:var(--muted)"></div>
-    <div class="peakapps" id="peakApps"></div>
+    <div class="peakdur" id="peakDur"></div>
     <div class="row"><button type="button" class="submit" id="peakOk" style="flex:1;width:auto">확인</button></div>
+  </div>
+</div>
+
+<div class="overlay top3" id="cpOverlay" hidden>
+  <div class="sheet peak" role="alertdialog" aria-modal="true" aria-labelledby="cpTitle">
+    <h2 id="cpTitle">쿠팡이츠 주문 수락한 지 5분 됐어요</h2>
+    <div class="cplist" id="cpList"></div>
+    <div class="row"><button type="button" class="submit" id="cpOk" style="flex:1;width:auto">확인했어요</button></div>
   </div>
 </div>
 
@@ -898,7 +909,7 @@ function setMode(){
   $("stTitle").textContent=ST_NAME[mode]||"";
   if(resMode)closeRes(true);
   if(mode==="counter")closeFormOverlay();
-  $("batchOverlay").hidden=true; if(mode!=="counter")$("peakOverlay").hidden=true; if(window.peakOn)checkPeak(); closeSummary(); if(typeof closeShop==="function")closeShop(); if(typeof closeFull==="function")closeFull();
+  $("batchOverlay").hidden=true; if(mode!=="counter"){$("peakOverlay").hidden=true; $("cpOverlay").hidden=true;} if(window.peakOn)checkPeak(); closeSummary(); if(typeof closeShop==="function")closeShop(); if(typeof closeFull==="function")closeFull();
   render();
 }
 window.addEventListener("hashchange",setMode);
@@ -951,7 +962,7 @@ let fbAuth=null;
     $("gate").hidden=!!u; renderWho(u);
     if(!u||started)return; started=true;
     col=fs.collection("orders"); deptCol=fs.collection("depts"); dbReady=true; subscribe();
-    shopSubscribe(); if(window.peakOn)peakSubscribe();
+    shopSubscribe();
     deptCol.onSnapshot(s=>{customDepts=s.docs.map(d=>d.data()).filter(d=>d&&d.name);},()=>{});
   });
 })();
@@ -1595,70 +1606,85 @@ function checkRemind(){
 $("remindOk").onclick=()=>{$("remindOverlay").hidden=true;};
 $("remindList").onclick=()=>{$("remindOverlay").hidden=true; openResList();};
 
-/* ---------- 배달앱 켜짐/꺼짐 표시 + 피크 시간 알림 (소리 없이 창만)
-   맨 위 줄에 배민·쿠팡이츠·요기요·네이버가 늘 켜짐(초록)/꺼짐(빨강)으로 보여요. 눌러서 바꿔요 (모든 화면이 같이 바뀌어요).
-   주문판이 배달앱을 직접 끄지는 못해요. 각 앱 주문접수 프로그램에서 사람이 멈추고, 여기서 표시만 바꿔요.
-   알림 창은 카운터에만: PEAK.stop 에 "멈출까요?", PEAK.restart 에 (꺼진 앱이 있으면) "다시 켜세요!".
-   시간을 바꾸려면 PEAK의 stop / restart 만 고치면 돼요.
-   저장: depts 모음의 "_peak" 문서 (재료 구매와 같은 방식). ---------- */
-const PEAK={stop:"16:55", restart:"18:30"};
+/* ---------- 배달앱 끄기 타이머 (카운터에만, 2026-10-30 선정님 요청)
+   주문판이 배달앱을 직접 끄지는 못해요. 각 앱 주문접수 프로그램에서 사람이 '임시 중지'를 누르고,
+   여기 "⏸ 4개 배달앱 끄기"를 눌러 몇 분 멈췄는지 고르면 맨 위에 남은 시간이 돌아가요.
+   시간이 다 되면 "배달앱 다시 켜세요!" 창 + 소리. "다시 켰어요"를 누르면 끝.
+   PEAK.stop 에는 "피크 시간이에요. 배달앱 멈출까요?" 창이 한 번 떠요 (카운터만).
+   샐러드바·샌드위치바 화면엔 아무것도 안 보여요. 타이머는 카운터 기기에만 저장돼요. ---------- */
+const PEAK={stop:"16:55"};
 const PEAK_APPS=["배민","쿠팡이츠","요기요","네이버"];
+const PEAK_DUR=[[30,"30분"],[60,"1시간"],[90,"1시간 30분"],[120,"2시간"]];
 const hmMin=t=>{const [h,m]=t.split(":").map(Number); return h*60+m;};
 const nowMin=()=>{const d=new Date(); return d.getHours()*60+d.getMinutes();};
-let peakOff=[], peakDay=null, peakRef=null, peakLocalAt=0, peakStage="stop";
-try{const v=JSON.parse(localStorage.getItem("bn_peak")||"null"); if(v&&Array.isArray(v.apps)){peakOff=v.apps; peakDay=v.day||null;}}catch(e){}
+let offUntil=0, offAlerted=false;
+try{const v=JSON.parse(localStorage.getItem("bn_off")||"null"); if(v&&v.until){offUntil=v.until; offAlerted=!!v.alerted;}}catch(e){}
+function saveOff(){try{localStorage.setItem("bn_off",JSON.stringify({until:offUntil,alerted:offAlerted}));}catch(e){}}
 function peakSeen(){try{const v=(localStorage.getItem("bn_peak_seen")||"").split(":"); return v[0]===today()?(v[1]||""):"";}catch(e){return "";}}
 function setSeen(k){try{localStorage.setItem("bn_peak_seen",today()+":"+peakSeen()+k);}catch(e){}}
-function savePeakOff(apps){
-  peakOff=PEAK_APPS.filter(a=>apps.includes(a)); peakDay=today(); peakLocalAt=Date.now();
-  try{localStorage.setItem("bn_peak",JSON.stringify({day:peakDay,apps:peakOff}));}catch(e){}
-  if(peakRef)peakRef.set({day:peakDay,apps:peakOff,updatedAt:Date.now()}).catch(()=>toast("배달앱 표시를 저장하지 못했어요. 다시 눌러 주세요."));
-  renderAppStat(); if(!$("peakOverlay").hidden)renderPeakApps();
-}
-function peakSubscribe(){
-  if(peakRef||!deptCol)return; peakRef=deptCol.doc("_peak");
-  peakRef.onSnapshot(d=>{
-    if(Date.now()-peakLocalAt<1500)return;
-    const v=d.exists?d.data():null; if(!v)return;
-    peakOff=Array.isArray(v.apps)?v.apps:[]; peakDay=v.day||null;
-    try{localStorage.setItem("bn_peak",JSON.stringify({day:peakDay,apps:peakOff}));}catch(e){}
-    renderAppStat(); if(!$("peakOverlay").hidden)renderPeakApps();
-  },()=>{});
-}
+const mmss=ms=>{const t=Math.max(0,Math.ceil(ms/1000)), h=Math.floor(t/3600), m=Math.floor(t%3600/60), x=t%60;
+  return (h?h+":"+String(m).padStart(2,"0"):String(m))+":"+String(x).padStart(2,"0");};
+function startOff(min){offUntil=Date.now()+min*60000; offAlerted=false; saveOff(); $("peakOverlay").hidden=true; renderAppStat(); toast("⏸ 배달앱 끄기 타이머 "+min+"분 시작했어요.");}
+function endOff(){offUntil=0; offAlerted=false; saveOff(); $("peakOverlay").hidden=true; renderAppStat();}
 function renderAppStat(){
-  const late=peakOff.length&&nowMin()>=hmMin(PEAK.restart)&&nowMin()<24*60, box=$("appStat");
-  box.className="appstat"+(late?" late":"");
-  box.replaceChildren(...PEAK_APPS.map(a=>{
-    const off=peakOff.includes(a), b=el("button",off?"off":"");
-    b.type="button"; b.title=off?a+" 꺼짐 · 다시 켰으면 눌러 주세요":a+" 켜짐 · 껐으면 눌러 주세요";
-    b.textContent=a; b.setAttribute("aria-label",a+(off?" 꺼짐":" 켜짐"));
-    if(mode==="counter")b.onclick=()=>savePeakOff(off?peakOff.filter(x=>x!==a):[...peakOff,a]); else b.disabled=true; // 태블릿은 보기만
-    return b;}), ...(late?[el("span","late","⚠️ 다시 켜세요!")]:[]));
-}
-function renderPeakApps(){
-  $("peakApps").replaceChildren(...PEAK_APPS.map(a=>{
-    const off=peakOff.includes(a), lab=el("label",off?"on":""), cb=document.createElement("input");
-    cb.type="checkbox"; cb.checked=off;
-    cb.onchange=()=>savePeakOff(cb.checked?[...peakOff,a]:peakOff.filter(x=>x!==a));
-    lab.append(cb,document.createTextNode(a+(off?" 꺼짐":""))); return lab;}));
+  const box=$("appStat"); box.hidden=mode!=="counter"; if(box.hidden)return;
+  const left=offUntil-Date.now(), on=!!offUntil, late=on&&left<=0;
+  box.className="appstat"+(on?" on":"")+(late?" late":"");
+  if(!on){
+    if(box.dataset.st==="idle")return; box.dataset.st="idle";
+    const b=el("button",null,"⏸ 4개 배달앱 끄기"); b.type="button"; b.title=PEAK_APPS.join("·")+" 을 각 프로그램에서 멈춘 뒤 눌러 주세요"; b.onclick=()=>openPeak("pick");
+    box.replaceChildren(b); return;
+  }
+  const t=late?"⚠️ 배달앱 다시 켜세요!":"⏸ 배달앱 꺼짐 · 다시 켜기까지 "+mmss(left);
+  if(box.dataset.st==="on"){box.querySelector(".tm").textContent=t; return;}
+  box.dataset.st="on";
+  const again=el("button","again","다시 켰어요"); again.type="button"; again.onclick=endOff;
+  box.replaceChildren(el("span","tm",t),again);
 }
 function openPeak(stage){
-  peakStage=stage;
-  $("peakTitle").textContent=stage==="restart"?"배달앱 다시 켜세요!":"피크 시간이에요. 배달앱 멈출까요?";
+  $("peakTitle").textContent=stage==="restart"?"배달앱 다시 켜세요!":stage==="stop"?"피크 시간이에요. 배달앱 멈출까요?":"몇 분 동안 멈췄어요?";
   $("peakHint").textContent=stage==="restart"
-    ?"각 앱 주문접수 프로그램에서 다시 켜고, 켠 앱은 체크를 풀어 주세요."
-    :"각 앱 주문접수 프로그램에서 '임시 중지'를 누르고, 멈춘 앱을 체크해 주세요. (전화 주문은 그대로예요)";
-  renderPeakApps(); $("peakOverlay").hidden=false;
+    ?"끄기 타이머가 끝났어요. "+PEAK_APPS.join("·")+" 주문접수 프로그램에서 다시 켜 주세요."
+    :"각 앱 주문접수 프로그램에서 '임시 중지'를 누르고, 멈춘 시간을 골라 주세요. 그만큼 타이머가 돌아가요. (전화 주문은 그대로예요)";
+  const box=$("peakDur");
+  if(stage==="restart"){
+    const a=el("button",null,"다시 켰어요"); a.type="button"; a.onclick=endOff;
+    const m=el("button",null,"10분 더 멈추기"); m.type="button"; m.onclick=()=>startOff(10);
+    box.replaceChildren(a,m); $("peakOk").textContent="나중에";
+  } else {
+    box.replaceChildren(...PEAK_DUR.map(([min,lab])=>{const b=el("button",null,lab); b.type="button"; b.onclick=()=>startOff(min); return b;}));
+    $("peakOk").textContent=stage==="stop"?"안 멈춰요":"닫기";
+  }
+  $("peakOverlay").hidden=false;
 }
 function checkPeak(){
   renderAppStat();
   if(mode!=="counter"||!$("peakOverlay").hidden||!$("remindOverlay").hidden)return;
-  const m=nowMin(), seen=peakSeen();
-  if(m>=hmMin(PEAK.restart)){ if(peakOff.length&&!seen.includes("b")){setSeen("b"); openPeak("restart");} }
-  else if(m>=hmMin(PEAK.stop)&&!seen.includes("a")){setSeen("a"); openPeak("stop");}
+  if(offUntil&&!offAlerted&&Date.now()>=offUntil){offAlerted=true; saveOff(); openPeak("restart"); playChime(); return;}
+  if(!offUntil&&nowMin()>=hmMin(PEAK.stop)&&nowMin()<hmMin(PEAK.stop)+60&&!peakSeen().includes("a")){setSeen("a"); openPeak("stop");}
 }
 $("peakOk").onclick=()=>{$("peakOverlay").hidden=true;};
-window.peakOn=true; checkPeak(); if(deptCol)peakSubscribe();
+
+/* ---------- 쿠팡이츠 주문: 받은 지 5분 되면 카운터에 알림 (2026-10-30 선정님 요청)
+   쿠팡이츠 프로그램은 예상 시간을 고르고 '수락'을 누를 때 전표를 뽑아요. 그 전표가 주문판에 들어온 때(createdAt)를
+   수락한 때로 보고 5분 뒤에 창 + 소리 + 🔔 알림. 이미 '포장 완료'된 주문은 안 띄워요. 카운터 화면에만. ---------- */
+const CP_AFTER=5*60000;
+let cpSeen=bellLoad("bn_cp5",[]);
+function checkCoupang(){
+  if(mode!=="counter"||typeof orders==="undefined")return;
+  const now=Date.now(), due=orders.filter(o=>o.src==="쿠팡이츠"&&o.from==="relay"&&!o.out&&o.createdAt&&now-o.createdAt>=CP_AFTER&&now-o.createdAt<CP_AFTER+30*60000&&!cpSeen.includes(o.id));
+  if(!due.length)return;
+  cpSeen=cpSeen.concat(due.map(o=>o.id)).slice(-200); bellSave("bn_cp5",cpSeen);
+  const box=$("cpList"), keep=$("cpOverlay").hidden?[]:[...box.children];
+  box.replaceChildren(...keep,...due.map(o=>{
+    const who="쿠팡이츠"+(o.appNo?" "+o.appNo:"")+(o.no?" (#"+o.no+")":"");
+    bellAdd({id:"cp5:"+o.id,kind:"coupang",oid:o.id,text:who+" 주문 수락한 지 5분 됐어요."});
+    return el("div",null,"🛵 "+who+" · "+hm(o.createdAt)+" 수락 (전표 나온 때)");}));
+  $("cpOverlay").hidden=false; renderBell(); playChime();
+}
+$("cpOk").onclick=()=>{$("cpOverlay").hidden=true;};
+setInterval(()=>{if(mode==="counter"){if(offUntil)renderAppStat(); if(offUntil&&!offAlerted&&Date.now()>=offUntil)checkPeak(); checkCoupang();}},1000);
+window.peakOn=true; checkPeak();
 
 /* ---------- 전표 사진으로 채우기: Claude reads a photo of the OKPOS slip and fills the form (never saves) ---------- */
 let sampleFn=null, scanLim=null, scanCtl=null;
@@ -2822,8 +2848,9 @@ function renderBell(){
   if(!bellNotes.length){box.append(el("div","bempty","새 알림이 없어요."));return;}
   bellNotes.forEach(n=>{
     const row=el("div","bnote"+(n.read?"":" unread")), body=el("div","bt");
-    body.append(el("div",null,(n.kind==="update"?"🔄 ":"⚠️ ")+n.text), el("div","bm",hm(n.at)));
+    body.append(el("div",null,(n.kind==="update"?"🔄 ":n.kind==="coupang"?"🛵 ":"⚠️ ")+n.text), el("div","bm",hm(n.at)));
     const act=el("div","ba");
+    if(n.kind==="coupang"){const o=orders.find(x=>x.id===n.oid); if(o){const v=el("button","linkbtn","주문 보기"); v.type="button"; v.onclick=()=>{$("bellPanel").hidden=true; openFull(o.id);}; act.append(v);}}
     if(n.kind==="check"){
       const o=orders.find(x=>x.id===n.oid);
       if(o){
