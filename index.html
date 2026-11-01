@@ -279,7 +279,7 @@ input.qty{width:4.2em;padding:6px 4px;border:1.5px solid var(--line);border-radi
 .pov .pr.chg{background:#fff1b8;border-radius:8px;padding:2px 6px}
 .pov .pr .was{color:var(--muted);font-size:.8rem}
 .pov .note{color:var(--muted);font-size:.8rem}
-.chip small s{color:var(--muted);margin-left:3px}
+.chip small s{opacity:.6;margin-left:3px}
 #optAdd{position:sticky;bottom:8px;box-shadow:0 4px 16px rgba(0,0,0,.18)}
 
 /* station */
@@ -1424,7 +1424,7 @@ $("orderForm").addEventListener("submit",async e=>{
   }finally{btn.disabled=false;}
 });
 
-const packItems=()=>draft.items.map(i=>({name:i.name,qty:i.qty,st:i.st,unit:i.unit||0,opts:(i.opts||[]).map(o=>{const c={g:o.g,v:o.v};["p","st","k","pl","gid"].forEach(k=>{if(o[k]!=null)c[k]=o[k];});return c;}),note:i.note||""}));
+const packItems=()=>draft.items.map(i=>({name:i.name,qty:i.qty,st:i.st,unit:i.unit||0,opts:(i.opts||[]).map(o=>{const c={g:o.g,v:o.v};["p","p0","st","k","pl","gid"].forEach(k=>{if(o[k]!=null)c[k]=o[k];});return c;}),note:i.note||""}));
 
 /* ---------- 주문 고치기 ---------- */
 let editing=null;
