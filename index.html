@@ -272,6 +272,14 @@ input.qty{width:4.2em;padding:6px 4px;border:1.5px solid var(--line);border-radi
 .og .lbl .req{color:var(--late);font-size:.8rem;margin-left:6px}
 .og .lbl .hint{color:var(--muted);font-weight:400;font-size:.8rem;margin-left:6px}
 .og.missing .lbl{color:var(--late)}
+.pov{display:grid;gap:6px;margin-top:8px;padding:10px 12px;border:1.5px dashed var(--line);border-radius:10px;background:#fffdf3}
+.pov .pr{display:flex;align-items:center;gap:8px}
+.pov .pr .nm{flex:1}
+.pov .pr input{width:6em;text-align:right;font-variant-numeric:tabular-nums}
+.pov .pr.chg{background:#fff1b8;border-radius:8px;padding:2px 6px}
+.pov .pr .was{color:var(--muted);font-size:.8rem}
+.pov .note{color:var(--muted);font-size:.8rem}
+.chip small s{opacity:.6;margin-left:3px}
 #optAdd{position:sticky;bottom:8px;box-shadow:0 4px 16px rgba(0,0,0,.18)}
 
 /* station */
@@ -582,6 +590,10 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="optTitle">
     <div class="sheet-head"><h2 id="optTitle">메뉴</h2><button type="button" class="linkbtn x" id="optClose">닫기</button></div>
     <div id="optGroups" style="display:grid;gap:14px"></div>
+    <div id="povWrap" hidden>
+      <button type="button" class="linkbtn" id="povToggle">✏️ 옵션 가격 바꾸기 (이번 주문만)</button>
+      <div id="povBox" class="pov" hidden></div>
+    </div>
     <div class="field" style="margin:0">
       <label for="optNote">이 메뉴 요청사항</label>
       <input type="text" id="optNote" placeholder="예: 소스 따로 담기" maxlength="80">
@@ -1178,7 +1190,9 @@ function openOpt(m,editIdx){
   }
   let free={v:"",p:0};
   if(editIdx!=null){const f=(draft.items[editIdx].opts||[]).find(o=>o.gid==="_free"); if(f)free={v:f.v,p:f.p||0};}
-  sheet={...m,sel,qty,editIdx};
+  const pov={};
+  if(editIdx!=null)(draft.items[editIdx].opts||[]).forEach(o=>{if(o.p0!=null&&G[o.gid]){const k=G[o.gid].o.findIndex(x=>x[0]===o.v); if(k>=0)pov[o.gid+"|"+k]=o.p||0;}});
+  sheet={...m,sel,qty,editIdx,pov,povOpen:Object.keys(pov).length>0};
   $("optNote").value=note; $("optFree").value=free.v; $("optFreeP").value=free.p?String(free.p):"";
   if(!m.groups.length&&editIdx==null){commitItem();return;}
   $("optTitle").textContent=m.name; $("optMsg").textContent="";
@@ -1193,20 +1207,42 @@ function renderOptGroups(){
     const lb=el("div","lbl",g.l); if(g.req)lb.append(el("span","req",g.hint?g.hint:g.max?"꼭 고르기 · "+g.max+"개까지":"꼭 고르기")); else lb.append(el("span","hint",g.hint?g.hint:g.emptyAs?"한 번 더 누르면 "+g.emptyAs:g.m?(g.max?g.max+"개까지":"여러 개 가능"):"안 고르면 기본"));
     const chips=el("div","chips");
     g.o.forEach(([v,p],i)=>{
-      const b=el("button","chip",v); if(p)b.append(el("small",null,"+"+p.toLocaleString("ko-KR")));
+      const b=el("button","chip",v), np=optP(gid,i);
+      if(np!==(p||0)&&sheet.sel[gid].has(i)){const sm=el("small",null,"+"+np.toLocaleString("ko-KR")); if(p)sm.append(el("s",null,p.toLocaleString("ko-KR"))); b.append(sm);}
+      else if(p)b.append(el("small",null,"+"+p.toLocaleString("ko-KR")));
       b.type="button"; b.setAttribute("aria-pressed",String(sheet.sel[gid].has(i)));
       b.onclick=()=>{const s=sheet.sel[gid]; if(s.has(i)){ if(!(g.req&&!g.m&&s.size===1))s.delete(i);} else { if(!g.m||g.swapDef&&s.size===1&&s.has(defIdx(gid)))s.clear(); if(g.max&&s.size>=g.max){$("optMsg").textContent=g.l+"은(는) "+g.max+"개까지 골라요. 하나를 다시 눌러 빼고 골라 주세요.";return;} s.add(i);} $("optMsg").textContent=""; renderOptGroups();};
       chips.append(b);
     });
     wrap.append(lb,chips); box.append(wrap);
   });
+  renderPov();
   if(document.activeElement!==$("optQty"))$("optQty").value=sheet.qty;
   $("optPrice").textContent=won(unitPrice()*sheet.qty);
 }
+// 이번 주문만 옵션 가격 바꾸기 (예: 햄 추가 700원 → 500원). 메뉴 가격표는 그대로예요.
+const optP=(gid,i)=>{const k=gid+"|"+i; return sheet.pov&&k in sheet.pov?sheet.pov[k]:(G[gid].o[i][1]||0);};
+function renderPov(){
+  const rows=[]; sheet.groups.forEach(gid=>[...sheet.sel[gid]].sort((a,b)=>a-b).forEach(i=>rows.push([gid,i])));
+  $("povWrap").hidden=!rows.length; const box=$("povBox"); box.hidden=!sheet.povOpen;
+  $("povToggle").textContent=sheet.povOpen?"✏️ 옵션 가격 바꾸기 접기":"✏️ 옵션 가격 바꾸기 (이번 주문만)";
+  if(!sheet.povOpen)return;
+  if(box.contains(document.activeElement))return;
+  box.replaceChildren(el("div","note","바꾼 가격은 이번 주문에만 들어가요. 메뉴 가격표는 그대로예요."));
+  rows.forEach(([gid,i])=>{const [v,p0]=G[gid].o[i], np=optP(gid,i), chg=np!==(p0||0);
+    const r=el("div","pr"+(chg?" chg":"")); r.append(el("span","nm",v));
+    if(chg)r.append(el("span","was","원래 "+won(p0||0)));
+    const inp=el("input"); inp.value=String(np); inp.inputMode="numeric"; inp.setAttribute("aria-label",v+" 가격 (원)");
+    inp.onfocus=()=>inp.select();
+    inp.oninput=()=>{const d=inp.value.replace(/\D/g,""); if(d!==inp.value)inp.value=d; const n=Math.min(999999,parseInt(d||"0",10)); const k=gid+"|"+i; if(n===(p0||0))delete sheet.pov[k]; else sheet.pov[k]=n; $("optPrice").textContent=won(unitPrice()*sheet.qty);};
+    inp.onblur=()=>setTimeout(renderOptGroups,0);
+    r.append(inp,el("span",null,"원")); box.append(r);});
+}
+$("povToggle").onclick=()=>{sheet.povOpen=!sheet.povOpen; renderOptGroups();};
 const freeP=()=>{const v=parseInt(($("optFreeP").value||"").replace(/\D/g,""),10); return v>0?Math.min(v,999999):0;};
 // 단체④ 박스 A 샌드위치 + 3,500원 음료는 전화·매장 주문 20,000원 (네이버는 20,500원). 가격표 별표, 2026-10-22
 const GRP_A=5, GRP4="단체④ 박스: 샌드위치 + 샐러드 + 과일 + 음료";
-function unitPrice(){let p=sheet.base||0; sheet.groups.forEach(gid=>sheet.sel[gid].forEach(i=>{p+=G[gid].o[i][1]||0;}));
+function unitPrice(){let p=sheet.base||0; sheet.groups.forEach(gid=>sheet.sel[gid].forEach(i=>{p+=optP(gid,i);}));
   if(sheet.name===GRP4&&[...sheet.sel.grpSandB].some(i=>i<GRP_A)&&[...sheet.sel.grpDrink].some(i=>G.grpDrink.o[i][1]===3500))p-=500; if($("optFree").value.trim())p+=freeP(); return p;}
 ["optFree","optFreeP"].forEach(id=>$(id).addEventListener("input",()=>{ if(id==="optFreeP"){const v=$(id).value.replace(/\D/g,""); if(v!==$(id).value)$(id).value=v;} if(sheet)$("optPrice").textContent=won(unitPrice()*sheet.qty); }));
 $("optMinus").onclick=()=>{if(sheet.qty>1){sheet.qty--;renderOptGroups();}};
@@ -1229,7 +1265,7 @@ function commitItem(){
   sheet.groups.forEach(gid=>{const g=G[gid];
     if(g.emptyAs&&!sheet.sel[gid].size){const o={gid,g:g.l,v:g.emptyAs}; if(g.st)o.st=g.st; if(g.key)o.k=1; opts.push(o);}
     [...sheet.sel[gid]].sort((a,b)=>a-b).forEach(i=>{
-    const o={gid,g:g.l,v:g.o[i][0]}; if(g.o[i][1])o.p=g.o[i][1]; if(g.st)o.st=g.st; if(g.key)o.k=1; if(g.p)o.pl=1; opts.push(o);});});
+    const o={gid,g:g.l,v:g.o[i][0]}, np=optP(gid,i); if(np)o.p=np; if(np!==(g.o[i][1]||0))o.p0=g.o[i][1]||0; if(g.st)o.st=g.st; if(g.key)o.k=1; if(g.p)o.pl=1; opts.push(o);});});
   const fv=$("optFree").value.trim(); if(fv){const o={gid:"_free",g:"추가",v:fv}; if(freeP())o.p=freeP(); opts.push(o);}
   const item={name:sheet.name,qty:sheet.qty,st:sheet.st,unit:unitPrice(),opts,note:$("optNote").value.trim(),base:sheet.base,groups:sheet.groups};
   if(sheet.editIdx!=null){
@@ -1258,7 +1294,7 @@ function isDefSet(i,gid){
 const soleInGrp=(i,o)=>!o.gid||(i.opts||[]).filter(x=>x.gid===o.gid).length===1;
 const shownOpts=i=>(i.opts||[]).filter(o=>!(isDefOpt(o)&&soleInGrp(i,o))&&!isDefSet(i,o.gid));
 // same menu + same options + same request → one line with a bigger count (사장님 요청: 같은 메뉴 한 줄로)
-const itemKey=i=>JSON.stringify([i.name,i.st,MENU_IDX[i.name]?0:(i.unit||0),(i.opts||[]).map(o=>(o.gid||o.g)+"="+o.v+(o.gid==="_free"?"@"+(o.p||0):"")).sort(),i.note||""]);
+const itemKey=i=>JSON.stringify([i.name,i.st,MENU_IDX[i.name]?0:(i.unit||0),(i.opts||[]).map(o=>(o.gid||o.g)+"="+o.v+(o.gid==="_free"||o.p0!=null?"@"+(o.p||0):"")).sort(),i.note||""]);
 let bumpIdx=-1;
 function addDraftItem(item,skip){
   const k=itemKey(item), j=draft.items.findIndex((x,ix)=>ix!==skip&&itemKey(x)===k);
@@ -1272,7 +1308,7 @@ function renderPicked(){
     const r=el("div","pick"); if(idx===bumpIdx)r.classList.add("bump");
     const nm=el("button","nm"); nm.type="button";
     const head=el("b"); head.append(el("span","tag "+it.st,it.st==="both"&&!(MENU_IDX[it.name]||{}).half?"두 곳 다":ST_NAME[it.st])," ",it.name); nm.append(head);
-    const ot=(it.opts||[]).map(optText).concat(it.note?["요청: "+it.note]:[]).join(" · ");
+    const ot=(it.opts||[]).map(o=>o.p0!=null?optText(o)+" ("+won(o.p||0)+"으로)":optText(o)).concat(it.note?["요청: "+it.note]:[]).join(" · ");
     if(ot)nm.append(el("span","ops",ot));
     if(it.groups&&(it.groups.length||MENU_IDX[it.name])){nm.title="눌러서 옵션 바꾸기";nm.onclick=()=>openOpt({name:it.name,base:it.base,st:it.st,groups:it.groups},idx);}
     else if(!MENU_IDX[it.name]){ // 직접 쓴 메뉴: 눌러서 1개 가격 넣기·바꾸기
@@ -1388,7 +1424,7 @@ $("orderForm").addEventListener("submit",async e=>{
   }finally{btn.disabled=false;}
 });
 
-const packItems=()=>draft.items.map(i=>({name:i.name,qty:i.qty,st:i.st,unit:i.unit||0,opts:(i.opts||[]).map(o=>{const c={g:o.g,v:o.v};["p","st","k","pl","gid"].forEach(k=>{if(o[k]!=null)c[k]=o[k];});return c;}),note:i.note||""}));
+const packItems=()=>draft.items.map(i=>({name:i.name,qty:i.qty,st:i.st,unit:i.unit||0,opts:(i.opts||[]).map(o=>{const c={g:o.g,v:o.v};["p","p0","st","k","pl","gid"].forEach(k=>{if(o[k]!=null)c[k]=o[k];});return c;}),note:i.note||""}));
 
 /* ---------- 주문 고치기 ---------- */
 let editing=null;
