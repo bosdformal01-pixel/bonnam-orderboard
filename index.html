@@ -3457,6 +3457,53 @@ function renderLed(){
     },true));
   }
   body.append(box);
+  body.append(ledBulkBox());
+}
+// 📋 장부 현황 한꺼번에 맞추기 (선정님 요청 2026-11-03): "도시과 +148,500" 처럼 한 줄에 하나씩 붙여 넣으면
+// 같은 과는 그대로, 다른 과는 그 금액으로 다시 맞추고, 처음 보는 과는 그 금액으로 시작해요.
+let ledBulkText="", ledBulkPlan=null;
+function ledBulkParse(t){
+  const all=allDepts();
+  return t.split(/\n/).map(l=>l.trim()).filter(Boolean).map(l=>{
+    const m=l.match(/^(.+?)\s*([+\-−])\s*([\d,]+)\s*원?$/);
+    if(!m)return {line:l,err:"금액 앞에 + 나 - 를 붙여 주세요"};
+    const name=m[1].trim(), amt=(m[2]==="+"?1:-1)*ledNum(m[3]);
+    const hits=all.filter(d=>norm(d.name)===norm(name)||norm(d.org+d.name)===norm(name));
+    if(hits.length>1)return {line:l,name,amt,err:"같은 이름이 여러 곳이에요 ("+hits.map(d=>d.org).join(", ")+")"};
+    const d=hits[0]||{org:"기타",name,floor:"",custom:true};
+    const k=ledKey(d), a=ledAcc(k), c=a&&ledCalc(a);
+    if(a&&!c)return {line:l,name,amt,err:"불러오는 중이에요. 잠깐 뒤 다시 눌러 주세요"};
+    return {line:l,d,k,amt,cur:c?c.bal:null,act:!a?"new":c.bal===amt?"same":"fix"};
+  });
+}
+function ledBulkBox(){
+  const box=el("details","ledbox"); box.open=!!(ledBulkText||ledBulkPlan);
+  box.append(el("summary",null,"📋 장부 현황 한꺼번에 맞추기"));
+  box.append(el("div","s","종이 장부 잔액을 한 줄에 하나씩 붙여 넣어요 (예: 도시과 +148,500). 같으면 그대로 두고, 다르면 그 금액으로 맞추고, 처음인 과는 그 금액으로 시작해요."));
+  const ta=el("textarea"); ta.rows=6; ta.id="ledBulk"; ta.value=ledBulkText; ta.placeholder="도시과 +148,500\n교통행정과 -103,000"; ta.style.cssText="font:inherit;font-size:1rem;padding:8px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);width:100%";
+  ta.oninput=()=>{ledBulkText=ta.value; ledBulkPlan=null; const pv=$("ledBulkPrev"); if(pv)pv.replaceChildren();};
+  const chk=el("button","linkbtn strong","확인하기"); chk.type="button"; chk.style.cssText="padding:9px 16px;justify-self:start";
+  chk.onclick=()=>{ledBulkText=ta.value; ledBulkPlan=ledBulkParse(ta.value); renderLed();};
+  const pv=el("div","ledhist"); pv.id="ledBulkPrev";
+  box.append(ta,chk,pv);
+  if(ledBulkPlan&&ledBulkPlan.length){
+    const W={same:"같아요 · 그대로",fix:"달라요 · 장부 금액으로 맞춰요",new:"처음 · 이 금액으로 시작해요"};
+    ledBulkPlan.forEach(x=>{const r=el("div","h"); 
+      if(x.err){r.append(el("span","d","⚠"),el("span","t",x.line+" — "+x.err),el("span","a",""),el("span","r",""));}
+      else{r.append(el("span","d",x.act==="same"?"✓":x.act==="fix"?"✏":"+"),el("span","t",(x.d.org&&x.d.org!=="기타"?x.d.org+" ":"")+x.d.name+" · "+W[x.act]+(x.act==="fix"?" (지금 "+ledSigned(x.cur)+")":"")+(x.d.custom?" · 목록에 없어 '기타'로 만들어요":"")),el("span","a "+ledCls(x.amt),ledSigned(x.amt)),el("span","r",""));}
+      pv.append(r);});
+    const todo=ledBulkPlan.filter(x=>!x.err&&x.act!=="same"), bad=ledBulkPlan.filter(x=>x.err).length;
+    const go=el("button","submit",todo.length?"이대로 맞추기 ("+todo.length+"곳"+(bad?", ⚠ "+bad+"줄은 빼고":"")+")":"모두 같아요. 바꿀 것이 없어요"); go.type="button"; go.disabled=!todo.length;
+    go.onclick=()=>{
+      if(!confirm(todo.length+"곳 잔액을 장부 금액으로 맞출까요?"))return;
+      const now=Date.now();
+      ledSave(nv=>todo.forEach(x=>{const a=nv.acc.find(y=>y.k===x.k); if(a){a.start=x.amt;a.startAt=now;} else nv.acc.push({k:x.k,org:x.d.org||"기타",name:x.d.name,floor:x.d.floor||"",start:x.amt,startAt:now});}),todo.length+"곳 잔액을 장부와 맞췄어요.");
+      if(deptCol)todo.filter(x=>x.d.custom&&!customDepts.some(c=>c.name===x.d.name)).forEach(x=>deptCol.add({org:"기타",name:x.d.name,addedAt:now}).catch(()=>{}));
+      ledBulkText=""; ledBulkPlan=null; renderLed();
+    };
+    box.append(go);
+  }
+  return box;
 }
 // 금액 + 받을 돈/미리 받은 돈 고르기 + 버튼
 function ledAmtRow(id,sign,setSign,label,go,zeroOk){
