@@ -3456,7 +3456,7 @@ function renderLed(){
       ledNewDept=null; ledView=k; renderLed();
     },true));
   }
-  body.append(box);
+  body.prepend(box); // 과 잔액 시작하기는 맨 위 (선정님 요청 2026-11-03)
   body.append(ledBulkBox());
 }
 // 📋 장부 현황 한꺼번에 맞추기 (선정님 요청 2026-11-03): "도시과 +148,500" 처럼 한 줄에 하나씩 붙여 넣으면
