@@ -3343,10 +3343,11 @@ function ledAfterAdd(body){
 // 예약 주문이 아직 그날이 아니면 지금 잔액에서 미리 뺀 금액. 프린터에 없는 글자(−)를 피해 '-' 로 써요.
 function ledSlip(o){
   if(!ledCounts(o))return "";
-  const a=ledAcc(ledKey({org:o.org,name:o.dept})); if(!a||!ledIn(a,o))return "";
+  const a=ledAcc(ledKey({org:o.org,name:o.dept})); if(!a)return "";
   const c=ledCalc(a); if(!c)return "";
+  // 잔액을 시작하기 전에 받은 주문 (시작 금액에 이미 들어 있음)은 지금 잔액을 찍어요 (2026-11-03: 등록하고 뽑았는데 안 나왔어요)
   const e=c.ev.find(x=>x.o&&x.o.id===o.id);
-  const bal=e?e.after:c.bal-(o.total||0);
+  const bal=e?e.after:ledIn(a,o)?c.bal-(o.total||0):c.bal;
   return (bal<0?"-":bal>0?"+":"")+Math.abs(bal).toLocaleString("ko-KR")+"원"+(bal<0?" (받을 돈)":bal>0?" (미리 받은 돈)":"");
 }
 // 📒 외상 잔액 창
