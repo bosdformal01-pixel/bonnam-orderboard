@@ -696,6 +696,7 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
       <div class="xlbox"><button type="button" id="xlBtn">📥 엑셀로 받기</button><span class="s" id="xlNote"></span></div>
     </div>
     <div class="sumtop" id="sumTop"></div>
+    <div class="chips" id="sumBookWrap"><button type="button" class="chip" id="sumBookOnly" aria-pressed="false" title="일반 손님·배달앱(배민·쿠팡이츠·요기요·네이버)·카드 주문은 빼고 장부 정리할 주문만 보기">📒 장부 주문만 보기</button></div>
     <div class="sumrows" id="sumRows"></div>
     <details class="done" id="deptWrap"><summary>과별 합계</summary><div class="deptsum" id="deptSum" style="margin-top:8px"></div></details>
   </div>
@@ -2094,10 +2095,12 @@ async function downloadExcel(){
   }finally{btn.disabled=false;}
 }
 $("xlBtn").onclick=downloadExcel;
+$("sumBookOnly").onclick=()=>{sumBookOnly=!sumBookOnly; try{localStorage.setItem("bn_sumbook",sumBookOnly?"1":"0");}catch(e){} renderSummary();};
+let sumBookOnly=false; try{sumBookOnly=localStorage.getItem("bn_sumbook")==="1";}catch(e){}
 function renderSummary(){
   if($("sumOverlay").hidden)return;
   const cal=sumView==="cal", rk=sumView==="rank";
-  $("calBox").hidden=!cal; $("rankBox").hidden=!rk; $("sumTop").hidden=cal||rk; $("sumRows").hidden=cal||rk; $("calOpen").setAttribute("aria-pressed",String(cal)); $("rankOpen").setAttribute("aria-pressed",String(rk));
+  $("calBox").hidden=!cal; $("rankBox").hidden=!rk; $("sumTop").hidden=cal||rk; $("sumRows").hidden=cal||rk; $("sumBookWrap").hidden=cal||rk||(sumDay&&sumDay>today()); $("sumBookOnly").setAttribute("aria-pressed",String(sumBookOnly)); $("calOpen").setAttribute("aria-pressed",String(cal)); $("rankOpen").setAttribute("aria-pressed",String(rk));
   if(rk){$("deptWrap").hidden=true; document.querySelectorAll("[data-sday]").forEach(b=>b.setAttribute("aria-pressed","false")); renderRank(); return;}
   if(cal){$("deptWrap").hidden=true; document.querySelectorAll("[data-sday]").forEach(b=>b.setAttribute("aria-pressed","false")); renderCal(); return;}
   const isToday=!sumDay||sumDay===today(), day=isToday?today():sumDay, isFuture=day>today();
@@ -2126,7 +2129,9 @@ function renderSummary(){
   if(ap.length)top.append(el("div","s","배달앱 "+ap.length+"건 "+won(sum(ap))+" (앱 결제, 장부 없음)"));
   if(cards.length)top.append(el("div","s","💳 카드 "+cards.length+"건 "+won(sum(cards))+" (장부 없음 · 아래 장부 정리 목록엔 안 나와요)"));
   if(all.length)top.append(srcSplit(all,"어디서 들어온 주문인지"));
-  const goneB=gone.filter(o=>!isCard(o)), leftB=left.filter(o=>!isCard(o));
+  // 📒 장부 주문만 보기 (선정님 요청 2026-11-03): 일반 손님·배달앱·카드 빼고 장부 정리할 것만
+  const bookOk=o=>!isCard(o)&&(!sumBookOnly||(!isGuest(o)&&!o.src));
+  const goneB=gone.filter(bookOk), leftB=left.filter(bookOk);
   if(leftB.length)top.append(el("div","s",(isToday?"아직 안 나간 주문 ":"'포장 완료'를 안 누른 주문 ")+leftB.length+"건 ("+won(sum(leftB))+")은 맨 아래에 있어요."));
   const row=o=>{
     const r=el("div","sumrow"+(o.logged?" logged":""));
@@ -2141,7 +2146,8 @@ function renderSummary(){
     return r;};
   const parts=goneB.map(row);
   if(leftB.length){parts.push(el("div","sec",isToday?"아직 안 나간 주문":"'포장 완료'를 안 누른 주문")); leftB.forEach(o=>parts.push(row(o)));}
-  if(!parts.length)rows.replaceChildren(el("p","empty",cards.length?"장부 정리할 주문이 없어요. (카드 주문만 있어요)":isToday?"오늘 주문이 아직 없어요.":"이 날 주문이 없어요."));
+  if(!parts.length&&sumBookOnly)rows.replaceChildren(el("p","empty","장부 정리할 주문이 없어요."));
+  else if(!parts.length)rows.replaceChildren(el("p","empty",cards.length?"장부 정리할 주문이 없어요. (카드 주문만 있어요)":isToday?"오늘 주문이 아직 없어요.":"이 날 주문이 없어요."));
   else rows.replaceChildren(...parts);
   const by=new Map(); all.forEach(o=>{const k=o.src||(isGuest(o)?"일반 손님":deptLabel(o)||"(과 없음)"); const e=by.get(k)||{n:0,t:0}; e.n++; e.t+=o.total||0; by.set(k,e);});
   $("deptWrap").hidden=!by.size;
