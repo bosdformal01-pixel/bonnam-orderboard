@@ -80,6 +80,31 @@ textarea{min-height:60px;resize:vertical}
 .picked-dept .org{font-size:.85rem;color:var(--muted)}
 .picked-dept b{font-size:1.25rem}
 .picked-dept button{margin-left:auto}
+/* 과별 외상 잔액 (2026-11-03) */
+.ledline{margin-top:6px;padding:8px 12px;border-radius:8px;background:var(--sand-soft);font-weight:700;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.ledline .s{font-weight:400;color:var(--muted);font-size:.88rem}
+.neg{color:var(--late)} .pos{color:var(--salad)}
+.linkbtn.ledbtn{background:var(--sand-soft);border-color:var(--sand);color:var(--ink);font-weight:700}
+.ledgrp{font-weight:700;color:var(--muted);font-size:.9rem;margin:8px 0 2px}
+.ledrow{display:flex;align-items:baseline;gap:10px;width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);font:inherit;text-align:left;cursor:pointer;margin-bottom:6px}
+.ledrow .n{font-size:1.1rem;font-weight:700;overflow-wrap:anywhere}
+.ledrow .fl{color:var(--muted);font-size:.85rem}
+.ledrow .b{margin-left:auto;font-size:1.15rem;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ledbox{border:1.5px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:8px}
+.ledbox h3{margin:0;font-size:1.05rem}
+.ledbox .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ledbox input{font:inherit;font-size:1.1rem;padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);min-width:0}
+.ledbox input.amt{width:9em;font-variant-numeric:tabular-nums;text-align:right}
+.ledbig{font-size:2rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.2}
+.ledhist{display:grid;gap:0;border-top:1.5px solid var(--line)}
+.ledhist .h{display:grid;grid-template-columns:6.4em 1fr auto auto;gap:4px 10px;align-items:baseline;padding:8px 2px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.ledhist .h .d{color:var(--muted);font-size:.9rem}
+.ledhist .h .t{overflow-wrap:anywhere;font-size:.95rem}
+.ledhist .h .a{font-weight:800;text-align:right;white-space:nowrap}
+.ledhist .h .r{color:var(--muted);text-align:right;white-space:nowrap;font-size:.9rem}
+.ledhist .h.fut{opacity:.6}
+.ledhist .h .x{border:0;background:none;color:var(--muted);cursor:pointer;font:inherit;padding:0 4px}
+@media (max-width:520px){.ledhist .h{grid-template-columns:3.6em 1fr auto}.ledhist .h .r{grid-column:2 / 4}}
 .dlist{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:20;background:var(--paper);border:1.5px solid var(--line);border-radius:8px;max-height:320px;overflow:auto;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.12)}
 .dlist .grp{font-size:.78rem;font-weight:700;color:var(--muted);padding:8px 10px 2px;letter-spacing:.02em}
 .dlist button{display:block;width:100%;text-align:left;padding:9px 10px;border:0;background:none;border-radius:6px;font-size:1rem}
@@ -464,7 +489,7 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
 
 <main id="counterView" class="counter" hidden>
   <section class="panel" id="formPanel" aria-labelledby="fTitle">
-    <div class="fhead" id="fHead"><h2 id="fTitle">새 주문 받기</h2><button type="button" class="linkbtn strong resbtn" id="resBtn">📅 예약 주문</button><button type="button" class="linkbtn" id="resListBtn">예약 목록</button><button type="button" class="linkbtn strong shopbtn" id="shopBtn">🛒 재료 구매</button></div>
+    <div class="fhead" id="fHead"><h2 id="fTitle">새 주문 받기</h2><button type="button" class="linkbtn strong resbtn" id="resBtn">📅 예약 주문</button><button type="button" class="linkbtn" id="resListBtn">예약 목록</button><button type="button" class="linkbtn strong shopbtn" id="shopBtn">🛒 재료 구매</button><button type="button" class="linkbtn ledbtn" id="ledBtn">📒 외상 잔액</button></div>
     <div class="editbar" id="editBar" hidden><span>고치는 중: <b id="editWho"></b></span><button type="button" class="linkbtn" id="editCancel">고치기 그만</button></div>
     <div class="scan" id="scanBox" hidden>
       <button type="button" class="scanbtn" id="scanBtn">📷 전표 사진 · 화면 캡처로 채우기</button>
@@ -503,6 +528,7 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
           <input type="text" id="deptSearch" placeholder="예: 총무 / ㅊㅁ / 세무 / 3층" role="combobox" aria-expanded="false" aria-controls="deptList">
           <div class="dlist" id="deptList" role="listbox" hidden></div>
         </div>
+        <div class="ledline" id="ledLine" hidden></div>
         <div class="chips" id="deptRecent"></div>
       </div>
       <div class="field" id="dueField">
@@ -696,6 +722,13 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
     <div class="field" style="margin:0"><span class="lbl">전표에 나올 내용</span><div class="sprev" id="shopPrev"></div></div>
     <div class="row"><button type="button" class="submit" id="shopPrint" style="flex:1;width:auto">🖨 장보기 전표 뽑기</button><button type="button" class="linkbtn strong" id="shopDone" style="padding:12px 16px">✅ 장보고 왔어요 (기록 남기고 비우기)</button></div>
     <details class="done" id="shopHistWrap" hidden><summary id="shopHistSum">지난 장보기 기록</summary><div id="shopHist" style="display:grid;gap:8px;margin-top:8px"></div></details>
+  </div>
+</div>
+
+<div class="overlay" id="ledOverlay" hidden>
+  <div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="ledTitle">
+    <div class="sheet-head"><h2 id="ledTitle">📒 과별 외상 잔액</h2><button type="button" class="linkbtn x" id="ledClose">닫기</button></div>
+    <div id="ledBody" style="display:grid;gap:12px"></div>
   </div>
 </div>
 
@@ -993,7 +1026,7 @@ let fbAuth=null;
     if(!u||started)return; started=true;
     col=fs.collection("orders"); deptCol=fs.collection("depts"); dbReady=true; subscribe();
     shopSubscribe();
-    deptCol.onSnapshot(s=>{customDepts=s.docs.map(d=>d.data()).filter(d=>d&&d.name);},()=>{});
+    deptCol.onSnapshot(s=>{customDepts=s.docs.map(d=>d.data()).filter(d=>d&&d.name); ledFromSnap(s);},()=>{});
   });
 })();
 function renderWho(u){
@@ -1134,9 +1167,9 @@ function pickDept(d){
   if(!d.guest&&!d.custom&&d.floor===undefined){const f=findDept(d); if(f)d=f;}
   draft.dept={org:d.org,name:d.name,floor:d.floor||"",custom:!!d.custom,guest:!!d.guest};
   $("deptPickedOrg").textContent=d.guest?"장부 없음":d.org+(d.floor?" · "+d.floor:""); $("deptPickedName").textContent=d.name;
-  $("deptPicked").hidden=false; $("deptSearch").hidden=true; $("deptSearch").value=""; closeDeptList(); updatePhoneBox();
+  $("deptPicked").hidden=false; $("deptSearch").hidden=true; $("deptSearch").value=""; closeDeptList(); updatePhoneBox(); ledForm();
 }
-function clearDept(){draft.dept=null;$("deptPicked").hidden=true;$("deptSearch").hidden=false;$("deptSearch").focus();updatePhoneBox();}
+function clearDept(){draft.dept=null;$("deptPicked").hidden=true;$("deptSearch").hidden=false;$("deptSearch").focus();updatePhoneBox();ledForm();}
 $("deptSearch").addEventListener("focus",()=>{if($("deptSearch").value.trim())openDeptList();});
 $("deptSearch").addEventListener("input",openDeptList);
 $("deptSearch").addEventListener("blur",()=>setTimeout(closeDeptList,150));
@@ -1351,6 +1384,7 @@ function renderPicked(){
   const fl=$("feeLine"); fl.hidden=!draft.items.length||draft.kind!=="배달";
   fl.textContent=fee?"음식 "+won(total)+" + 배달비 "+won(fee)+" (4만원 미만 배달)":"4만원 이상이라 배달비 없음";
   if(draft.items.some(i=>!i.unit))fl.textContent+=" · 가격 없는 메뉴가 있어서 금액이 다를 수 있어요";
+  ledForm();
 }
 // the time box starts at the current time and follows the clock until someone changes it;
 // each +button adds to what is in the box (rounded up to 5 minutes)
@@ -1385,7 +1419,7 @@ document.querySelectorAll("[data-kind]").forEach(b=>b.onclick=()=>setKind(b.data
 // 전화로 받은 주문인지, 가게에 온 손님 주문인지 (앱별 매출 나눠 보기용). 안 고르면 전화
 function setVia(v){draft.via=v==="매장"?"매장":"전화"; document.querySelectorAll("[data-via]").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.via===draft.via)));}
 document.querySelectorAll("[data-via]").forEach(b=>b.onclick=()=>setVia(b.dataset.via));
-function setCard(v){draft.card=!!v; $("cardChip").setAttribute("aria-pressed",String(draft.card));}
+function setCard(v){draft.card=!!v; $("cardChip").setAttribute("aria-pressed",String(draft.card)); ledForm();}
 $("cardChip").onclick=()=>setCard(!draft.card);
 document.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{
   const n=$("freeName").value.trim(); if(!n){$("freeName").focus();return;}
@@ -1442,11 +1476,12 @@ $("orderForm").addEventListener("submit",async e=>{
   }
   try{
     await col.add(body);
+    const ledMsg=ledAfterAdd(body);
     saveRecent(draft.dept);
     if(draft.dept.custom&&deptCol&&!customDepts.some(d=>d.name===draft.dept.name)){deptCol.add({org:"기타",name:draft.dept.name,addedAt:Date.now()}).catch(()=>{});}
     resetForm(); msg.textContent=""; if(mode==="counter"&&finePointer())$("deptSearch").focus();
     if(mode!=="counter")closeFormOverlay();
-    toast("주문을 넣었어요. 태블릿에 떴어요.");
+    toast("주문을 넣었어요. 태블릿에 떴어요."+ledMsg);
   }catch(err){
     msg.className="msg err";
     msg.textContent=err&&err.code==="quota_exceeded"?"저장 공간이 다 찼어요. 지난 주문을 지워야 해요.":"저장하지 못했어요. 다시 눌러 주세요.";
@@ -2096,6 +2131,7 @@ document.addEventListener("keydown",e=>{ if(e.key!=="Escape")return;
   if(!$("resOverlay").hidden){closeRes(false);return;}
   if(!$("resListOverlay").hidden){$("resListOverlay").hidden=true;return;}
   if(!$("shopOverlay").hidden){closeShop();return;}
+  if(!$("ledOverlay").hidden){closeLed();return;}
   if(!$("fullOverlay").hidden)closeFull(); else if(!$("sumOverlay").hidden)closeSummary(); else if(!$("batchOverlay").hidden)$("batchOverlay").hidden=true; else if(!$("optOverlay").hidden){$("optOverlay").hidden=true;sheet=null;} else if(!$("formOverlay").hidden)closeFormOverlay(); });
 
 /* ---------- 모아보기: everything this bar must make by a given time, any department ---------- */
@@ -2267,6 +2303,7 @@ function slipNode(o){
   if(o.phone)w.append(rw("연락처",o.phone)); else if(o.phone4)w.append(rw("연락처","뒷자리 "+o.phone4));
   if(o.memo)w.append(el("div",null,"요청사항: "+o.memo));
   if(isCard(o))w.append(rw("결제","카드")); else if(!g)w.append(rw("결제","장부"));
+  {const lb=ledSlip(o); if(lb)w.append(rw("외상 잔액",lb));}
   w.append(dash());
   // ---- 포스 영수증과 같은 부분 ----
   w.append(el("div","ttl","[ 영 수 증]"));
@@ -2352,6 +2389,7 @@ function slipBytes(o){
   if(o.phone)ln(lr("연락처",o.phone,W)); else if(o.phone4)ln(lr("연락처","뒷자리 "+o.phone4,W));
   if(o.memo)wrapLn("요청사항: "+o.memo,"  ");
   if(isCard(o))ln(lr("결제","카드",W)); else if(!g)ln(lr("결제","장부",W));
+  {const lb=ledSlip(o); if(lb){raw(0x1b,0x45,1); ln(lr("외상 잔액",lb,W)); raw(0x1b,0x45,0);}}
   dash();
   // ---- 포스 영수증과 같은 부분 ----
   raw(0x1b,0x61,1); ln("[ 영 수 증]"); raw(0x1b,0x61,0);
@@ -3231,6 +3269,191 @@ $("shopPrint").onclick=async()=>{
     toast(r==="ok"?"장보기 전표를 뽑았어요.":SER_MSG[r]||"프린터에 보내지 못했어요.");
   } finally { if(serBusyAt===my)serBusy=false; }
 };
+
+/* ---------- 과별 외상 잔액 (선정님 요청 2026-11-03) ----------
+   종이 장부가 진짜고, 이건 확인용 보조 장부예요. 저장: depts 모음의 "_ledger" 문서 하나 (저장 공간 규칙을 안 바꿔도 되게. 이름(name)이 없어 과 목록엔 안 섞여요).
+   잔액 = 시작 잔액 − 시작한 뒤 넣은 그 과 주문 + 시작한 뒤 받은 입금. 마이너스는 받을 돈, 플러스는 미리 받은 돈.
+   카드·일반 손님·배달앱 주문은 빼요. 예약 주문은 그날이 되어야 빠져요. 주문을 고치거나 지우면 저절로 다시 계산돼요.
+   전표에는 그 주문까지 뺀 잔액을 찍어요 (ledSlip). */
+let led={acc:[],pays:[]}, ledView=null, ledNewDept=null, ledNewSign=-1;
+const ledOrd=new Map(), ledWatching=new Set();
+const ledKey=d=>(d.org||"기타")+"|"+(d.name||d.dept||"");
+const ledAcc=k=>led.acc.find(a=>a.k===k);
+const ledSigned=n=>n<0?"−"+won(-n):n>0?"+"+won(n):"0원";
+const ledCls=n=>n<0?"neg":n>0?"pos":"";
+const ledMean=n=>n<0?"받을 돈":n>0?"미리 받은 돈":"남은 돈 없음";
+const dayMs=d=>{const [y,m,dd]=String(d||"").split("-").map(Number); return y?new Date(y,m-1,dd).getTime():0;};
+function ledFromSnap(s){
+  const d=s.docs.find(x=>x.id==="_ledger"), v=d?d.data():{};
+  led={acc:Array.isArray(v.acc)?v.acc:[],pays:Array.isArray(v.pays)?v.pays:[]};
+  led.acc.forEach(ledWatch); ledRefresh();
+}
+// 잔액을 둔 과마다 그 과 주문만 따로 지켜봐요 (과 이름 하나로 찾아서 저장 공간 설정을 안 건드려도 돼요)
+function ledWatch(a){
+  if(!col||ledWatching.has(a.k))return; ledWatching.add(a.k);
+  col.where("dept","==",a.name).onSnapshot(s=>{
+    ledOrd.set(a.k,s.docs.map(d=>Object.assign({id:d.id},d.data())).filter(o=>(o.org||"기타")===a.org)); ledRefresh();
+  },()=>{ledWatching.delete(a.k);});
+}
+const ledCounts=o=>!!(o&&o.dept&&!o.example&&!isGuest(o)&&!isCard(o)&&!o.src);
+const ledAt=o=>o.reserved?Math.max(o.createdAt||0,dayMs(o.day)):(o.createdAt||0);
+const ledIn=(a,o)=>ledCounts(o)&&ledKey({org:o.org,name:o.dept})===a.k&&ledAt(o)>a.startAt;
+function ledCalc(a){
+  const os=ledOrd.get(a.k); if(!os)return null;
+  const td=today(), ev=[], fut=[];
+  os.filter(o=>ledIn(a,o)).forEach(o=>{ if((o.day||"")>td)fut.push(o); else ev.push({at:ledAt(o),day:o.day,o,amt:-(o.total||0)}); });
+  led.pays.filter(p=>p.k===a.k&&p.at>a.startAt).forEach(p=>ev.push({at:p.at,p,amt:p.amt}));
+  ev.sort((x,y)=>x.at-y.at);
+  let bal=a.start; ev.forEach(e=>{bal+=e.amt; e.after=bal;});
+  return {bal,ev,fut:fut.sort((x,y)=>(x.day||"").localeCompare(y.day||""))};
+}
+function ledSave(fn,ok){
+  if(!deptCol){toast("지금은 저장이 안 돼요. 가게 구글 계정으로 로그인해 주세요.");return;}
+  const nv={acc:led.acc.map(a=>Object.assign({},a)),pays:led.pays.slice()}; fn(nv);
+  led=nv; nv.acc.forEach(ledWatch); ledRefresh();
+  deptCol.doc("_ledger").set({acc:nv.acc,pays:nv.pays,updatedAt:Date.now()}).then(()=>{if(ok)toast(ok);}).catch(()=>toast("외상 잔액을 저장하지 못했어요. 다시 해 주세요."));
+}
+const ledNum=v=>parseInt(String(v||"").replace(/[^\d]/g,""),10)||0;
+function ledRefresh(){ ledForm(); if(!$("ledOverlay").hidden)renderLed(); }
+
+// 주문 칸: 과를 고르면 그 과 잔액과, 이 주문을 넣은 뒤 잔액
+function ledForm(){
+  const box=$("ledLine"); if(!box)return;
+  const d=draft.dept, a=d&&!d.guest?ledAcc(ledKey(d)):null;
+  if(!a){box.hidden=true;return;}
+  box.hidden=false; box.replaceChildren();
+  const c=ledCalc(a); if(!c){box.textContent="📒 외상 잔액 불러오는 중…";return;}
+  const food=draft.items.reduce((s,i)=>s+(i.unit||0)*i.qty,0), tot=food+feeFor(draft.kind,food);
+  let delta=draft.card||resMode?0:tot;
+  if(editing){const cur=orders.find(o=>o.id===editing); if(cur&&ledIn(a,cur)&&(cur.day||"")<=today())delta-=cur.total||0;}
+  box.append("📒 외상 잔액 ",el("span",ledCls(c.bal),ledSigned(c.bal)));
+  if(resMode)box.append(el("span","s"," · 예약 주문은 그날 잔액에서 빠져요"));
+  else if(draft.card)box.append(el("span","s"," · 💳 카드라 잔액에서 안 빠져요"));
+  else if(delta){box.append(" → "+(editing?"고치면 ":"이 주문 넣으면 "),el("span",ledCls(c.bal-delta),ledSigned(c.bal-delta)));}
+}
+function ledAfterAdd(body){
+  const a=ledAcc(ledKey({org:body.org,name:body.dept})), c=a&&ledCalc(a);
+  if(!c||!ledCounts(body))return "";
+  // 방금 넣은 주문이 벌써 들어와 있으면 그대로, 아니면 빼서 보여 주기
+  const bal=(ledOrd.get(a.k)||[]).some(o=>o.createdAt===body.createdAt)?c.bal:c.bal-(body.total||0);
+  return " · 📒 "+body.dept+" 잔액 "+ledSigned(bal);
+}
+
+// 전표에 찍는 잔액 (선정님 요청 2026-11-03): 이 주문까지 뺀 잔액. 나중에 다시 뽑아도 그 주문 때 잔액이 나와요.
+// 예약 주문이 아직 그날이 아니면 지금 잔액에서 미리 뺀 금액. 프린터에 없는 글자(−)를 피해 '-' 로 써요.
+function ledSlip(o){
+  if(!ledCounts(o))return "";
+  const a=ledAcc(ledKey({org:o.org,name:o.dept})); if(!a||!ledIn(a,o))return "";
+  const c=ledCalc(a); if(!c)return "";
+  const e=c.ev.find(x=>x.o&&x.o.id===o.id);
+  const bal=e?e.after:c.bal-(o.total||0);
+  return (bal<0?"-":bal>0?"+":"")+Math.abs(bal).toLocaleString("ko-KR")+"원"+(bal<0?" (받을 돈)":bal>0?" (미리 받은 돈)":"");
+}
+// 📒 외상 잔액 창
+function openLed(){ledView=null; ledNewDept=null; ledNewSign=-1; renderLed(); $("ledOverlay").hidden=false;}
+function closeLed(){$("ledOverlay").hidden=true;}
+function renderLed(){
+  const body=$("ledBody"); body.replaceChildren();
+  const a=ledView&&ledAcc(ledView);
+  if(a){renderLedOne(body,a);return;}
+  ledView=null;
+  body.append(el("p","calnote","종이 장부가 진짜고, 이건 확인용이에요. 과에서 주문을 넣으면 그 과 잔액에서 바로 빠져요 (💳 카드·일반 손님·배달앱 주문은 빼요). − 는 받을 돈, + 는 미리 받은 돈이에요. 과를 누르면 입금을 적고 내역을 봐요."));
+  const order=allDepts().map(ledKey);
+  const accs=led.acc.slice().sort((x,y)=>{const i=order.indexOf(x.k),j=order.indexOf(y.k);return (i<0?1e9:i)-(j<0?1e9:j)||x.name.localeCompare(y.name);});
+  if(!accs.length)body.append(el("p","empty","아직 잔액을 적어 둔 과가 없어요. 아래에서 과를 골라 지금 종이 장부 잔액을 적어 주세요."));
+  else{
+    let owe=0, n=0; const list=el("div"); let lastOrg=null;
+    accs.forEach(a=>{
+      const c=ledCalc(a);
+      if(a.org!==lastOrg){list.append(el("div","ledgrp",a.org));lastOrg=a.org;}
+      const b=el("button","ledrow"); b.type="button"; b.append(el("span","n",a.name)); if(a.floor)b.append(el("span","fl",a.floor));
+      b.append(el("span","b "+(c?ledCls(c.bal):""),c?ledSigned(c.bal):"…")); b.onclick=()=>{ledView=a.k;renderLed();}; list.append(b);
+      if(c&&c.bal<0){owe+=-c.bal;n++;}
+    });
+    body.append(el("div","s",n?"받을 돈 합계 "+won(owe)+" ("+n+"곳)":"받을 돈이 있는 과가 없어요."),list);
+  }
+  // 새 과 잔액 시작하기
+  const box=el("div","ledbox"); box.append(el("h3",null,"+ 과 잔액 시작하기"));
+  if(!ledNewDept){
+    const q=el("input"); q.type="search"; q.placeholder="과 찾기 (예: 총무 / ㅊㅁ / 학교)"; q.id="ledSearch"; q.autocomplete="off";
+    const res=el("div","chips");
+    const draw=()=>{res.replaceChildren(); const t=q.value.trim(); if(!t)return;
+      matchDepts(t).filter(d=>!ledAcc(ledKey(d))).slice(0,12).forEach(d=>{const b=el("button","chip",(d.org&&d.org!=="기타"?d.org+" ":"")+d.name); b.type="button"; b.onclick=()=>{ledNewDept=d; renderLed(); setTimeout(()=>{const x=$("ledStartAmt"); if(x)x.focus();},0);}; res.append(b);});
+      if(!res.childNodes.length)res.append(el("span","s","찾는 과가 없거나 이미 잔액이 있어요."));};
+    q.oninput=draw; box.append(q,res);
+  }else{
+    const d=ledNewDept;
+    const top=el("div","row"); top.append(el("b",null,(d.org&&d.org!=="기타"?d.org+" · ":"")+d.name+(d.floor?" ("+d.floor+")":"")));
+    const again=el("button","linkbtn","다시 고르기"); again.type="button"; again.onclick=()=>{ledNewDept=null;renderLed();}; top.append(again);
+    box.append(top, el("div","s","지금 종이 장부에 적힌 이 과 잔액을 적어 주세요. 지금부터 넣는 주문과 입금이 여기서 더하고 빠져요."));
+    box.append(ledAmtRow("ledStartAmt",ledNewSign,v=>ledNewSign=v,"시작하기",(amt,sign)=>{
+      const k=ledKey(d); if(ledAcc(k))return;
+      ledSave(nv=>nv.acc.push({k,org:d.org||"기타",name:d.name,floor:d.floor||"",start:sign*amt,startAt:Date.now()}),d.name+" 잔액을 "+ledSigned(sign*amt)+"으로 시작했어요.");
+      ledNewDept=null; ledView=k; renderLed();
+    },true));
+  }
+  body.append(box);
+}
+// 금액 + 받을 돈/미리 받은 돈 고르기 + 버튼
+function ledAmtRow(id,sign,setSign,label,go,zeroOk){
+  const r=el("div","row"); const amt=el("input","amt"); amt.id=id; amt.inputMode="numeric"; amt.placeholder="금액";
+  amt.oninput=()=>{const n=ledNum(amt.value); amt.value=n?n.toLocaleString("ko-KR"):"";};
+  r.append(amt,el("span",null,"원"));
+  if(setSign){
+    const mk=(v,t)=>{const b=el("button","chip",t); b.type="button"; b.setAttribute("aria-pressed",String(sign===v)); b.onclick=()=>{sign=v; setSign(v); r.querySelectorAll("[data-sg]").forEach(x=>x.setAttribute("aria-pressed",String(+x.dataset.sg===v)));}; b.dataset.sg=v; return b;};
+    r.append(mk(-1,"받을 돈 (−)"),mk(1,"미리 받은 돈 (+)"));
+  }
+  const b=el("button","linkbtn strong",label); b.type="button"; b.style.padding="9px 16px";
+  const run=()=>{const n=ledNum(amt.value); if(!n&&!zeroOk){amt.focus();return;} go(n,sign);};
+  b.onclick=run; amt.onkeydown=e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();run();}};
+  r.append(b); return r;
+}
+function renderLedOne(body,a){
+  const c=ledCalc(a);
+  const back=el("button","linkbtn","← 과 목록"); back.type="button"; back.onclick=()=>{ledView=null;renderLed();}; back.style.justifySelf="start";
+  body.append(back);
+  const head=el("div"); head.append(el("div","s",(a.org!=="기타"?a.org:"")+(a.floor?" · "+a.floor:"")),el("h3",null,a.name));
+  head.querySelector("h3").style.cssText="margin:0;font-size:1.5rem";
+  body.append(head);
+  if(!c){body.append(el("p","empty","불러오는 중이에요…"));return;}
+  const big=el("div"); big.append(el("div","ledbig "+ledCls(c.bal),ledSigned(c.bal)),el("div","s",ledMean(c.bal)+(c.fut.length?" · 예약 "+c.fut.length+"건 "+won(c.fut.reduce((s,o)=>s+(o.total||0),0))+"은 그날 빠져요":"")));
+  body.append(big);
+  // 입금
+  const pay=el("div","ledbox"); pay.append(el("h3",null,"💰 입금 받기"));
+  const memo=el("input"); memo.placeholder="메모 (안 써도 돼요. 예: 계좌이체)"; memo.maxLength=30; memo.id="ledPayMemo";
+  pay.append(ledAmtRow("ledPayAmt",null,null,"입금 적기",amt=>{
+    const m=memo.value.trim();
+    if(!confirm(a.name+"에서 "+won(amt)+" 받은 걸 적을까요?\n잔액 "+ledSigned(c.bal)+" → "+ledSigned(c.bal+amt)))return;
+    ledSave(nv=>nv.pays.push({id:"p"+Date.now().toString(36),k:a.k,amt,at:Date.now(),memo:m}),a.name+" 입금 "+won(amt)+" 적었어요.");
+  }),memo);
+  body.append(pay);
+  // 내역
+  const hist=el("div","ledhist");
+  const row=(d,t,amt,after,cls,x)=>{const r=el("div","h"+(cls?" "+cls:"")); r.append(el("span","d",d),el("span","t",t),el("span","a "+(amt==null?"":ledCls(amt)),amt==null?"":ledSigned(amt)),el("span","r",after==null?"":"잔액 "+ledSigned(after))); if(x)r.querySelector(".t").append(" ",x); return r;};
+  c.fut.slice().reverse().forEach(o=>hist.append(row(shortDay(dayMs(o.day)),"📅 예약 "+(o.due?o.due+" ":"")+"· "+itemsText(o)+" (그날 빠져요)",-(o.total||0),null,"fut")));
+  c.ev.slice().reverse().forEach(e=>{
+    if(e.p){const x=el("button","x","✕"); x.type="button"; x.title="잘못 적은 입금 지우기"; x.setAttribute("aria-label","이 입금 지우기");
+      x.onclick=()=>{if(!confirm(shortDay(e.at)+" 입금 "+won(e.p.amt)+"을 지울까요?"))return; ledSave(nv=>{nv.pays=nv.pays.filter(p=>p.id!==e.p.id);},"입금 기록을 지웠어요.");};
+      hist.append(row(shortDay(e.at)+" "+hm(e.at),"💰 입금"+(e.p.memo?" · "+e.p.memo:""),e.amt,e.after,"",x));}
+    else hist.append(row(shortDay(e.at)+" "+hm(e.at),(e.o.kind==="배달"?"배달":"포장")+" · "+itemsText(e.o),e.amt,e.after));
+  });
+  hist.append(row(shortDay(a.startAt)+" "+hm(a.startAt),"시작 (종이 장부 잔액)",null,a.start));
+  const hw=el("div"); hw.append(el("div","sec","내역 (최근 것이 위)"),hist); body.append(hw);
+  // 종이 장부와 맞추기 / 그만 보기
+  const fix=el("details","ledbox"); const sm=el("summary",null,"✏ 종이 장부와 금액이 다를 때 (잔액 다시 맞추기)"); fix.append(sm);
+  let sg=c.bal>0?1:-1;
+  fix.append(el("div","s","종이 장부의 지금 잔액을 적으면 여기서부터 다시 계산해요. 지금까지 내역은 안 보이게 돼요."),
+    ledAmtRow("ledFixAmt",sg,v=>sg=v,"이 금액으로 맞추기",(amt,sign)=>{
+      if(!confirm(a.name+" 잔액을 "+ledSigned(sign*amt)+"으로 맞출까요?"))return;
+      ledSave(nv=>{const x=nv.acc.find(y=>y.k===a.k); if(x){x.start=sign*amt; x.startAt=Date.now();}},a.name+" 잔액을 "+ledSigned(sign*amt)+"으로 맞췄어요.");
+    },true));
+  const stop=el("button","linkbtn","이 과 잔액 그만 보기"); stop.type="button"; stop.style.justifySelf="start";
+  stop.onclick=()=>{if(!confirm(a.name+" 잔액과 입금 기록을 지울까요? (주문은 그대로 남아요)"))return; ledSave(nv=>{nv.acc=nv.acc.filter(y=>y.k!==a.k); nv.pays=nv.pays.filter(p=>p.k!==a.k);},a.name+" 잔액을 지웠어요."); ledView=null; renderLed();};
+  fix.append(stop); body.append(fix);
+}
+$("ledBtn").onclick=openLed;
+$("ledClose").onclick=closeLed;
+$("ledOverlay").addEventListener("click",e=>{if(e.target===$("ledOverlay"))closeLed();});
 </script>
 </body>
 </html>
