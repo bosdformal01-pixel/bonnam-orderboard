@@ -937,7 +937,7 @@ const DEPTS=[
   ["1층",["복지지원과","노인장애인과","아동가족과","민원지적과","건축주택과","민원봉사실","민주평통동구협의회","농협","더곰솔카페"]],
   ["2층",["총무과","회계과","구청장실","부구청장실","국장실","상황실","대강당","소회의실"]],
   ["3층",["기획예산실","교육정책과","자치행정과","문화체육과","재난안전상황실","프레스센터","영상회의실","상설감사장","통계자료실","통신실","공무원노조사무실","공무직노조사무실","한국자유총연맹(동구지회)","예비군기동대","예비군지역대"]],
-  ["4층",["공원녹지과","안전총괄과","건설과","도시과","교통행정과","전산실"]],
+  ["4층",["공원녹지과","안전총괄과","건설과","도시과","교통행정과","교통행정과 지도계","전산실"]],
   ["5층",["경제정책과","노사외국인지원과","관광과","해양수산과","환경위생과","중강당"]]]},
  {org:"동구청 별관",floors:[
   ["1층",["세무1과","세무2과","자원순환과"]],
@@ -1144,9 +1144,18 @@ soundLabel();
 const CHO="ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
 const norm=s=>(s||"").replace(/\s+/g,"").toLowerCase();
 const cho=s=>[...norm(s)].map(c=>{const k=c.charCodeAt(0)-0xAC00;return k>=0&&k<11172?CHO[Math.floor(k/588)]:c;}).join("");
+// '기타'로 직접 써서 만든 이름 → 원래 자리 (선정님 2026-11-03). 옛 주문·외상 잔액도 이 자리로 모아 봐요.
+const DEPT_ALIAS={"교통행정과 지도계":["동구청","교통행정과 지도계"],"방어진고":["학교","방어진고등학교"],"대송고":["학교","대송고등학교"],
+  "생활과학고등학교":["학교","울산생활과학고등학교"],"생과고":["학교","울산생활과학고등학교"],"생활과학고":["학교","울산생활과학고등학교"]};
+function deptFix(d){
+  const n=(d&&(d.name||d.dept))||"", t=(!d.org||d.org==="기타")&&DEPT_ALIAS[n.trim()];
+  if(!t)return d;
+  const fl=(DEPTS.find(g=>g.org===t[0])||{floors:[]}).floors.find(([f,ns])=>ns.includes(t[1]));
+  return {org:t[0],name:t[1],floor:fl?fl[0]:""};
+}
 function allDepts(){
   const out=[]; DEPTS.forEach(g=>g.floors.forEach(([fl,names])=>names.forEach(n=>out.push({org:g.org,name:n,floor:fl}))));
-  customDepts.forEach(d=>{if(!out.some(x=>x.org===d.org&&x.name===d.name))out.push({org:d.org||"기타",name:d.name});});
+  customDepts.forEach(d=>{if((!d.org||d.org==="기타")&&DEPT_ALIAS[d.name])return; if(!out.some(x=>x.org===d.org&&x.name===d.name))out.push({org:d.org||"기타",name:d.name});});
   return out;
 }
 function matchDepts(q){
@@ -1180,6 +1189,7 @@ const isGuest=o=>!!(o&&(o.guest||o.dept==="일반 손님"));
 // 카드로 받은 주문 (장부 없는 곳 배달 등, 사용자 요청 2026-10-27): 매출엔 넣고 장부 정리 목록엔 안 보임
 const isCard=o=>!!(o&&o.card&&!o.src);
 function pickDept(d){
+  {const f=deptFix(d); if(f!==d)d=findDept(f)||f;}
   if(!d.guest&&!d.custom&&d.floor===undefined){const f=findDept(d); if(f)d=f;}
   draft.dept={org:d.org,name:d.name,floor:d.floor||"",custom:!!d.custom,guest:!!d.guest};
   $("deptPickedOrg").textContent=d.guest?"장부 없음":d.org+(d.floor?" · "+d.floor:""); $("deptPickedName").textContent=d.name;
@@ -3323,7 +3333,7 @@ $("shopPrint").onclick=async()=>{
    전표에는 그 주문까지 뺀 잔액을 찍어요 (ledSlip). */
 let led={acc:[],pays:[]}, ledView=null, ledNewDept=null, ledNewSign=-1;
 const ledOrd=new Map(), ledWatching=new Set();
-const ledKey=d=>(d.org||"기타")+"|"+(d.name||d.dept||"");
+const ledKey=d0=>{const d=deptFix(d0||{}); return (d.org||"기타")+"|"+(d.name||d.dept||"");};
 const ledAcc=k=>led.acc.find(a=>a.k===k);
 const ledSigned=n=>n<0?"−"+won(-n):n>0?"+"+won(n):"0원";
 const ledCls=n=>n<0?"neg":n>0?"pos":"";
@@ -3333,17 +3343,25 @@ const ledPost=a=>!!a&&(a.post!=null?!!a.post:a.org==="학교");
 const ledSg=a=>ledPost(a)?1:-1; // 주문 1건이 잔액을 움직이는 방향
 const ledClsA=(a,n)=>ledPost(a)?(n>0?"neg":n<0?"pos":""):ledCls(n);
 const dayMs=d=>{const [y,m,dd]=String(d||"").split("-").map(Number); return y?new Date(y,m-1,dd).getTime():0;};
+let ledMigrated=false;
 function ledFromSnap(s){
   const d=s.docs.find(x=>x.id==="_ledger"), v=d?d.data():{};
   led={acc:Array.isArray(v.acc)?v.acc:[],pays:Array.isArray(v.pays)?v.pays:[]};
+  // '기타'에 잘못 들어간 과를 제자리로 옮기기 (한 번만, 잔액·입금 기록은 그대로)
+  const mv=led.acc.filter(a=>{const f=deptFix(a); return f!==a&&!led.acc.some(b=>b.k===f.org+"|"+f.name);});
+  if(mv.length&&!ledMigrated&&deptCol){ledMigrated=true; setTimeout(()=>ledSave(nv=>{mv.forEach(a0=>{const a=nv.acc.find(x=>x.k===a0.k); if(!a)return; const f=deptFix(a0), nk=f.org+"|"+f.name;
+    nv.pays.forEach(p=>{if(p.k===a.k)p.k=nk;}); a.k=nk; a.org=f.org; a.name=f.name; a.floor=f.floor||"";});},mv.length+"곳을 제자리(동구청·학교)로 옮겼어요."),0);}
   led.acc.forEach(ledWatch); ledRefresh();
 }
 // 잔액을 둔 과마다 그 과 주문만 따로 지켜봐요 (과 이름 하나로 찾아서 저장 공간 설정을 안 건드려도 돼요)
 function ledWatch(a){
   if(!col||ledWatching.has(a.k))return; ledWatching.add(a.k);
-  col.where("dept","==",a.name).onSnapshot(s=>{
-    ledOrd.set(a.k,s.docs.map(d=>Object.assign({id:d.id},d.data())).filter(o=>(o.org||"기타")===a.org)); ledRefresh();
-  },()=>{ledWatching.delete(a.k);});
+  // 과 이름 + 예전에 '기타'로 쓴 이름 둘 다 지켜봐요
+  const names=[a.name].concat(Object.keys(DEPT_ALIAS).filter(n=>DEPT_ALIAS[n][0]===a.org&&DEPT_ALIAS[n][1]===a.name&&n!==a.name)), got={};
+  names.forEach(nm=>col.where("dept","==",nm).onSnapshot(s=>{
+    got[nm]=s.docs.map(d=>Object.assign({id:d.id},d.data())).filter(o=>ledKey({org:o.org,name:o.dept})===a.k);
+    if(names.every(n=>got[n]))ledOrd.set(a.k,[].concat(...names.map(n=>got[n]))); ledRefresh();
+  },()=>{ledWatching.delete(a.k);}));
 }
 const ledCounts=o=>!!(o&&o.dept&&!o.example&&!isGuest(o)&&!isCard(o)&&!o.src);
 const ledAt=o=>o.reserved?Math.max(o.createdAt||0,dayMs(o.day)):(o.createdAt||0);
@@ -3484,7 +3502,7 @@ function ledBulkParse(t){
     const m=l.match(/^(.+?)\s*([+\-−])\s*([\d,]+)\s*원?$/);
     if(!m)return {line:l,err:"금액 앞에 + 나 - 를 붙여 주세요"};
     const name=m[1].trim(), amt=(m[2]==="+"?1:-1)*ledNum(m[3]);
-    const hits=all.filter(d=>norm(d.name)===norm(name)||norm(d.org+d.name)===norm(name));
+    const fx=deptFix({org:"기타",name}), hits=fx.org!=="기타"?[fx]:all.filter(d=>norm(d.name)===norm(name)||norm(d.org+d.name)===norm(name));
     if(hits.length>1)return {line:l,name,amt,err:"같은 이름이 여러 곳이에요 ("+hits.map(d=>d.org).join(", ")+")"};
     const d=hits[0]||{org:"기타",name,floor:"",custom:true};
     const k=ledKey(d), a=ledAcc(k), c=a&&ledCalc(a);
