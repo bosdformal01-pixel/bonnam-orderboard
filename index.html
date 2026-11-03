@@ -160,6 +160,7 @@ input.qty{width:4.2em;padding:6px 4px;border:1.5px solid var(--line);border-radi
 .sumrow .sg b{color:var(--ink)}
 .sumrow .lg{grid-row:1/5;grid-column:1;align-self:start}
 .sumrow .tm{grid-column:2}
+.sumrow.payrow{background:var(--salad-soft);border-style:dashed}
 /* 마감 요약: 장부 과 주문 옆에 원래 잔액 → 바뀐 잔액 (2026-11-03) */
 .sumrow.hasled .sg,.sumrow.hasled .it{grid-column:2}
 .sumrow .led{grid-column:3;grid-row:2/5;align-self:start;text-align:right;font-variant-numeric:tabular-nums;line-height:1.35;padding:4px 10px;border-radius:8px;background:var(--sand-soft);white-space:nowrap}
@@ -2144,8 +2145,15 @@ function renderSummary(){
     r.append(lg, el("span","dp",deptLabel(o)), el("span","amt",won(o.total)+(o.fee?" (배달비 포함)":"")), el("div","sg",tm), sg, el("div","it",itemsText(o)));
     const lb=ledRowBal(o); if(lb){r.classList.add("hasled"); const b=el("div","led"); b.append(el("div","k","원래 잔액"),el("div","o",ledSigned(lb.before)),el("div","k","바뀐 잔액"),el("div","n "+ledCls(lb.after),ledSigned(lb.after))); r.append(b);}
     return r;};
-  const parts=goneB.map(row);
-  if(leftB.length){parts.push(el("div","sec",isToday?"아직 안 나간 주문":"'포장 완료'를 안 누른 주문")); leftB.forEach(o=>parts.push(row(o)));}
+  let parts;
+  if(sumBookOnly){
+    // 장부 주문만 볼 때는 받은 순서로, 그날 받은 입금도 그 자리에 끼워서 (위에서 아래로 그대로 옮겨 적게, 2026-11-03)
+    const ev=goneB.concat(leftB).map(o=>({at:ledAt(o),node:row(o)}));
+    const d0=dayMs(day), d1=d0+86400000;
+    led.pays.filter(p=>p.at>=d0&&p.at<d1).forEach(p=>{const a=ledAcc(p.k); if(!a||p.at<=a.startAt)return; ev.push({at:p.at,node:ledPayRow(a,p)});});
+    parts=ev.sort((x,y)=>x.at-y.at).map(x=>x.node);
+  }else parts=goneB.map(row);
+  if(!sumBookOnly&&leftB.length){parts.push(el("div","sec",isToday?"아직 안 나간 주문":"'포장 완료'를 안 누른 주문")); leftB.forEach(o=>parts.push(row(o)));}
   if(!parts.length&&sumBookOnly)rows.replaceChildren(el("p","empty","장부 정리할 주문이 없어요."));
   else if(!parts.length)rows.replaceChildren(el("p","empty",cards.length?"장부 정리할 주문이 없어요. (카드 주문만 있어요)":isToday?"오늘 주문이 아직 없어요.":"이 날 주문이 없어요."));
   else rows.replaceChildren(...parts);
@@ -3395,6 +3403,15 @@ function ledRowBal(o){
   const c=ledCalc(a); if(!c)return null;
   const e=c.ev.find(x=>x.o&&x.o.id===o.id); if(!e)return null;
   return {before:e.after-e.amt,after:e.after};
+}
+// 마감 요약 (장부 주문만 보기): 입금 줄
+function ledPayRow(a,p){
+  const r=el("div","sumrow payrow hasled"); const sp=el("span","lg"); sp.setAttribute("aria-hidden","true"); sp.style.width="44px";
+  r.append(sp, el("span","dp",[a.org!=="기타"?a.org:"",a.name,a.floor?"("+a.floor+")":""].filter(Boolean).join(" ")), el("span","amt pos","💰 입금 +"+won(p.amt)),
+    el("div","sg","입금 "+hm(p.at)+(p.memo?" · "+p.memo:"")));
+  const c=ledCalc(a), e=c&&c.ev.find(x=>x.p&&x.p.id===p.id);
+  if(e){const b=el("div","led"); b.append(el("div","k","원래 잔액"),el("div","o",ledSigned(e.after-e.amt)),el("div","k","바뀐 잔액"),el("div","n "+ledCls(e.after),ledSigned(e.after))); r.append(b);}
+  return r;
 }
 // 📒 외상 잔액 창
 function openLed(){ledView=null; ledNewDept=null; ledNewSign=-1; renderLed(); $("ledOverlay").hidden=false;}
