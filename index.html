@@ -2143,7 +2143,7 @@ function renderSummary(){
     const sg=el("div","sg"); sg.append(el("b",null,signText(o))); if(o.memo)sg.append(" · 메모: "+o.memo);
     const tm=(o.reserved?"📅 예약 ("+shortDay(o.resAt||o.createdAt)+" 접수) "+(o.due||"")+" 까지":"받음 "+(o.createdAt?hm(o.createdAt):"--:--"))+(o.out?" · 완료 "+(o.outAt?hm(o.outAt):"--:--"):"");
     r.append(lg, el("span","dp",deptLabel(o)), el("span","amt",won(o.total)+(o.fee?" (배달비 포함)":"")), el("div","sg",tm), sg, el("div","it",itemsText(o)));
-    const lb=ledRowBal(o); if(lb){r.classList.add("hasled"); const b=el("div","led"); b.append(el("div","k","원래 잔액"),el("div","o",ledSigned(lb.before)),el("div","k","바뀐 잔액"),el("div","n "+ledCls(lb.after),ledSigned(lb.after))); r.append(b);}
+    const lb=ledRowBal(o); if(lb){r.classList.add("hasled"); const b=el("div","led"); b.append(el("div","k","원래 잔액"),el("div","o",ledSigned(lb.before)),el("div","k","바뀐 잔액"),el("div","n "+ledClsA(lb.a,lb.after),ledSigned(lb.after))); r.append(b);}
     return r;};
   let parts;
   if(sumBookOnly){
@@ -3327,7 +3327,11 @@ const ledKey=d=>(d.org||"기타")+"|"+(d.name||d.dept||"");
 const ledAcc=k=>led.acc.find(a=>a.k===k);
 const ledSigned=n=>n<0?"−"+won(-n):n>0?"+"+won(n):"0원";
 const ledCls=n=>n<0?"neg":n>0?"pos":"";
-const ledMean=n=>n<0?"받을 돈":n>0?"미리 받은 돈":"남은 돈 없음";
+const ledMean=(n,a)=>ledPost(a)?(n>0?"쌓인 외상 (받을 돈)":n<0?"미리 받은 돈":"남은 돈 없음"):(n<0?"받을 돈":n>0?"미리 받은 돈":"남은 돈 없음");
+// 학교는 후불 장부 (선정님 2026-11-03): 시킬 때마다 더해 쌓고, 입금하면 빠져요. + 가 받을 돈이에요.
+const ledPost=a=>!!a&&(a.post!=null?!!a.post:a.org==="학교");
+const ledSg=a=>ledPost(a)?1:-1; // 주문 1건이 잔액을 움직이는 방향
+const ledClsA=(a,n)=>ledPost(a)?(n>0?"neg":n<0?"pos":""):ledCls(n);
 const dayMs=d=>{const [y,m,dd]=String(d||"").split("-").map(Number); return y?new Date(y,m-1,dd).getTime():0;};
 function ledFromSnap(s){
   const d=s.docs.find(x=>x.id==="_ledger"), v=d?d.data():{};
@@ -3344,14 +3348,25 @@ function ledWatch(a){
 const ledCounts=o=>!!(o&&o.dept&&!o.example&&!isGuest(o)&&!isCard(o)&&!o.src);
 const ledAt=o=>o.reserved?Math.max(o.createdAt||0,dayMs(o.day)):(o.createdAt||0);
 const ledIn=(a,o)=>ledCounts(o)&&ledKey({org:o.org,name:o.dept})===a.k&&ledAt(o)>a.startAt;
+const ymOf=ms=>{const d=new Date(ms);return d.getFullYear()+"-"+pad(d.getMonth()+1);};
+const monLbl=m=>Number(m.slice(5))+"월";
 function ledCalc(a){
   const os=ledOrd.get(a.k); if(!os)return null;
   const td=today(), ev=[], fut=[];
-  os.filter(o=>ledIn(a,o)).forEach(o=>{ if((o.day||"")>td)fut.push(o); else ev.push({at:ledAt(o),day:o.day,o,amt:-(o.total||0)}); });
-  led.pays.filter(p=>p.k===a.k&&p.at>a.startAt).forEach(p=>ev.push({at:p.at,p,amt:p.amt}));
+  os.filter(o=>ledIn(a,o)).forEach(o=>{ if((o.day||"")>td)fut.push(o); else ev.push({at:ledAt(o),day:o.day,o,amt:ledSg(a)*(o.total||0)}); });
+  led.pays.filter(p=>p.k===a.k&&p.at>a.startAt).forEach(p=>ev.push({at:p.at,p,amt:-ledSg(a)*p.amt}));
   ev.sort((x,y)=>x.at-y.at);
-  let bal=a.start; ev.forEach(e=>{bal+=e.amt; e.after=bal;});
-  return {bal,ev,fut:fut.sort((x,y)=>(x.day||"").localeCompare(y.day||""))};
+  const futS=fut.sort((x,y)=>(x.day||"").localeCompare(y.day||""));
+  if(!ledPost(a)){let bal=a.start; ev.forEach(e=>{bal+=e.amt; e.after=bal;}); return {bal,ev,fut:futS};}
+  // 학교 (후불): 달마다 0원부터 새로 쌓아요 (선정님 2026-11-03). 시작 금액은 시작한 달에만.
+  // 입금은 고른 달(p.mon)에서 빠져요. e.after = 그 달 쌓인 금액.
+  const sm=ymOf(a.startAt), mb={}, mo={};
+  const M=m=>mo[m]||(mo[m]={m,ord:0,pay:0,start:m===sm?a.start:0});
+  M(sm); M(ymOf(Date.now()));
+  ev.forEach(e=>{const m=e.p?(e.p.mon||ymOf(e.at)):ymOf(e.at); e.mon=m; const x=M(m); if(mb[m]==null)mb[m]=x.start;
+    if(e.p)x.pay+=e.p.amt; else x.ord+=e.o.total||0; mb[m]+=e.amt; e.after=mb[m];});
+  const months=Object.values(mo).sort((x,y)=>x.m.localeCompare(y.m)); months.forEach(x=>x.left=x.start+x.ord-x.pay);
+  return {bal:M(ymOf(Date.now())).left,ev,fut:futS,months};
 }
 function ledSave(fn,ok){
   if(!deptCol){toast("지금은 저장이 안 돼요. 가게 구글 계정으로 로그인해 주세요.");return;}
@@ -3372,16 +3387,16 @@ function ledForm(){
   const food=draft.items.reduce((s,i)=>s+(i.unit||0)*i.qty,0), tot=food+feeFor(draft.kind,food);
   let delta=draft.card||resMode?0:tot;
   if(editing){const cur=orders.find(o=>o.id===editing); if(cur&&ledIn(a,cur)&&(cur.day||"")<=today())delta-=cur.total||0;}
-  box.append("📒 외상 잔액 ",el("span",ledCls(c.bal),ledSigned(c.bal)));
+  box.append(ledPost(a)?"📒 쌓인 외상 ":"📒 외상 잔액 ",el("span",ledClsA(a,c.bal),ledSigned(c.bal)));
   if(resMode)box.append(el("span","s"," · 예약 주문은 그날 잔액에서 빠져요"));
   else if(draft.card)box.append(el("span","s"," · 💳 카드라 잔액에서 안 빠져요"));
-  else if(delta){box.append(" → "+(editing?"고치면 ":"이 주문 넣으면 "),el("span",ledCls(c.bal-delta),ledSigned(c.bal-delta)));}
+  else if(delta){box.append(" → "+(editing?"고치면 ":"이 주문 넣으면 "),el("span",ledClsA(a,c.bal+ledSg(a)*delta),ledSigned(c.bal+ledSg(a)*delta)));}
 }
 function ledAfterAdd(body){
   const a=ledAcc(ledKey({org:body.org,name:body.dept})), c=a&&ledCalc(a);
   if(!c||!ledCounts(body))return "";
   // 방금 넣은 주문이 벌써 들어와 있으면 그대로, 아니면 빼서 보여 주기
-  const bal=(ledOrd.get(a.k)||[]).some(o=>o.createdAt===body.createdAt)?c.bal:c.bal-(body.total||0);
+  const bal=(ledOrd.get(a.k)||[]).some(o=>o.createdAt===body.createdAt)?c.bal:c.bal+ledSg(a)*(body.total||0);
   return " · 📒 "+body.dept+" 잔액 "+ledSigned(bal);
 }
 
@@ -3393,7 +3408,7 @@ function ledSlip(o){
   const c=ledCalc(a); if(!c)return "";
   // 잔액을 시작하기 전에 받은 주문 (시작 금액에 이미 들어 있음)은 지금 잔액을 찍어요 (2026-11-03: 등록하고 뽑았는데 안 나왔어요)
   const e=c.ev.find(x=>x.o&&x.o.id===o.id);
-  const bal=e?e.after:ledIn(a,o)?c.bal-(o.total||0):c.bal;
+  const bal=e?e.after:ledIn(a,o)?c.bal+ledSg(a)*(o.total||0):c.bal;
   return (bal<0?"-":bal>0?"+":"")+Math.abs(bal).toLocaleString("ko-KR")+"원"; // 전표엔 +/- 만 (선정님 요청 2026-11-03)
 }
 // 마감 요약 줄: 이 주문 전 잔액과 뺀 뒤 잔액 (장부 옮겨 적기 편하게)
@@ -3402,15 +3417,15 @@ function ledRowBal(o){
   const a=ledAcc(ledKey({org:o.org,name:o.dept})); if(!a)return null;
   const c=ledCalc(a); if(!c)return null;
   const e=c.ev.find(x=>x.o&&x.o.id===o.id); if(!e)return null;
-  return {before:e.after-e.amt,after:e.after};
+  return {before:e.after-e.amt,after:e.after,a};
 }
 // 마감 요약 (장부 주문만 보기): 입금 줄
 function ledPayRow(a,p){
   const r=el("div","sumrow payrow hasled"); const sp=el("span","lg"); sp.setAttribute("aria-hidden","true"); sp.style.width="44px";
   r.append(sp, el("span","dp",[a.org!=="기타"?a.org:"",a.name,a.floor?"("+a.floor+")":""].filter(Boolean).join(" ")), el("span","amt pos","💰 입금 +"+won(p.amt)),
-    el("div","sg","입금 "+hm(p.at)+(p.memo?" · "+p.memo:"")));
+    el("div","sg","입금 "+hm(p.at)+(ledPost(a)&&p.mon?" · "+monLbl(p.mon)+" 치":"")+(p.memo?" · "+p.memo:"")));
   const c=ledCalc(a), e=c&&c.ev.find(x=>x.p&&x.p.id===p.id);
-  if(e){const b=el("div","led"); b.append(el("div","k","원래 잔액"),el("div","o",ledSigned(e.after-e.amt)),el("div","k","바뀐 잔액"),el("div","n "+ledCls(e.after),ledSigned(e.after))); r.append(b);}
+  if(e){const b=el("div","led"); b.append(el("div","k","원래 잔액"),el("div","o",ledSigned(e.after-e.amt)),el("div","k","바뀐 잔액"),el("div","n "+ledClsA(a,e.after),ledSigned(e.after))); r.append(b);}
   return r;
 }
 // 📒 외상 잔액 창
@@ -3421,7 +3436,7 @@ function renderLed(){
   const a=ledView&&ledAcc(ledView);
   if(a){renderLedOne(body,a);return;}
   ledView=null;
-  body.append(el("p","calnote","종이 장부가 진짜고, 이건 확인용이에요. 과에서 주문을 넣으면 그 과 잔액에서 바로 빠져요 (💳 카드·일반 손님·배달앱 주문은 빼요). − 는 받을 돈, + 는 미리 받은 돈이에요. 과를 누르면 입금을 적고 내역을 봐요."));
+  body.append(el("p","calnote","종이 장부가 진짜고, 이건 확인용이에요. 과에서 주문을 넣으면 그 과 잔액에서 바로 빠져요 (💳 카드·일반 손님·배달앱 주문은 빼요). − 는 받을 돈, + 는 미리 받은 돈이에요. 학교는 후불이라 시킬 때마다 더해 쌓이고(+ 가 받을 돈) 입금하면 빠져요. 과를 누르면 입금을 적고 내역을 봐요."));
   const order=allDepts().map(ledKey);
   const accs=led.acc.slice().sort((x,y)=>{const i=order.indexOf(x.k),j=order.indexOf(y.k);return (i<0?1e9:i)-(j<0?1e9:j)||x.name.localeCompare(y.name);});
   if(!accs.length)body.append(el("p","empty","아직 잔액을 적어 둔 과가 없어요. 아래에서 과를 골라 지금 종이 장부 잔액을 적어 주세요."));
@@ -3431,8 +3446,8 @@ function renderLed(){
       const c=ledCalc(a);
       if(a.org!==lastOrg){list.append(el("div","ledgrp",a.org));lastOrg=a.org;}
       const b=el("button","ledrow"); b.type="button"; b.append(el("span","n",a.name)); if(a.floor)b.append(el("span","fl",a.floor));
-      b.append(el("span","b "+(c?ledCls(c.bal):""),c?ledSigned(c.bal):"…")); b.onclick=()=>{ledView=a.k;renderLed();}; list.append(b);
-      if(c&&c.bal<0){owe+=-c.bal;n++;}
+      b.append(el("span","b "+(c?ledClsA(a,c.bal):""),c?ledSigned(c.bal):"…")); b.onclick=()=>{ledView=a.k;renderLed();}; list.append(b);
+      const ow=c?(ledPost(a)?c.bal:-c.bal):0; if(ow>0){owe+=ow;n++;}
     });
     body.append(el("div","s",n?"받을 돈 합계 "+won(owe)+" ("+n+"곳)":"받을 돈이 있는 과가 없어요."),list);
   }
@@ -3449,12 +3464,13 @@ function renderLed(){
     const d=ledNewDept;
     const top=el("div","row"); top.append(el("b",null,(d.org&&d.org!=="기타"?d.org+" · ":"")+d.name+(d.floor?" ("+d.floor+")":"")));
     const again=el("button","linkbtn","다시 고르기"); again.type="button"; again.onclick=()=>{ledNewDept=null;renderLed();}; top.append(again);
-    box.append(top, el("div","s","지금 종이 장부에 적힌 이 과 잔액을 적어 주세요. 지금부터 넣는 주문과 입금이 여기서 더하고 빠져요."));
-    box.append(ledAmtRow("ledStartAmt",ledNewSign,v=>ledNewSign=v,"시작하기",(amt,sign)=>{
+    const post=ledPost({org:d.org||"기타"});
+    box.append(top, el("div","s",post?"학교는 후불 장부예요. 지금까지 쌓인 금액을 적어 주세요 (없으면 0). 앞으로 주문하면 더해지고, 입금하면 빠져요.":"지금 종이 장부에 적힌 이 과 잔액을 적어 주세요. 지금부터 넣는 주문과 입금이 여기서 더하고 빠져요."));
+    box.append(ledAmtRow("ledStartAmt",post?1:ledNewSign,v=>ledNewSign=v,"시작하기",(amt,sign)=>{
       const k=ledKey(d); if(ledAcc(k))return;
       ledSave(nv=>nv.acc.push({k,org:d.org||"기타",name:d.name,floor:d.floor||"",start:sign*amt,startAt:Date.now()}),d.name+" 잔액을 "+ledSigned(sign*amt)+"으로 시작했어요.");
       ledNewDept=null; ledView=k; renderLed();
-    },true));
+    },true,post));
   }
   body.prepend(box); // 과 잔액 시작하기는 맨 위 (선정님 요청 2026-11-03)
   body.append(ledBulkBox());
@@ -3506,13 +3522,13 @@ function ledBulkBox(){
   return box;
 }
 // 금액 + 받을 돈/미리 받은 돈 고르기 + 버튼
-function ledAmtRow(id,sign,setSign,label,go,zeroOk){
+function ledAmtRow(id,sign,setSign,label,go,zeroOk,post){
   const r=el("div","row"); const amt=el("input","amt"); amt.id=id; amt.inputMode="numeric"; amt.placeholder="금액";
   amt.oninput=()=>{const n=ledNum(amt.value); amt.value=n?n.toLocaleString("ko-KR"):"";};
   r.append(amt,el("span",null,"원"));
   if(setSign){
     const mk=(v,t)=>{const b=el("button","chip",t); b.type="button"; b.setAttribute("aria-pressed",String(sign===v)); b.onclick=()=>{sign=v; setSign(v); r.querySelectorAll("[data-sg]").forEach(x=>x.setAttribute("aria-pressed",String(+x.dataset.sg===v)));}; b.dataset.sg=v; return b;};
-    r.append(mk(-1,"받을 돈 (−)"),mk(1,"미리 받은 돈 (+)"));
+    r.append(...(post?[mk(1,"쌓인 외상 (+)"),mk(-1,"미리 받은 돈 (−)")]:[mk(-1,"받을 돈 (−)"),mk(1,"미리 받은 돈 (+)")]));
   }
   const b=el("button","linkbtn strong",label); b.type="button"; b.style.padding="9px 16px";
   const run=()=>{const n=ledNum(amt.value); if(!n&&!zeroOk){amt.focus();return;} go(n,sign);};
@@ -3527,37 +3543,52 @@ function renderLedOne(body,a){
   head.querySelector("h3").style.cssText="margin:0;font-size:1.5rem";
   body.append(head);
   if(!c){body.append(el("p","empty","불러오는 중이에요…"));return;}
-  const big=el("div"); big.append(el("div","ledbig "+ledCls(c.bal),ledSigned(c.bal)),el("div","s",ledMean(c.bal)+(c.fut.length?" · 예약 "+c.fut.length+"건 "+won(c.fut.reduce((s,o)=>s+(o.total||0),0))+"은 그날 빠져요":"")));
+  const post=ledPost(a);
+  const big=el("div"); big.append(el("div","s",post?"이번 달 ("+monLbl(ymOf(Date.now()))+") 쌓인 금액":""),el("div","ledbig "+ledClsA(a,c.bal),ledSigned(c.bal)),el("div","s",ledMean(c.bal,a)+(c.fut.length?" · 예약 "+c.fut.length+"건 "+won(c.fut.reduce((s,o)=>s+(o.total||0),0))+"은 그날 "+(post?"더해져요":"빠져요"):"")));
   body.append(big);
+  if(post){ // 달별 합계
+    const mt=el("div","ledhist"); mt.append(el("div","sec","달별 (주문 합계 − 입금 = 남은 금액)"));
+    c.months.slice().reverse().forEach(x=>{const r=el("div","h"); r.append(el("span","d",monLbl(x.m)),el("span","t","주문 "+won(x.ord+x.start)+(x.start?" (시작 "+ledSigned(x.start)+" 포함)":"")+(x.pay?" · 입금 "+won(x.pay):"")),el("span","a "+ledClsA(a,x.left),x.left?ledSigned(x.left):"다 받음"),el("span","r","")); mt.append(r);});
+    body.append(mt);
+  }
   // 입금
   const pay=el("div","ledbox"); pay.append(el("h3",null,"💰 입금 받기"));
   const memo=el("input"); memo.placeholder="메모 (안 써도 돼요. 예: 계좌이체)"; memo.maxLength=30; memo.id="ledPayMemo";
+  let monSel=null;
+  if(post){ // 몇 월 치 입금인지 (남은 금액이 있는 가장 오래된 달이 먼저 골라져 있어요)
+    monSel=el("select"); monSel.id="ledPayMon"; monSel.style.cssText="font:inherit;font-size:1.05rem;padding:8px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink)";
+    c.months.forEach(x=>{const op=el("option",null,monLbl(x.m)+" 치"+(x.left>0?" (남은 "+won(x.left)+")":"")); op.value=x.m; monSel.append(op);});
+    const first=c.months.find(x=>x.left>0); monSel.value=(first||c.months[c.months.length-1]).m;
+  }
   pay.append(ledAmtRow("ledPayAmt",null,null,"입금 적기",amt=>{
-    const m=memo.value.trim();
-    if(!confirm(a.name+"에서 "+won(amt)+" 받은 걸 적을까요?\n잔액 "+ledSigned(c.bal)+" → "+ledSigned(c.bal+amt)))return;
-    ledSave(nv=>nv.pays.push({id:"p"+Date.now().toString(36),k:a.k,amt,at:Date.now(),memo:m}),a.name+" 입금 "+won(amt)+" 적었어요.");
+    const m=memo.value.trim(), mon=monSel?monSel.value:null;
+    const cur=post?(c.months.find(x=>x.m===mon)||{left:0}).left:c.bal, nxt=post?cur-amt:cur+amt;
+    if(!confirm(a.name+"에서 "+won(amt)+(post?" ("+monLbl(mon)+" 치)":"")+" 받은 걸 적을까요?\n"+(post?monLbl(mon)+" 남은 금액 ":"잔액 ")+ledSigned(cur)+" → "+ledSigned(nxt)))return;
+    const p={id:"p"+Date.now().toString(36),k:a.k,amt,at:Date.now(),memo:m}; if(mon)p.mon=mon;
+    ledSave(nv=>nv.pays.push(p),a.name+" 입금 "+won(amt)+" 적었어요.");
   }),memo);
+  if(monSel)pay.insertBefore(monSel,pay.children[1]);
   body.append(pay);
   // 내역
   const hist=el("div","ledhist");
-  const row=(d,t,amt,after,cls,x)=>{const r=el("div","h"+(cls?" "+cls:"")); r.append(el("span","d",d),el("span","t",t),el("span","a "+(amt==null?"":ledCls(amt)),amt==null?"":ledSigned(amt)),el("span","r",after==null?"":"잔액 "+ledSigned(after))); if(x)r.querySelector(".t").append(" ",x); return r;};
-  c.fut.slice().reverse().forEach(o=>hist.append(row(shortDay(dayMs(o.day)),"📅 예약 "+(o.due?o.due+" ":"")+"· "+itemsText(o)+" (그날 빠져요)",-(o.total||0),null,"fut")));
+  const row=(d,t,amt,after,cls,x,mon)=>{const r=el("div","h"+(cls?" "+cls:"")); r.append(el("span","d",d),el("span","t",t),el("span","a "+(amt==null?"":ledClsA(a,amt)),amt==null?"":ledSigned(amt)),el("span","r",after==null?"":(post&&mon?monLbl(mon)+" 합계 ":"잔액 ")+ledSigned(after))); if(x)r.querySelector(".t").append(" ",x); return r;};
+  c.fut.slice().reverse().forEach(o=>hist.append(row(shortDay(dayMs(o.day)),"📅 예약 "+(o.due?o.due+" ":"")+"· "+itemsText(o)+(post?" (그날 더해져요)":" (그날 빠져요)"),ledSg(a)*(o.total||0),null,"fut")));
   c.ev.slice().reverse().forEach(e=>{
     if(e.p){const x=el("button","x","✕"); x.type="button"; x.title="잘못 적은 입금 지우기"; x.setAttribute("aria-label","이 입금 지우기");
       x.onclick=()=>{if(!confirm(shortDay(e.at)+" 입금 "+won(e.p.amt)+"을 지울까요?"))return; ledSave(nv=>{nv.pays=nv.pays.filter(p=>p.id!==e.p.id);},"입금 기록을 지웠어요.");};
-      hist.append(row(shortDay(e.at)+" "+hm(e.at),"💰 입금"+(e.p.memo?" · "+e.p.memo:""),e.amt,e.after,"",x));}
-    else hist.append(row(shortDay(e.at)+" "+hm(e.at),(e.o.kind==="배달"?"배달":"포장")+" · "+itemsText(e.o),e.amt,e.after));
+      hist.append(row(shortDay(e.at)+" "+hm(e.at),"💰 입금"+(post&&e.mon?" ("+monLbl(e.mon)+" 치)":"")+(e.p.memo?" · "+e.p.memo:""),e.amt,e.after,"",x,e.mon));}
+    else hist.append(row(shortDay(e.at)+" "+hm(e.at),(e.o.kind==="배달"?"배달":"포장")+" · "+itemsText(e.o),e.amt,e.after,"",null,e.mon));
   });
-  hist.append(row(shortDay(a.startAt)+" "+hm(a.startAt),"시작 (종이 장부 잔액)",null,a.start));
+  hist.append(row(shortDay(a.startAt)+" "+hm(a.startAt),post?"시작 (그때까지 쌓인 금액)":"시작 (종이 장부 잔액)",null,a.start,"",null,post?ymOf(a.startAt):null));
   const hw=el("div"); hw.append(el("div","sec","내역 (최근 것이 위)"),hist); body.append(hw);
   // 종이 장부와 맞추기 / 그만 보기
   const fix=el("details","ledbox"); const sm=el("summary",null,"✏ 종이 장부와 금액이 다를 때 (잔액 다시 맞추기)"); fix.append(sm);
-  let sg=c.bal>0?1:-1;
-  fix.append(el("div","s","종이 장부의 지금 잔액을 적으면 여기서부터 다시 계산해요. 지금까지 내역은 안 보이게 돼요."),
+  let sg=post?(c.bal<0?-1:1):(c.bal>0?1:-1);
+  fix.append(el("div","s",post?"이번 달 쌓인 금액을 적으면 여기서부터 다시 계산해요. 지금까지 내역과 지난달 금액은 안 보이게 돼요.":"종이 장부의 지금 잔액을 적으면 여기서부터 다시 계산해요. 지금까지 내역은 안 보이게 돼요."),
     ledAmtRow("ledFixAmt",sg,v=>sg=v,"이 금액으로 맞추기",(amt,sign)=>{
       if(!confirm(a.name+" 잔액을 "+ledSigned(sign*amt)+"으로 맞출까요?"))return;
       ledSave(nv=>{const x=nv.acc.find(y=>y.k===a.k); if(x){x.start=sign*amt; x.startAt=Date.now();}},a.name+" 잔액을 "+ledSigned(sign*amt)+"으로 맞췄어요.");
-    },true));
+    },true,post));
   const stop=el("button","linkbtn","이 과 잔액 그만 보기"); stop.type="button"; stop.style.justifySelf="start";
   stop.onclick=()=>{if(!confirm(a.name+" 잔액과 입금 기록을 지울까요? (주문은 그대로 남아요)"))return; ledSave(nv=>{nv.acc=nv.acc.filter(y=>y.k!==a.k); nv.pays=nv.pays.filter(p=>p.k!==a.k);},a.name+" 잔액을 지웠어요."); ledView=null; renderLed();};
   fix.append(stop); body.append(fix);
