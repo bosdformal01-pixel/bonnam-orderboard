@@ -2303,6 +2303,7 @@ function slipNode(o){
   if(o.phone)w.append(rw("연락처",o.phone)); else if(o.phone4)w.append(rw("연락처","뒷자리 "+o.phone4));
   if(o.memo)w.append(el("div",null,"요청사항: "+o.memo));
   if(isCard(o))w.append(rw("결제","카드")); else if(!g)w.append(rw("결제","장부"));
+  {const lb=ledSlip(o); if(lb)w.append(rw("외상 잔액",lb));}
   w.append(dash());
   // ---- 포스 영수증과 같은 부분 ----
   w.append(el("div","ttl","[ 영 수 증]"));
@@ -2388,6 +2389,7 @@ function slipBytes(o){
   if(o.phone)ln(lr("연락처",o.phone,W)); else if(o.phone4)ln(lr("연락처","뒷자리 "+o.phone4,W));
   if(o.memo)wrapLn("요청사항: "+o.memo,"  ");
   if(isCard(o))ln(lr("결제","카드",W)); else if(!g)ln(lr("결제","장부",W));
+  {const lb=ledSlip(o); if(lb){raw(0x1b,0x45,1); ln(lr("외상 잔액",lb,W)); raw(0x1b,0x45,0);}}
   dash();
   // ---- 포스 영수증과 같은 부분 ----
   raw(0x1b,0x61,1); ln("[ 영 수 증]"); raw(0x1b,0x61,0);
@@ -3272,7 +3274,7 @@ $("shopPrint").onclick=async()=>{
    종이 장부가 진짜고, 이건 확인용 보조 장부예요. 저장: depts 모음의 "_ledger" 문서 하나 (저장 공간 규칙을 안 바꿔도 되게. 이름(name)이 없어 과 목록엔 안 섞여요).
    잔액 = 시작 잔액 − 시작한 뒤 넣은 그 과 주문 + 시작한 뒤 받은 입금. 마이너스는 받을 돈, 플러스는 미리 받은 돈.
    카드·일반 손님·배달앱 주문은 빼요. 예약 주문은 그날이 되어야 빠져요. 주문을 고치거나 지우면 저절로 다시 계산돼요.
-   잔액은 화면에만 보이고 전표에는 안 찍어요. */
+   전표에는 그 주문까지 뺀 잔액을 찍어요 (ledSlip). */
 let led={acc:[],pays:[]}, ledView=null, ledNewDept=null, ledNewSign=-1;
 const ledOrd=new Map(), ledWatching=new Set();
 const ledKey=d=>(d.org||"기타")+"|"+(d.name||d.dept||"");
@@ -3337,6 +3339,16 @@ function ledAfterAdd(body){
   return " · 📒 "+body.dept+" 잔액 "+ledSigned(bal);
 }
 
+// 전표에 찍는 잔액 (선정님 요청 2026-11-03): 이 주문까지 뺀 잔액. 나중에 다시 뽑아도 그 주문 때 잔액이 나와요.
+// 예약 주문이 아직 그날이 아니면 지금 잔액에서 미리 뺀 금액. 프린터에 없는 글자(−)를 피해 '-' 로 써요.
+function ledSlip(o){
+  if(!ledCounts(o))return "";
+  const a=ledAcc(ledKey({org:o.org,name:o.dept})); if(!a||!ledIn(a,o))return "";
+  const c=ledCalc(a); if(!c)return "";
+  const e=c.ev.find(x=>x.o&&x.o.id===o.id);
+  const bal=e?e.after:c.bal-(o.total||0);
+  return (bal<0?"-":bal>0?"+":"")+Math.abs(bal).toLocaleString("ko-KR")+"원"+(bal<0?" (받을 돈)":bal>0?" (미리 받은 돈)":"");
+}
 // 📒 외상 잔액 창
 function openLed(){ledView=null; ledNewDept=null; ledNewSign=-1; renderLed(); $("ledOverlay").hidden=false;}
 function closeLed(){$("ledOverlay").hidden=true;}
