@@ -3348,7 +3348,7 @@ function ledSlip(o){
   // 잔액을 시작하기 전에 받은 주문 (시작 금액에 이미 들어 있음)은 지금 잔액을 찍어요 (2026-11-03: 등록하고 뽑았는데 안 나왔어요)
   const e=c.ev.find(x=>x.o&&x.o.id===o.id);
   const bal=e?e.after:ledIn(a,o)?c.bal-(o.total||0):c.bal;
-  return (bal<0?"-":bal>0?"+":"")+Math.abs(bal).toLocaleString("ko-KR")+"원"+(bal<0?" (받을 돈)":bal>0?" (미리 받은 돈)":"");
+  return (bal<0?"-":bal>0?"+":"")+Math.abs(bal).toLocaleString("ko-KR")+"원"; // 전표엔 +/- 만 (선정님 요청 2026-11-03)
 }
 // 📒 외상 잔액 창
 function openLed(){ledView=null; ledNewDept=null; ledNewSign=-1; renderLed(); $("ledOverlay").hidden=false;}
