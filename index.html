@@ -412,6 +412,9 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
 .kindmenu{color:var(--muted);font-weight:600}
 .kindpick{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .kindpick button{padding:26px 8px;border:2px solid var(--ink);border-radius:12px;background:var(--paper);color:var(--ink);font:inherit;font-size:1.6rem;font-weight:800;cursor:pointer}
+.kindpick button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.kindphone{display:grid;gap:8px;text-align:left}
+.kindphone input{font-size:1.4rem;font-variant-numeric:tabular-nums;max-width:10em}
 .kindpick button:hover,.kindpick button:focus-visible{background:var(--ink);color:var(--paper)}
 .sheet.peak{max-width:520px;border:3px solid var(--late);margin-top:10vh}
 .sheet.peak h2{font-family:var(--display);font-weight:400;font-size:1.6rem;margin:0;color:var(--late)}
@@ -747,6 +750,11 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
     <div class="kindpick">
       <button type="button" data-kask="포장">🛍️ 포장</button>
       <button type="button" data-kask="배달">🛵 배달</button>
+    </div>
+    <div class="kindphone" id="kindPhoneBox" hidden>
+      <label for="kindPhone">전화 뒷자리 4개 (장부 싸인용, 안 써도 돼요)</label>
+      <input type="text" id="kindPhone" inputmode="numeric" maxlength="4" placeholder="예: 1234">
+      <button type="button" class="submit" id="kindGo">배달로 주문 넣기</button>
     </div>
     <button type="button" class="linkbtn" id="kindCancel">닫기</button>
   </div>
@@ -1217,7 +1225,7 @@ function renderMenu(){
   list.forEach((m,i)=>{const b=el("button");b.type="button";b.append(m.n);
     if(q&&i===0)b.append(el("kbd",null,"Enter"));
     b.append(el("span","who",(q?m.cat+" · ":"")+(m.st==="both"&&!(MENU_IDX[m.n]||{}).half?"두 곳 다":ST_NAME[m.st])+" · "+won(m.price)));
-    b.onclick=()=>askKind(m.n,()=>openOpt({name:m.n,base:m.price,st:m.st,groups:m.groups},null));box.append(b);});
+    b.onclick=()=>openOpt({name:m.n,base:m.price,st:m.st,groups:m.groups},null);box.append(b);});
 }
 $("menuSearch").addEventListener("input",renderMenu);
 $("menuSearch").addEventListener("keydown",e=>{
@@ -1404,7 +1412,7 @@ function renderDueChips(){
     const b=el("button","chip",v); b.type="button"; b.setAttribute("aria-pressed",String($("due").value===v)); b.onclick=()=>{$("due").value=v;dueAuto=false;renderDueChips();}; box.append(b); }
 }
 $("due").addEventListener("input",()=>{dueAuto=false;renderDueChips();});
-// kindSet=false: 이번 주문에서 아직 포장/배달을 안 골랐어요 → 메뉴를 처음 누를 때 창으로 물어봐요 (선정님 요청 2026-11-03)
+// kindSet=false: 이번 주문에서 아직 포장/배달을 안 골랐어요 → '주문 넣기' 누를 때 창으로 물어봐요 (선정님 요청 2026-11-03)
 function setKind(k,unset){
   draft.kind=k; draft.kindSet=!unset; document.querySelectorAll("[data-kind]").forEach(x=>x.setAttribute("aria-pressed",String(draft.kindSet&&x.dataset.kind===k)));
   updatePhoneBox(); renderPicked();
@@ -1424,16 +1432,31 @@ $("cardChip").onclick=()=>setCard(!draft.card);
 document.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{
   const n=$("freeName").value.trim(); if(!n){$("freeName").focus();return;}
   const pr=parseInt(($("freePrice").value||"").replace(/\D/g,""),10)||0;
-  askKind(n,()=>{addDraftItem({name:n,qty:1,st:b.dataset.free,unit:pr,opts:[],note:""}); $("freeName").value=""; $("freePrice").value=""; renderPicked();});
+  addDraftItem({name:n,qty:1,st:b.dataset.free,unit:pr,opts:[],note:""}); $("freeName").value=""; $("freePrice").value=""; renderPicked();
 });
-// 메뉴를 누르면 먼저 포장/배달을 물어봐요. 이번 주문에서 한 번 고르면 다시 안 물어봐요 (위 칸에서 바꿀 수 있어요).
+// '주문 넣기'를 눌렀는데 위 포장/배달 칸을 안 눌렀으면 창으로 물어봐요. 위 칸을 눌러 뒀으면 안 물어봐요 (선정님 요청 2026-11-03).
 let kindNext=null;
-function askKind(name,next){
+function askKind(next){
   if(draft.kindSet){next();return;}
-  kindNext=next; $("kindMenu").textContent=name||""; $("kindOverlay").hidden=false;
+  const n=draft.items.reduce((s,i)=>s+i.qty,0), who=resMode?($("resWho").value.trim()||"예약 주문"):(draft.dept?draft.dept.name:"");
+  kindNext=next; $("kindMenu").textContent=[who,"메뉴 "+n+"개"].filter(Boolean).join(" · ");
+  $("kindPhoneBox").hidden=true; document.querySelectorAll("[data-kask]").forEach(x=>x.setAttribute("aria-pressed","false")); $("kindOverlay").hidden=false;
+  return true;
 }
 function closeKind(){$("kindOverlay").hidden=true; kindNext=null;}
-document.querySelectorAll("[data-kask]").forEach(b=>b.onclick=()=>{const n=kindNext; closeKind(); setKind(b.dataset.kask); if(n)n();});
+function kindDone(k){const n=kindNext; closeKind(); setKind(k); if(n)n();}
+// 포장은 바로 넣고, 배달은 장부 싸인용 전화 뒷자리를 한 번 더 물어봐요 (예약 주문은 뒷자리 칸이 없어서 바로)
+document.querySelectorAll("[data-kask]").forEach(b=>b.onclick=()=>{
+  const k=b.dataset.kask;
+  if(k==="포장"||resMode){kindDone(k);return;}
+  document.querySelectorAll("[data-kask]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+  const food=draft.items.reduce((s,i)=>s+(i.unit||0)*i.qty,0), fee=feeFor("배달",food);
+  $("kindGo").textContent="배달로 주문 넣기 · "+won(food+fee)+(fee?" (배달비 "+won(fee)+" 포함)":"");
+  $("kindPhone").value=$("phone4").value; $("kindPhoneBox").hidden=false; $("kindPhone").focus();
+});
+$("kindPhone").addEventListener("input",e=>{const v=e.target.value.replace(/\D/g,"").slice(0,4); if(v!==e.target.value)e.target.value=v;});
+$("kindPhone").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();$("kindGo").click();}});
+$("kindGo").onclick=()=>{$("phone4").value=$("kindPhone").value; kindDone("배달");};
 $("kindCancel").onclick=closeKind;
 $("kindOverlay").addEventListener("click",e=>{if(e.target===$("kindOverlay"))closeKind();});
 const finePointer=()=>window.matchMedia&&matchMedia("(pointer:fine)").matches;
@@ -1451,6 +1474,7 @@ $("orderForm").addEventListener("submit",async e=>{
     if(ex)pickDept(ex); else if(["일반","일반손님","손님"].includes(norm(q)))pickDept(GUEST); else if(q)pickDept({org:"기타",name:q,custom:true});}
   if(!draft.dept){msg.className="msg err";msg.textContent="어느 과인지 고르거나 '일반 손님'을 눌러 주세요.";$("deptSearch").focus();return;}
   if(!draft.items.length){msg.className="msg err";msg.textContent="메뉴를 하나 이상 골라 주세요.";return;}
+  if(!draft.kindSet){askKind(()=>$("orderForm").requestSubmit());return;}
   if(!col){msg.className="msg err";msg.textContent="지금은 저장이 안 돼요. 가게 구글 계정으로 로그인해 주세요.";return;}
   const btn=$("submitBtn"); btn.disabled=true; msg.textContent=editing?"저장하는 중…":"넣는 중…";
   const items=packItems();
@@ -1618,6 +1642,7 @@ async function saveRes(){
   if(!due){msg.textContent="몇 시까지인지 넣어 주세요.";$("resTime").focus();return;}
   if(day<today()){msg.textContent="지난 날짜예요. 날짜를 다시 골라 주세요.";$("resMon").focus();return;}
   if(!draft.items.length){msg.textContent="메뉴를 하나 이상 골라 주세요.";return;}
+  if(!draft.kindSet){msg.textContent="";askKind(saveRes);return;}
   if(!col){msg.textContent="지금은 저장이 안 돼요. 가게 구글 계정으로 로그인해 주세요.";return;}
   msg.className="msg";
   const items=packItems(), food=items.reduce((s,i)=>s+i.unit*i.qty,0), fee=feeFor(draft.kind,food);
