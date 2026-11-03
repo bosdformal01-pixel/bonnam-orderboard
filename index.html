@@ -160,6 +160,12 @@ input.qty{width:4.2em;padding:6px 4px;border:1.5px solid var(--line);border-radi
 .sumrow .sg b{color:var(--ink)}
 .sumrow .lg{grid-row:1/5;grid-column:1;align-self:start}
 .sumrow .tm{grid-column:2}
+/* 마감 요약: 장부 과 주문 옆에 원래 잔액 → 바뀐 잔액 (2026-11-03) */
+.sumrow.hasled .sg,.sumrow.hasled .it{grid-column:2}
+.sumrow .led{grid-column:3;grid-row:2/5;align-self:start;text-align:right;font-variant-numeric:tabular-nums;line-height:1.35;padding:4px 10px;border-radius:8px;background:var(--sand-soft);white-space:nowrap}
+.sumrow .led .k{font-size:.78rem;color:var(--muted)}
+.sumrow .led .o{font-size:.95rem;color:var(--muted)}
+.sumrow .led .n{font-size:1.1rem;font-weight:800}
 .lgbtn{width:44px;height:44px;border-radius:8px;border:1.5px solid var(--line);background:var(--paper);font-size:1.2rem;font-weight:700;color:var(--muted)}
 .lgbtn[aria-pressed="true"]{background:var(--salad);border-color:var(--salad);color:var(--on-accent)}
 .deptsum{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:4px 14px;font-variant-numeric:tabular-nums;font-size:.95rem}
@@ -2131,6 +2137,7 @@ function renderSummary(){
     const sg=el("div","sg"); sg.append(el("b",null,signText(o))); if(o.memo)sg.append(" · 메모: "+o.memo);
     const tm=(o.reserved?"📅 예약 ("+shortDay(o.resAt||o.createdAt)+" 접수) "+(o.due||"")+" 까지":"받음 "+(o.createdAt?hm(o.createdAt):"--:--"))+(o.out?" · 완료 "+(o.outAt?hm(o.outAt):"--:--"):"");
     r.append(lg, el("span","dp",deptLabel(o)), el("span","amt",won(o.total)+(o.fee?" (배달비 포함)":"")), el("div","sg",tm), sg, el("div","it",itemsText(o)));
+    const lb=ledRowBal(o); if(lb){r.classList.add("hasled"); const b=el("div","led"); b.append(el("div","k","원래 잔액"),el("div","o",ledSigned(lb.before)),el("div","k","바뀐 잔액"),el("div","n "+ledCls(lb.after),ledSigned(lb.after))); r.append(b);}
     return r;};
   const parts=goneB.map(row);
   if(leftB.length){parts.push(el("div","sec",isToday?"아직 안 나간 주문":"'포장 완료'를 안 누른 주문")); leftB.forEach(o=>parts.push(row(o)));}
@@ -3339,7 +3346,7 @@ function ledSave(fn,ok){
   deptCol.doc("_ledger").set({acc:nv.acc,pays:nv.pays,updatedAt:Date.now()}).then(()=>{if(ok)toast(ok);}).catch(()=>toast("외상 잔액을 저장하지 못했어요. 다시 해 주세요."));
 }
 const ledNum=v=>parseInt(String(v||"").replace(/[^\d]/g,""),10)||0;
-function ledRefresh(){ ledForm(); if(!$("ledOverlay").hidden)renderLed(); }
+function ledRefresh(){ ledForm(); if(!$("ledOverlay").hidden)renderLed(); if(!$("sumOverlay").hidden)renderSummary(); }
 
 // 주문 칸: 과를 고르면 그 과 잔액과, 이 주문을 넣은 뒤 잔액
 function ledForm(){
@@ -3374,6 +3381,14 @@ function ledSlip(o){
   const e=c.ev.find(x=>x.o&&x.o.id===o.id);
   const bal=e?e.after:ledIn(a,o)?c.bal-(o.total||0):c.bal;
   return (bal<0?"-":bal>0?"+":"")+Math.abs(bal).toLocaleString("ko-KR")+"원"; // 전표엔 +/- 만 (선정님 요청 2026-11-03)
+}
+// 마감 요약 줄: 이 주문 전 잔액과 뺀 뒤 잔액 (장부 옮겨 적기 편하게)
+function ledRowBal(o){
+  if(!ledCounts(o))return null;
+  const a=ledAcc(ledKey({org:o.org,name:o.dept})); if(!a)return null;
+  const c=ledCalc(a); if(!c)return null;
+  const e=c.ev.find(x=>x.o&&x.o.id===o.id); if(!e)return null;
+  return {before:e.after-e.amt,after:e.after};
 }
 // 📒 외상 잔액 창
 function openLed(){ledView=null; ledNewDept=null; ledNewSign=-1; renderLed(); $("ledOverlay").hidden=false;}
