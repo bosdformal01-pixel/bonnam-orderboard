@@ -2954,8 +2954,12 @@ let relayCleaned=false;
 function relayClean(){
   if(relayCleaned||!col||!window.firebase)return; relayCleaned=true;
   const del=firebase.firestore.FieldValue.delete();
-  col.where("from","==","relay").get().then(s=>s.docs.forEach(d=>{const o=d.data()||{};
-    if(o.day<today()&&(o.addr||o.phone||o.raw))d.ref.update({addr:del,phone:del,raw:del}).catch(()=>{});})).catch(()=>{});
+  // 저장소 읽기 줄이기 (2026-11-04): 예전엔 배달앱 주문을 처음부터 다 읽었어요. 이제 지난번 지운 날부터 어제까지만 (최대 7일).
+  let from=""; try{from=localStorage.getItem("bn_relayclean")||"";}catch(e){}
+  if(!from||from<daysAgo(7))from=daysAgo(7); const td=today(); if(from>=td)return;
+  col.where("day",">=",from).where("day","<",td).get().then(s=>{s.docs.forEach(d=>{const o=d.data()||{};
+    if(o.from==="relay"&&(o.addr||o.phone||o.raw))d.ref.update({addr:del,phone:del,raw:del}).catch(()=>{});});
+    try{localStorage.setItem("bn_relayclean",td);}catch(e){}}).catch(()=>{});
 }
 $("relayBtn").onclick=()=>{
   if(!relay.on){startRelay(true);return;}
@@ -3367,8 +3371,22 @@ $("shopPrint").onclick=async()=>{
 // 과 목록(depts)에 org "개인" 으로 저장돼서, 주문 받을 때 이름으로 찾아 고를 수 있어요.
 const PERSON="개인";
 function ledAddPerson(name,at){ if(deptCol&&!customDepts.some(c=>c.org===PERSON&&c.name===name))deptCol.add({org:PERSON,name,addedAt:at||Date.now()}).catch(()=>{}); }
+/* 저장소 읽기 줄이기 (2026-11-04, 11/3 하루 읽기 1만 건): 예전엔 과마다 그 과의 '처음부터 모든' 주문을 읽었어요.
+   이제 기준일(led.cpDay, 지난달 1일) 이후 주문만 읽고, 그 전 주문 합계는 과마다 a.cp 에 적어 둬요 (잔액 계산은 똑같아요).
+   매달 첫 쉬는 시간에 한 기기가 기준일을 한 달 앞으로 옮겨요 (ledRoll). 과+날짜로 찾으려면 저장소 '색인'이 필요해서,
+   색인이 없으면 예전처럼 다 읽고(ledNoIdx) 📒 창에 만들기 링크를 보여 줘요. */
+const LED_CP0="2026-10-01"; // 기준일을 처음 쓸 때: 모든 장부가 11/3 이후 시작이라 그 전 합계가 필요 없어요
+let ledNoIdx=false, ledIdxUrl="";
+const ledCpDay=()=>led.cpDay||LED_CP0;
+const monStart=n=>{const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-n); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-01";};
+// 기준일 전 주문 합계: 시작이 기준일 뒤면 0, 적어 둔 게 맞으면 그것, 아니면 null (그 과는 처음부터 다 읽어요)
+function ledCp(a){
+  if(a.startAt>=dayMs(ledCpDay()))return {ord:0,mon:{}};
+  if(a.cp&&a.cp.startAt===a.startAt&&a.cp.day===ledCpDay())return a.cp;
+  return null;
+}
 let led={acc:[],pays:[]}, ledView=null, ledNewDept=null, ledNewSign=-1;
-const ledOrd=new Map(), ledWatching=new Set();
+const ledOrd=new Map(), ledWatching=new Map(); // ledWatching: 과 키 → {sig, stop}
 const ledKey=d0=>{const d=deptFix(d0||{}); return (d.org||"기타")+"|"+(d.name||d.dept||"");};
 const ledAcc=k=>led.acc.find(a=>a.k===k);
 const ledSigned=n=>n<0?"−"+won(-n):n>0?"+"+won(n):"0원";
@@ -3382,22 +3400,50 @@ const dayMs=d=>{const [y,m,dd]=String(d||"").split("-").map(Number); return y?ne
 let ledMigrated=false;
 function ledFromSnap(s){
   const d=s.docs.find(x=>x.id==="_ledger"), v=d?d.data():{};
-  led={acc:Array.isArray(v.acc)?v.acc:[],pays:Array.isArray(v.pays)?v.pays:[]};
+  led={acc:Array.isArray(v.acc)?v.acc:[],pays:Array.isArray(v.pays)?v.pays:[],cpDay:v.cpDay||null};
   // '기타'에 잘못 들어간 과를 제자리로 옮기기 (한 번만, 잔액·입금 기록은 그대로)
   const mv=led.acc.filter(a=>{const f=deptFix(a); return f!==a&&!led.acc.some(b=>b.k===f.org+"|"+f.name);});
   if(mv.length&&!ledMigrated&&deptCol){ledMigrated=true; setTimeout(()=>ledSave(nv=>{mv.forEach(a0=>{const a=nv.acc.find(x=>x.k===a0.k); if(!a)return; const f=deptFix(a0), nk=f.org+"|"+f.name;
     nv.pays.forEach(p=>{if(p.k===a.k)p.k=nk;}); a.k=nk; a.org=f.org; a.name=f.name; a.floor=f.floor||"";});},mv.length+"곳을 제자리(동구청·학교)로 옮겼어요."),0);}
-  led.acc.forEach(ledWatch); ledRefresh();
+  led.acc.forEach(ledWatch); ledRefresh(); setTimeout(ledRoll,3000);
 }
 // 잔액을 둔 과마다 그 과 주문만 따로 지켜봐요 (과 이름 하나로 찾아서 저장 공간 설정을 안 건드려도 돼요)
 function ledWatch(a){
-  if(!col||ledWatching.has(a.k))return; ledWatching.add(a.k);
+  if(!col)return;
+  const from=ledCp(a)&&!ledNoIdx?ledCpDay():"", sig=from||"all", cur=ledWatching.get(a.k);
+  if(cur&&cur.sig===sig)return;
+  if(cur)cur.stop();
   // 과 이름 + 예전에 '기타'로 쓴 이름 둘 다 지켜봐요
-  const names=[a.name].concat(Object.keys(DEPT_ALIAS).filter(n=>DEPT_ALIAS[n][0]===a.org&&DEPT_ALIAS[n][1]===a.name&&n!==a.name)), got={};
-  names.forEach(nm=>col.where("dept","==",nm).onSnapshot(s=>{
-    got[nm]=s.docs.map(d=>Object.assign({id:d.id},d.data())).filter(o=>ledKey({org:o.org,name:o.dept})===a.k);
-    if(names.every(n=>got[n]))ledOrd.set(a.k,[].concat(...names.map(n=>got[n]))); ledRefresh();
-  },()=>{ledWatching.delete(a.k);}));
+  const names=[a.name].concat(Object.keys(DEPT_ALIAS).filter(n=>DEPT_ALIAS[n][0]===a.org&&DEPT_ALIAS[n][1]===a.name&&n!==a.name)), got={}, offs=[];
+  const w={sig,stop:()=>offs.forEach(f=>{try{f();}catch(e){}})}; ledWatching.set(a.k,w);
+  names.forEach(nm=>{const q=from?col.where("dept","==",nm).where("day",">=",from):col.where("dept","==",nm);
+    offs.push(q.onSnapshot(s=>{
+      if(ledWatching.get(a.k)!==w)return;
+      got[nm]=s.docs.map(d=>Object.assign({id:d.id},d.data())).filter(o=>ledKey({org:o.org,name:o.dept})===a.k);
+      if(names.every(n=>got[n]))ledOrd.set(a.k,{from,list:[].concat(...names.map(n=>got[n]))}); ledRefresh();
+    },err=>{
+      if(ledWatching.get(a.k)!==w)return; w.stop(); ledWatching.delete(a.k);
+      // 색인이 없어요: 예전처럼 다 읽고, 만들기 링크를 기억해요
+      if(from&&err&&err.code==="failed-precondition"){ledNoIdx=true; const m=String(err.message||"").match(/https:\/\/console\.firebase\.google\.com\S+/); if(m)ledIdxUrl=m[0]; console.warn("[외상 잔액] 색인 필요",ledIdxUrl); ledWatch(a); ledRefresh();}
+    }));});
+}
+// 매달: 기준일을 지난달 1일로 옮기고, 그 사이 주문 합계를 과마다 a.cp 에 더해요 (바쁜 4~7시는 피해요)
+function ledRoll(target){
+  target=target||monStart(1);
+  const h=new Date().getHours(); if(!deptCol||!led.acc.length||ledCpDay()>=target||(h>=16&&h<19&&!ledRoll.force))return false;
+  const old=ledCpDay(), upd={};
+  for(const a of led.acc){
+    const cp0=ledCp(a), got=ledOrd.get(a.k); if(!got)return false; // 아직 다 안 불러왔어요
+    // 기준일 합계가 없으면 처음부터 다 읽은 목록으로 계산해요
+    const cp=cp0||(got.from===""?{ord:0,mon:{}}:null), lo=cp0?old:""; if(!cp)return false;
+    if(got.from&&got.from>old)return false;
+    if(a.startAt>=dayMs(target))continue;
+    const n={day:target,startAt:a.startAt,ord:cp.ord||0,mon:Object.assign({},cp.mon||{})};
+    got.list.filter(o=>ledIn(a,o)&&(o.day||"")>=lo&&(o.day||"")<target).forEach(o=>{n.ord+=o.total||0; const m=ymOf(ledAt(o)); n.mon[m]=(n.mon[m]||0)+(o.total||0);});
+    upd[a.k]=n;
+  }
+  ledSave(nv=>{nv.cpDay=target; nv.acc.forEach(a=>{if(upd[a.k])a.cp=upd[a.k]; else delete a.cp;});});
+  return true;
 }
 const ledCounts=o=>!!(o&&o.dept&&!o.example&&!isGuest(o)&&!isCard(o)&&!o.src);
 const ledAt=o=>o.reserved?Math.max(o.createdAt||0,dayMs(o.day)):(o.createdAt||0);
@@ -3405,28 +3451,31 @@ const ledIn=(a,o)=>ledCounts(o)&&ledKey({org:o.org,name:o.dept})===a.k&&ledAt(o)
 const ymOf=ms=>{const d=new Date(ms);return d.getFullYear()+"-"+pad(d.getMonth()+1);};
 const monLbl=m=>Number(m.slice(5))+"월";
 function ledCalc(a){
-  const os=ledOrd.get(a.k); if(!os)return null;
+  const got=ledOrd.get(a.k); if(!got)return null;
+  const cp0=ledCp(a), cd=ledCpDay(); if(got.from&&(!cp0||got.from!==cd))return null; // 기준일이 바뀌는 중
+  const cp=cp0||{ord:0,mon:{}}, os=cp0?got.list.filter(o=>(o.day||"")>=cd):got.list;
   const td=today(), ev=[], fut=[];
   os.filter(o=>ledIn(a,o)).forEach(o=>{ if((o.day||"")>td)fut.push(o); else ev.push({at:ledAt(o),day:o.day,o,amt:ledSg(a)*(o.total||0)}); });
   led.pays.filter(p=>p.k===a.k&&p.at>a.startAt).forEach(p=>ev.push({at:p.at,p,amt:-ledSg(a)*p.amt}));
   ev.sort((x,y)=>x.at-y.at);
   const futS=fut.sort((x,y)=>(x.day||"").localeCompare(y.day||""));
-  if(!ledPost(a)){let bal=a.start; ev.forEach(e=>{bal+=e.amt; e.after=bal;}); return {bal,ev,fut:futS};}
+  if(!ledPost(a)){let bal=a.start+ledSg(a)*(cp.ord||0); ev.forEach(e=>{bal+=e.amt; e.after=bal;}); return {bal,ev,fut:futS,cp,cpDay:cp.ord?cd:null};}
   // 학교 (후불): 달마다 0원부터 새로 쌓아요 (선정님 2026-11-03). 시작 금액은 시작한 달에만.
   // 입금은 고른 달(p.mon)에서 빠져요. e.after = 그 달 쌓인 금액.
   const sm=ymOf(a.startAt), mb={}, mo={};
   const M=m=>mo[m]||(mo[m]={m,ord:0,pay:0,start:m===sm?a.start:0});
   M(sm); M(ymOf(Date.now()));
-  ev.forEach(e=>{const m=e.p?(e.p.mon||ymOf(e.at)):ymOf(e.at); e.mon=m; const x=M(m); if(mb[m]==null)mb[m]=x.start;
+  Object.keys(cp.mon||{}).forEach(m=>{M(m).ord+=cp.mon[m];}); // 기준일 전 주문 (달별 합계)
+  ev.forEach(e=>{const m=e.p?(e.p.mon||ymOf(e.at)):ymOf(e.at); e.mon=m; const x=M(m); if(mb[m]==null)mb[m]=x.start+((cp.mon||{})[m]||0);
     if(e.p)x.pay+=e.p.amt; else x.ord+=e.o.total||0; mb[m]+=e.amt; e.after=mb[m];});
   const months=Object.values(mo).sort((x,y)=>x.m.localeCompare(y.m)); months.forEach(x=>x.left=x.start+x.ord-x.pay);
-  return {bal:M(ymOf(Date.now())).left,ev,fut:futS,months};
+  return {bal:M(ymOf(Date.now())).left,ev,fut:futS,months,cp,cpDay:cp.ord?cd:null};
 }
 function ledSave(fn,ok){
   if(!deptCol){toast("지금은 저장이 안 돼요. 가게 구글 계정으로 로그인해 주세요.");return;}
-  const nv={acc:led.acc.map(a=>Object.assign({},a)),pays:led.pays.slice()}; fn(nv);
+  const nv={acc:led.acc.map(a=>Object.assign({},a)),pays:led.pays.slice(),cpDay:led.cpDay||null}; fn(nv);
   led=nv; nv.acc.forEach(ledWatch); ledRefresh();
-  fsw(deptCol.doc("_ledger").set({acc:nv.acc,pays:nv.pays,updatedAt:Date.now()})).then(h=>{if(ok)toast(ok+(h==="local"?" (인터넷 연결되면 올라가요)":""));}).catch(()=>toast("외상 잔액을 저장하지 못했어요. 다시 해 주세요."));
+  fsw(deptCol.doc("_ledger").set(Object.assign({acc:nv.acc,pays:nv.pays,updatedAt:Date.now()},nv.cpDay?{cpDay:nv.cpDay}:{}))).then(h=>{if(ok)toast(ok+(h==="local"?" (인터넷 연결되면 올라가요)":""));}).catch(()=>toast("외상 잔액을 저장하지 못했어요. 다시 해 주세요."));
 }
 const ledNum=v=>parseInt(String(v||"").replace(/[^\d]/g,""),10)||0;
 function ledRefresh(){ ledForm(); if(!$("ledOverlay").hidden)renderLed(); if(!$("sumOverlay").hidden)renderSummary(); }
@@ -3450,7 +3499,7 @@ function ledAfterAdd(body){
   const a=ledAcc(ledKey({org:body.org,name:body.dept})), c=a&&ledCalc(a);
   if(!c||!ledCounts(body))return "";
   // 방금 넣은 주문이 벌써 들어와 있으면 그대로, 아니면 빼서 보여 주기
-  const bal=(ledOrd.get(a.k)||[]).some(o=>o.createdAt===body.createdAt)?c.bal:c.bal+ledSg(a)*(body.total||0);
+  const bal=((ledOrd.get(a.k)||{}).list||[]).some(o=>o.createdAt===body.createdAt)?c.bal:c.bal+ledSg(a)*(body.total||0);
   return " · 📒 "+body.dept+" 잔액 "+ledSigned(bal);
 }
 
@@ -3462,7 +3511,7 @@ function ledSlip(o){
   const c=ledCalc(a); if(!c)return "";
   // 잔액을 시작하기 전에 받은 주문 (시작 금액에 이미 들어 있음)은 지금 잔액을 찍어요 (2026-11-03: 등록하고 뽑았는데 안 나왔어요)
   const e=c.ev.find(x=>x.o&&x.o.id===o.id);
-  const bal=e?e.after:ledIn(a,o)?c.bal+ledSg(a)*(o.total||0):c.bal;
+  const bal=e?e.after:ledIn(a,o)&&(o.day||"")>=ledCpDay()?c.bal+ledSg(a)*(o.total||0):c.bal;
   return (bal<0?"-":bal>0?"+":"")+Math.abs(bal).toLocaleString("ko-KR")+"원"; // 전표엔 +/- 만 (선정님 요청 2026-11-03)
 }
 // 마감 요약 줄: 이 주문 전 잔액과 뺀 뒤 잔액 (장부 옮겨 적기 편하게)
@@ -3531,6 +3580,8 @@ function renderLed(){
       ledNewDept=null; ledView=k; renderLed();
     },true,post));
   }
+  if(ledNoIdx&&ledIdxUrl){const n=el("div","ledbox"); n.append(el("div","s","⚠️ 저장소 읽기를 줄이는 설정(색인)이 아직 없어요. 가게 구글 계정으로 아래 링크를 열고 '색인 만들기'(저장)를 눌러 주세요. 몇 분 뒤 저절로 적용돼요."));
+    const a=el("a","linkbtn strong","색인 만들기 열기"); a.href=ledIdxUrl; a.target="_blank"; a.rel="noopener"; a.style.justifySelf="start"; n.append(a); body.prepend(n);}
   body.prepend(box); // 과 잔액 시작하기는 맨 위 (선정님 요청 2026-11-03)
   body.append(ledBulkBox());
 }
@@ -3643,6 +3694,7 @@ function renderLedOne(body,a){
       hist.append(row(shortDay(e.at)+" "+hm(e.at),"💰 입금"+(post&&e.mon?" ("+monLbl(e.mon)+" 치)":"")+(e.p.memo?" · "+e.p.memo:""),e.amt,e.after,"",x,e.mon));}
     else hist.append(row(shortDay(e.at)+" "+hm(e.at),(e.o.kind==="배달"?"배달":"포장")+" · "+itemsText(e.o),e.amt,e.after,"",null,e.mon));
   });
+  if(c.cp&&c.cp.ord&&c.cpDay){const [,cm,cdd]=c.cpDay.split("-").map(Number); hist.append(row("~"+cm+"/"+cdd+" 전","그 전 주문 합계 (하나씩은 마감 요약·종이 장부에서)",ledSg(a)*c.cp.ord,null,""));}
   hist.append(row(shortDay(a.startAt)+" "+hm(a.startAt),post?"시작 (그때까지 쌓인 금액)":"시작 (종이 장부 잔액)",null,a.start,"",null,post?ymOf(a.startAt):null));
   const hw=el("div"); hw.append(el("div","sec","내역 (최근 것이 위)"),hist); body.append(hw);
   // 종이 장부와 맞추기 / 그만 보기
@@ -3797,7 +3849,7 @@ $("bkBtn").onclick=()=>{renderBk(); $("bkOverlay").hidden=false;};
 $("bkClose").onclick=()=>{$("bkOverlay").hidden=true;};
 $("bkOverlay").addEventListener("click",e=>{if(e.target===$("bkOverlay"))$("bkOverlay").hidden=true;});
 (async()=>{ const d=await bkIdb("get"); if(d&&d.queryPermission){bkDir=d;} await bkCheckPerm(false); bkBtnDraw(); })();
-setInterval(bkTick,5*60e3); setTimeout(bkTick,20e3);
+setInterval(bkTick,5*60e3); setInterval(()=>ledRoll(),10*60e3); setTimeout(bkTick,20e3);
 $("ledBtn").onclick=openLed;
 $("ledClose").onclick=closeLed;
 $("ledOverlay").addEventListener("click",e=>{if(e.target===$("ledOverlay"))closeLed();});
