@@ -529,7 +529,7 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
         </div>
       </div>
       <div class="field" id="deptField">
-        <label for="deptSearch">어느 과 (검색해서 고르기)</label>
+        <label for="deptSearch">어느 과·이름 (검색해서 고르기)</label>
         <div class="combo">
           <div class="picked-dept" id="deptPicked" hidden>
             <span><span class="org" id="deptPickedOrg"></span><br><b id="deptPickedName"></b></span>
@@ -738,7 +738,7 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
 
 <div class="overlay" id="ledOverlay" hidden>
   <div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="ledTitle">
-    <div class="sheet-head"><h2 id="ledTitle">📒 과별 외상 잔액</h2><button type="button" class="linkbtn x" id="ledClose">닫기</button></div>
+    <div class="sheet-head"><h2 id="ledTitle">📒 과·개인 외상 잔액</h2><button type="button" class="linkbtn x" id="ledClose">닫기</button></div>
     <div id="ledBody" style="display:grid;gap:12px"></div>
   </div>
 </div>
@@ -1042,7 +1042,7 @@ let fbAuth=null;
     if(!u||started)return; started=true;
     col=fs.collection("orders"); deptCol=fs.collection("depts"); dbReady=true; subscribe();
     shopSubscribe();
-    deptCol.onSnapshot(s=>{customDepts=s.docs.map(d=>d.data()).filter(d=>d&&d.name); ledFromSnap(s);},()=>{});
+    deptCol.onSnapshot(s=>{customDepts=s.docs.map(d=>Object.assign({_id:d.id},d.data())).filter(d=>d&&d.name); ledFromSnap(s);},()=>{});
   });
 })();
 function renderWho(u){
@@ -3331,6 +3331,10 @@ $("shopPrint").onclick=async()=>{
    잔액 = 시작 잔액 − 시작한 뒤 넣은 그 과 주문 + 시작한 뒤 받은 입금. 마이너스는 받을 돈, 플러스는 미리 받은 돈.
    카드·일반 손님·배달앱 주문은 빼요. 예약 주문은 그날이 되어야 빠져요. 주문을 고치거나 지우면 저절로 다시 계산돼요.
    전표에는 그 주문까지 뺀 잔액을 찍어요 (ledSlip). */
+// 일반인(개인)도 이름으로 장부에 올려요 (선정님 요청 2026-11-04). 과처럼 선결제: 주문하면 빠지고 입금하면 더해져요.
+// 과 목록(depts)에 org "개인" 으로 저장돼서, 주문 받을 때 이름으로 찾아 고를 수 있어요.
+const PERSON="개인";
+function ledAddPerson(name,at){ if(deptCol&&!customDepts.some(c=>c.org===PERSON&&c.name===name))deptCol.add({org:PERSON,name,addedAt:at||Date.now()}).catch(()=>{}); }
 let led={acc:[],pays:[]}, ledView=null, ledNewDept=null, ledNewSign=-1;
 const ledOrd=new Map(), ledWatching=new Set();
 const ledKey=d0=>{const d=deptFix(d0||{}); return (d.org||"기타")+"|"+(d.name||d.dept||"");};
@@ -3454,10 +3458,10 @@ function renderLed(){
   const a=ledView&&ledAcc(ledView);
   if(a){renderLedOne(body,a);return;}
   ledView=null;
-  body.append(el("p","calnote","종이 장부가 진짜고, 이건 확인용이에요. 과에서 주문을 넣으면 그 과 잔액에서 바로 빠져요 (💳 카드·일반 손님·배달앱 주문은 빼요). − 는 받을 돈, + 는 미리 받은 돈이에요. 학교는 후불이라 시킬 때마다 더해 쌓이고(+ 가 받을 돈) 입금하면 빠져요. 과를 누르면 입금을 적고 내역을 봐요."));
+  body.append(el("p","calnote","종이 장부가 진짜고, 이건 확인용이에요. 과에서 주문을 넣으면 그 과 잔액에서 바로 빠져요 (💳 카드·일반 손님·배달앱 주문은 빼요). 과가 아닌 일반인도 이름으로 올릴 수 있어요 (개인). − 는 받을 돈, + 는 미리 받은 돈이에요. 학교는 후불이라 시킬 때마다 더해 쌓이고(+ 가 받을 돈) 입금하면 빠져요. 과를 누르면 입금을 적고 내역을 봐요."));
   const order=allDepts().map(ledKey);
   const accs=led.acc.slice().sort((x,y)=>{const i=order.indexOf(x.k),j=order.indexOf(y.k);return (i<0?1e9:i)-(j<0?1e9:j)||x.name.localeCompare(y.name);});
-  if(!accs.length)body.append(el("p","empty","아직 잔액을 적어 둔 과가 없어요. 아래에서 과를 골라 지금 종이 장부 잔액을 적어 주세요."));
+  if(!accs.length)body.append(el("p","empty","아직 잔액을 적어 둔 곳이 없어요. 위에서 과나 이름을 찾아 지금 종이 장부 잔액을 적어 주세요."));
   else{
     let owe=0, n=0; const list=el("div"); let lastOrg=null;
     accs.forEach(a=>{
@@ -3470,23 +3474,28 @@ function renderLed(){
     body.append(el("div","s",n?"받을 돈 합계 "+won(owe)+" ("+n+"곳)":"받을 돈이 있는 과가 없어요."),list);
   }
   // 새 과 잔액 시작하기
-  const box=el("div","ledbox"); box.append(el("h3",null,"+ 과 잔액 시작하기"));
+  const box=el("div","ledbox"); box.append(el("h3",null,"+ 과·개인 잔액 시작하기"));
   if(!ledNewDept){
-    const q=el("input"); q.type="search"; q.placeholder="과 찾기 (예: 총무 / ㅊㅁ / 학교)"; q.id="ledSearch"; q.autocomplete="off";
+    const q=el("input"); q.type="search"; q.placeholder="과 또는 이름 찾기 (예: 총무 / ㅊㅁ / 홍길동)"; q.id="ledSearch"; q.autocomplete="off";
     const res=el("div","chips");
     const draw=()=>{res.replaceChildren(); const t=q.value.trim(); if(!t)return;
       matchDepts(t).filter(d=>!ledAcc(ledKey(d))).slice(0,12).forEach(d=>{const b=el("button","chip",(d.org&&d.org!=="기타"?d.org+" ":"")+d.name); b.type="button"; b.onclick=()=>{ledNewDept=d; renderLed(); setTimeout(()=>{const x=$("ledStartAmt"); if(x)x.focus();},0);}; res.append(b);});
-      if(!res.childNodes.length)res.append(el("span","s","찾는 과가 없거나 이미 잔액이 있어요."));};
+      // 일반인은 이름 그대로 개인으로 올리기 (선정님 요청 2026-11-04)
+      const nm=t.replace(/^개인\s*/,"").trim();
+      if(nm&&!ledAcc(ledKey({org:PERSON,name:nm}))&&!allDepts().some(d=>norm(d.name)===norm(nm))){const b=el("button","chip","👤 '"+nm+"' 일반인(개인)으로 올리기"); b.type="button"; b.style.borderStyle="dashed";
+        b.onclick=()=>{ledNewDept={org:PERSON,name:nm,floor:"",person:true}; renderLed(); setTimeout(()=>{const x=$("ledStartAmt"); if(x)x.focus();},0);}; res.append(b);}
+      if(!res.childNodes.length)res.append(el("span","s","찾는 곳이 없거나 이미 잔액이 있어요."));};
     q.oninput=draw; box.append(q,res);
   }else{
     const d=ledNewDept;
     const top=el("div","row"); top.append(el("b",null,(d.org&&d.org!=="기타"?d.org+" · ":"")+d.name+(d.floor?" ("+d.floor+")":"")));
     const again=el("button","linkbtn","다시 고르기"); again.type="button"; again.onclick=()=>{ledNewDept=null;renderLed();}; top.append(again);
     const post=ledPost({org:d.org||"기타"});
-    box.append(top, el("div","s",post?"학교는 후불 장부예요. 지금까지 쌓인 금액을 적어 주세요 (없으면 0). 앞으로 주문하면 더해지고, 입금하면 빠져요.":"지금 종이 장부에 적힌 이 과 잔액을 적어 주세요. 지금부터 넣는 주문과 입금이 여기서 더하고 빠져요."));
+    box.append(top, el("div","s",post?"학교는 후불 장부예요. 지금까지 쌓인 금액을 적어 주세요 (없으면 0). 앞으로 주문하면 더해지고, 입금하면 빠져요.":(d.org===PERSON?"일반인 장부예요. 과처럼 미리 받은 돈에서 주문하면 빠지고, 입금하면 더해져요. 지금 종이 장부 잔액을 적어 주세요 (없으면 0). 주문 받을 때 이름으로 찾아 고르면 돼요.":"지금 종이 장부에 적힌 이 과 잔액을 적어 주세요. 지금부터 넣는 주문과 입금이 여기서 더하고 빠져요.")));
     box.append(ledAmtRow("ledStartAmt",post?1:ledNewSign,v=>ledNewSign=v,"시작하기",(amt,sign)=>{
       const k=ledKey(d); if(ledAcc(k))return;
       ledSave(nv=>nv.acc.push({k,org:d.org||"기타",name:d.name,floor:d.floor||"",start:sign*amt,startAt:Date.now()}),d.name+" 잔액을 "+ledSigned(sign*amt)+"으로 시작했어요.");
+      if(d.org===PERSON)ledAddPerson(d.name);
       ledNewDept=null; ledView=k; renderLed();
     },true,post));
   }
@@ -3501,7 +3510,11 @@ function ledBulkParse(t){
   return t.split(/\n/).map(l=>l.trim()).filter(Boolean).map(l=>{
     const m=l.match(/^(.+?)\s*([+\-−])\s*([\d,]+)\s*원?$/);
     if(!m)return {line:l,err:"금액 앞에 + 나 - 를 붙여 주세요"};
-    const name=m[1].trim(), amt=(m[2]==="+"?1:-1)*ledNum(m[3]);
+    let name=m[1].trim(); const amt=(m[2]==="+"?1:-1)*ledNum(m[3]);
+    const pm=name.match(/^개인\s+(.+)$/); // "개인 홍길동 +50,000" → 일반인 (선정님 2026-11-04)
+    if(pm){name=pm[1].trim(); const d={org:PERSON,name,floor:""}, k=ledKey(d), a=ledAcc(k), c=a&&ledCalc(a);
+      if(a&&!c)return {line:l,name,amt,err:"불러오는 중이에요. 잠깐 뒤 다시 눌러 주세요"};
+      return {line:l,d,k,amt,cur:c?c.bal:null,act:!a?"new":c.bal===amt?"same":"fix"};}
     const fx=deptFix({org:"기타",name}), hits=fx.org!=="기타"?[fx]:all.filter(d=>norm(d.name)===norm(name)||norm(d.org+d.name)===norm(name));
     if(hits.length>1)return {line:l,name,amt,err:"같은 이름이 여러 곳이에요 ("+hits.map(d=>d.org).join(", ")+")"};
     const d=hits[0]||{org:"기타",name,floor:"",custom:true};
@@ -3513,7 +3526,7 @@ function ledBulkParse(t){
 function ledBulkBox(){
   const box=el("details","ledbox"); box.open=!!(ledBulkText||ledBulkPlan);
   box.append(el("summary",null,"📋 장부 현황 한꺼번에 맞추기"));
-  box.append(el("div","s","종이 장부 잔액을 한 줄에 하나씩 붙여 넣어요 (예: 도시과 +148,500). 같으면 그대로 두고, 다르면 그 금액으로 맞추고, 처음인 과는 그 금액으로 시작해요."));
+  box.append(el("div","s","종이 장부 잔액을 한 줄에 하나씩 붙여 넣어요 (예: 도시과 +148,500 / 일반인은 개인 홍길동 +50,000). 같으면 그대로 두고, 다르면 그 금액으로 맞추고, 처음인 과는 그 금액으로 시작해요."));
   const ta=el("textarea"); ta.rows=6; ta.id="ledBulk"; ta.value=ledBulkText; ta.placeholder="도시과 +148,500\n교통행정과 -103,000"; ta.style.cssText="font:inherit;font-size:1rem;padding:8px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);width:100%";
   ta.oninput=()=>{ledBulkText=ta.value; ledBulkPlan=null; const pv=$("ledBulkPrev"); if(pv)pv.replaceChildren();};
   const chk=el("button","linkbtn strong","확인하기"); chk.type="button"; chk.style.cssText="padding:9px 16px;justify-self:start";
@@ -3532,6 +3545,7 @@ function ledBulkBox(){
       if(!confirm(todo.length+"곳 잔액을 장부 금액으로 맞출까요?"))return;
       const now=Date.now();
       ledSave(nv=>todo.forEach(x=>{const a=nv.acc.find(y=>y.k===x.k); if(a){a.start=x.amt;a.startAt=now;} else nv.acc.push({k:x.k,org:x.d.org||"기타",name:x.d.name,floor:x.d.floor||"",start:x.amt,startAt:now});}),todo.length+"곳 잔액을 장부와 맞췄어요.");
+      todo.filter(x=>x.d.org===PERSON).forEach(x=>ledAddPerson(x.d.name,now));
       if(deptCol)todo.filter(x=>x.d.custom&&!customDepts.some(c=>c.name===x.d.name)).forEach(x=>deptCol.add({org:"기타",name:x.d.name,addedAt:now}).catch(()=>{}));
       ledBulkText=""; ledBulkPlan=null; renderLed();
     };
@@ -3555,7 +3569,7 @@ function ledAmtRow(id,sign,setSign,label,go,zeroOk,post){
 }
 function renderLedOne(body,a){
   const c=ledCalc(a);
-  const back=el("button","linkbtn","← 과 목록"); back.type="button"; back.onclick=()=>{ledView=null;renderLed();}; back.style.justifySelf="start";
+  const back=el("button","linkbtn","← 목록"); back.type="button"; back.onclick=()=>{ledView=null;renderLed();}; back.style.justifySelf="start";
   body.append(back);
   const head=el("div"); head.append(el("div","s",(a.org!=="기타"?a.org:"")+(a.floor?" · "+a.floor:"")),el("h3",null,a.name));
   head.querySelector("h3").style.cssText="margin:0;font-size:1.5rem";
@@ -3607,8 +3621,11 @@ function renderLedOne(body,a){
       if(!confirm(a.name+" 잔액을 "+ledSigned(sign*amt)+"으로 맞출까요?"))return;
       ledSave(nv=>{const x=nv.acc.find(y=>y.k===a.k); if(x){x.start=sign*amt; x.startAt=Date.now();}},a.name+" 잔액을 "+ledSigned(sign*amt)+"으로 맞췄어요.");
     },true,post));
-  const stop=el("button","linkbtn","이 과 잔액 그만 보기"); stop.type="button"; stop.style.justifySelf="start";
-  stop.onclick=()=>{if(!confirm(a.name+" 잔액과 입금 기록을 지울까요? (주문은 그대로 남아요)"))return; ledSave(nv=>{nv.acc=nv.acc.filter(y=>y.k!==a.k); nv.pays=nv.pays.filter(p=>p.k!==a.k);},a.name+" 잔액을 지웠어요."); ledView=null; renderLed();};
+  const stop=el("button","linkbtn",a.org===PERSON?"이 사람 잔액 그만 보기":"이 과 잔액 그만 보기"); stop.type="button"; stop.style.justifySelf="start";
+  stop.onclick=()=>{if(!confirm(a.name+" 잔액과 입금 기록을 지울까요? (주문은 그대로 남아요)"))return; ledSave(nv=>{nv.acc=nv.acc.filter(y=>y.k!==a.k); nv.pays=nv.pays.filter(p=>p.k!==a.k);},a.name+" 잔액을 지웠어요.");
+    // 일반인은 주문 받을 때 이름 목록에서도 빼요 (주문 기록은 그대로)
+    if(a.org===PERSON&&deptCol)customDepts.filter(c=>c.org===PERSON&&c.name===a.name&&c._id).forEach(c=>deptCol.doc(c._id).delete().catch(()=>{}));
+    ledView=null; renderLed();};
   fix.append(stop); body.append(fix);
 }
 $("ledBtn").onclick=openLed;
