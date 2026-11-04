@@ -123,7 +123,7 @@ const APPS=(process.env.APPS||"배민,쿠팡이츠,요기요").split(",");
       close:async function(){this.writable=null;}};
     relay.on=true; relay.tx=port; serPort=port; relay.last=0;
     let n=0; col={add:async body=>{const id="test"+(++n); orders.push(Object.assign({id},body)); window.__added.push(id); return {id};},
-      where:()=>({get:async()=>({docs:[]})})};
+      where:()=>({get:async()=>({docs:[]}),onSnapshot:()=>()=>{}})};
   });
   const report=[]; const N=+(process.argv[4]||10);
   for(let t=1;t<=N;t++){
@@ -278,4 +278,5 @@ const APPS=(process.env.APPS||"배민,쿠팡이츠,요기요").split(",");
   fs.writeFileSync(path.join(OUT,"report.json"),JSON.stringify(report,null,1));
   console.log(`\n${report.filter(r=>r.ok).length}/${report.length} 성공`+(errs.length?"\n페이지 오류: "+errs.join(" | "):""));
   await b.close(); srv.close();
+  process.exit(report.every(r=>r.ok)&&!errs.length?0:1); // 자동 시험(GitHub)에서 실패를 알 수 있게
 })();
