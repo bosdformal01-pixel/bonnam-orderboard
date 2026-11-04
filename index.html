@@ -54,6 +54,8 @@ button{cursor:pointer}
 .bempty{color:var(--muted,#777);padding:10px 0}
 .clock{margin-left:auto;font-variant-numeric:tabular-nums;font-size:1.4rem;font-weight:600}
 .conn{max-width:1280px;margin:0 auto 12px;padding:10px 14px;border-radius:8px;background:var(--late-soft)}
+.conn.netwarn{font-weight:700;border:2px solid var(--late)}
+.conn.netwarn .s{font-weight:400;font-size:.9rem}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--btn);color:var(--btn-ink);padding:12px 18px;border-radius:10px;font-weight:600;z-index:50;max-width:calc(100% - 32px)}
 main{max-width:1280px;margin:0 auto}
 
@@ -495,6 +497,7 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
   <div id="bellList"></div>
 </div>
 <div class="conn" id="conn" hidden></div>
+<div class="conn netwarn" id="netWarn" hidden></div>
 <div class="gate" id="gate" hidden><div class="gatebox"><h2>복남이 샌드 주문판</h2><p id="gateMsg">가게 구글 계정으로 한 번만 로그인하면 이 기기에서 계속 쓸 수 있어요.</p><button type="button" id="loginBtn">구글 계정으로 로그인</button></div></div>
 
 <main id="counterView" class="counter" hidden>
@@ -976,6 +979,10 @@ const moneyText=o=>won(o.total)+(o.fee?" (배달비 "+won(o.fee)+" 포함)":"");
 const today=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());};
 const nowHM=()=>{const d=new Date();return pad(d.getHours())+":"+pad(d.getMinutes());};
 const minsTo=hm=>{if(!hm)return null;const[h,m]=hm.split(":").map(Number);const d=new Date();return h*60+m-(d.getHours()*60+d.getMinutes());};
+// 저장소 쓰기: 2.5초 안에 답이 없으면 (인터넷 끊김) 이 기기에 저장된 걸로 보고 넘어가요. 나중에 실패하면 알려 줘요.
+function fsw(p,ms){return new Promise((res,rej)=>{let done=false; const t=setTimeout(()=>{if(!done){done=true;res("local");netCheck();}},ms||2500);
+  Promise.resolve(p).then(()=>{if(!done){done=true;clearTimeout(t);res("ok");}},e=>{if(!done){done=true;clearTimeout(t);rej(e);} else toast("⚠️ 이 기기에 저장해 둔 변경을 저장소에 올리지 못했어요. 주문을 다시 확인해 주세요.");});});}
+const LOCAL_NOTE=" (인터넷이 끊겨 이 컴퓨터에 먼저 저장했어요. 연결되면 태블릿에 떠요)";
 function toast(t){const e=$("toast");e.textContent=t;e.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>e.hidden=true,3500);}
 
 let bkDepts=[]; // 백업용: depts 모음 문서 전부 (외상 장부 _ledger, 재료 구매 _shopping 포함)
@@ -1004,6 +1011,20 @@ window.addEventListener("hashchange",()=>{const k=mode; const mf=$("mf"), at=$("
 if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
 
 /* ---------- db ---------- */
+/* 인터넷 끊김 알림 (안정성 2026-11-04): 끊겨도 주문은 이 기기에 저장돼요. 안 올라간 주문 수를 보여 줘요. */
+let netUnsub=null, netPend=0, netCache=false, netSince=0;
+function netCheck(){
+  const w=$("netWarn"); if(!w)return;
+  const off=!navigator.onLine||(dbReady&&netCache);
+  if(off){if(!netSince)netSince=Date.now();} else netSince=0;
+  const show=off&&(!navigator.onLine||Date.now()-netSince>8000), pend=netPend>0&&!off;
+  w.hidden=!(show||pend); if(w.hidden)return;
+  w.replaceChildren();
+  if(show){w.append("⚠️ 인터넷이 끊겼어요"+(netPend?" · 안 올라간 주문·변경 "+netPend+"건":""),
+    el("div","s","주문은 계속 넣어도 돼요. 이 컴퓨터에 저장해 두고, 연결되면 저절로 올라가요. 그동안 태블릿에는 새 주문이 안 떠요. 바에는 종이 전표로 알려 주세요."));}
+  else w.append("⏳ 저장소에 올리는 중 · "+netPend+"건");
+}
+window.addEventListener("online",netCheck); window.addEventListener("offline",netCheck); setInterval(netCheck,5000);
 function showConn(t){const c=$("conn");c.hidden=!t;c.textContent=t||"";}
 function subscribe(){
   if(!col)return;
@@ -1015,6 +1036,8 @@ function subscribe(){
     resOrders=snap.docs.map(d=>Object.assign({id:d.id},d.data())).filter(o=>o.reserved);
     renderResList(); checkRemind();
   },()=>{});
+  if(netUnsub)netUnsub();
+  netUnsub=col.where("day","==",subDay).onSnapshot({includeMetadataChanges:true},s=>{netPend=s.docs.filter(d=>d.metadata.hasPendingWrites).length; netCache=!!s.metadata.fromCache; netCheck();},()=>{});
   unsub=col.where("day","==",subDay).onSnapshot(snap=>{
     const now=Date.now(); let ring=false, say="";
     // the first snapshots can come from cache; only ring for changes after the server's full list arrived
@@ -1039,6 +1062,8 @@ let fbAuth=null;
   const cfg=window.BN_FIREBASE;
   if(!window.firebase||!cfg||!cfg.apiKey){showConn("저장 공간 설정(config.js)이 아직 없어요.");return;}
   firebase.initializeApp(cfg); fbAuth=firebase.auth(); const fs=firebase.firestore(); try{fs.settings({ignoreUndefinedProperties:true});}catch(e){}
+  // 인터넷이 끊겨도 주문을 이 기기에 먼저 저장하고, 연결되면 저절로 올려요 (안정성 2026-11-04). 새로고침해도 안 사라져요.
+  try{fs.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn("[오프라인 저장]",e&&e.code));}catch(e){}
   let started=false;
   $("loginBtn").onclick=async()=>{
     const pv=new firebase.auth.GoogleAuthProvider(); pv.setCustomParameters({prompt:"select_account"});
@@ -1516,7 +1541,7 @@ $("orderForm").addEventListener("submit",async e=>{
     const upd={org:body.org,dept:body.dept,floor:body.floor,guest:body.guest,due:body.due,kind:body.kind,via:body.via,card:body.card,memo:body.memo,items,total:body.total,fee:body.fee,phone4:body.phone4,editedAt:Date.now(),done};
     if(!done.salad&&prevDone.salad||!done.sandwich&&prevDone.sandwich)upd.out=false;
     try{
-      await col.doc(editing).update(upd);
+      await fsw(col.doc(editing).update(upd));
       saveRecent(draft.dept); const back=stopEdit(); msg.textContent="";
       toast("고친 내용을 저장했어요. 태블릿에도 바뀌었어요."+(back?" 받던 새 주문은 다시 불러왔어요.":""));
     }catch(err){msg.className="msg err";msg.textContent="저장하지 못했어요. 다시 눌러 주세요.";}
@@ -1524,13 +1549,13 @@ $("orderForm").addEventListener("submit",async e=>{
     return;
   }
   try{
-    await col.add(body);
+    const how=await fsw(col.add(body));
     const ledMsg=ledAfterAdd(body);
     saveRecent(draft.dept);
     if(draft.dept.custom&&deptCol&&!customDepts.some(d=>d.name===draft.dept.name)){deptCol.add({org:"기타",name:draft.dept.name,addedAt:Date.now()}).catch(()=>{});}
     resetForm(); msg.textContent=""; if(mode==="counter"&&finePointer())$("deptSearch").focus();
     if(mode!=="counter")closeFormOverlay();
-    toast("주문을 넣었어요. 태블릿에 떴어요."+ledMsg);
+    toast((how==="local"?"주문을 넣었어요."+LOCAL_NOTE:"주문을 넣었어요. 태블릿에 떴어요.")+ledMsg);
   }catch(err){
     msg.className="msg err";
     msg.textContent=err&&err.code==="quota_exceeded"?"저장 공간이 다 찼어요. 지난 주문을 지워야 해요.":"저장하지 못했어요. 다시 눌러 주세요.";
@@ -1687,10 +1712,10 @@ async function saveRes(){
         upd.done=done; upd.editedAt=Date.now(); if(cur.day!==day)upd.no=nextNo(); else if(!cur.no)upd.no=orderNo(cur); // 화면에 보이던 번호 그대로
         if(!done.salad&&prev.salad||!done.sandwich&&prev.sandwich)upd.out=false;
       } else { upd.no=0; upd.done={salad:false,sandwich:false}; upd.out=false; }
-      await col.doc(resEditing).update(upd);
+      await fsw(col.doc(resEditing).update(upd));
     } else {
       Object.assign(body,{createdAt:Date.now(),resAt:Date.now(),no:day===today()?nextNo():0,from:mode,done:{salad:false,sandwich:false}});
-      await col.add(body);
+      await fsw(col.add(body));
     }
     msg.textContent="";
     const was=!!resEditing; closeRes(true);
@@ -2320,7 +2345,7 @@ function dueText(o,done){
 const busy=new Set();
 async function write(id,fn){
   if(busy.has(id))return; busy.add(id); render();
-  try{await fn(col.doc(id));}catch(e){toast("저장하지 못했어요. 다시 눌러 주세요.");}
+  try{await fsw(fn(col.doc(id)));}catch(e){toast("저장하지 못했어요. 다시 눌러 주세요.");}
   finally{busy.delete(id); render();}
 }
 
@@ -2919,7 +2944,7 @@ async function addAppOrder(p){
   const body={day:today(),createdAt:Date.now(),no:nextNo(),org:"",dept:p.src,floor:"",guest:true,src:p.src,appNo:p.no||"",
     due:p.due||"",kind:p.kind,memo:p.memo||"",items,fee:p.fee||0,total:p.total||food+(p.fee||0),
     phone4:digits.slice(-4),phone:p.phone||"",addr:p.addr||"",raw:(p.raw||"").slice(0,4000),from:"relay",check:p.check||"",printedAt:Date.now(),done:{salad:false,sandwich:false}};
-  try{await col.add(body);
+  try{await fsw(col.add(body));
     if(body.check){toast("⚠️ "+p.src+" 주문이 들어왔는데 전표와 다를 수 있어요. 종이 전표와 맞춰 보세요. ("+body.check+")"); try{playChime();}catch(e){}}
     else toast("🛵 "+p.src+" 주문이 주문판에 들어왔어요.");}
   catch(e){toast("🛵 "+p.src+" 주문을 주문판에 넣지 못했어요. 종이 전표를 보고 직접 넣어 주세요.");}
@@ -3401,7 +3426,7 @@ function ledSave(fn,ok){
   if(!deptCol){toast("지금은 저장이 안 돼요. 가게 구글 계정으로 로그인해 주세요.");return;}
   const nv={acc:led.acc.map(a=>Object.assign({},a)),pays:led.pays.slice()}; fn(nv);
   led=nv; nv.acc.forEach(ledWatch); ledRefresh();
-  deptCol.doc("_ledger").set({acc:nv.acc,pays:nv.pays,updatedAt:Date.now()}).then(()=>{if(ok)toast(ok);}).catch(()=>toast("외상 잔액을 저장하지 못했어요. 다시 해 주세요."));
+  fsw(deptCol.doc("_ledger").set({acc:nv.acc,pays:nv.pays,updatedAt:Date.now()})).then(h=>{if(ok)toast(ok+(h==="local"?" (인터넷 연결되면 올라가요)":""));}).catch(()=>toast("외상 잔액을 저장하지 못했어요. 다시 해 주세요."));
 }
 const ledNum=v=>parseInt(String(v||"").replace(/[^\d]/g,""),10)||0;
 function ledRefresh(){ ledForm(); if(!$("ledOverlay").hidden)renderLed(); if(!$("sumOverlay").hidden)renderSummary(); }
