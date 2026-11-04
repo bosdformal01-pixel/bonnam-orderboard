@@ -995,6 +995,7 @@ let resOrders=[], resUnsub=null, resMode=false, resEditing=null, resConfirm=null
 function setMode(){
   const h=(location.hash||"").replace("#","");
   mode=["salad","sandwich"].includes(h)?h:"counter";
+  if(mode==="counter"&&window.__ledReady)ledWant();
   document.querySelectorAll(".modes a").forEach(a=>a.setAttribute("aria-current",a.dataset.mode===mode?"page":"false"));
   $("counterView").hidden=mode!=="counter";
   $("stationView").hidden=mode==="counter";
@@ -2203,12 +2204,12 @@ function renderSummary(){
   $("deptWrap").hidden=!by.size;
   $("deptSum").replaceChildren(...[...by].sort((a,b)=>b[1].t-a[1].t).flatMap(([k,e])=>[el("span",null,k),el("span",null,e.n+"건"),el("span",null,won(e.t))]));
 }
-$("sumBtn").onclick=()=>{$("sumOverlay").hidden=false; setSumDay(today());};
+$("sumBtn").onclick=()=>{ledWant(); $("sumOverlay").hidden=false; setSumDay(today());};
 document.querySelectorAll("[data-sday]").forEach(b=>b.onclick=()=>setSumDay(daysAgo(Number(b.dataset.sday))));
 $("sumClose").onclick=closeSummary;
 
 /* ---------- form overlay for station tablets ---------- */
-function openFormOverlay(){$("formSlot").append($("formPanel"));$("formOverlay").hidden=false;renderRecent();}
+function openFormOverlay(){ledWant(); $("formSlot").append($("formPanel"));$("formOverlay").hidden=false;renderRecent();}
 function closeFormOverlay(){ if($("formPanel").parentElement!==$("counterView"))$("counterView").prepend($("formPanel")); $("formOverlay").hidden=true; }
 $("openForm").onclick=openFormOverlay;
 $("closeForm").onclick=closeFormOverlay;
@@ -3408,8 +3409,12 @@ function ledFromSnap(s){
   led.acc.forEach(ledWatch); ledRefresh(); setTimeout(ledRoll,3000);
 }
 // 잔액을 둔 과마다 그 과 주문만 따로 지켜봐요 (과 이름 하나로 찾아서 저장 공간 설정을 안 건드려도 돼요)
+// 샐러드바·샌드위치바 태블릿은 외상 잔액을 안 쓰니, 주문 칸·마감 요약·📒 창을 열 때만 불러와요 (읽기 줄이기 2026-11-04)
+let ledWanted=false;
+function ledWant(){ if(ledWanted)return; ledWanted=true; led.acc.forEach(ledWatch); }
+window.__ledReady=true;
 function ledWatch(a){
-  if(!col)return;
+  if(!col||(mode!=="counter"&&!ledWanted))return;
   const from=ledCp(a)&&!ledNoIdx?ledCpDay():"", sig=from||"all", cur=ledWatching.get(a.k);
   if(cur&&cur.sig===sig)return;
   if(cur)cur.stop();
@@ -3474,7 +3479,7 @@ function ledCalc(a){
 function ledSave(fn,ok){
   if(!deptCol){toast("지금은 저장이 안 돼요. 가게 구글 계정으로 로그인해 주세요.");return;}
   const nv={acc:led.acc.map(a=>Object.assign({},a)),pays:led.pays.slice(),cpDay:led.cpDay||null}; fn(nv);
-  led=nv; nv.acc.forEach(ledWatch); ledRefresh();
+  led=nv; nv.acc.forEach(a=>{try{ledWatch(a);}catch(e){console.warn("[외상 잔액]",e);}}); ledRefresh();
   fsw(deptCol.doc("_ledger").set(Object.assign({acc:nv.acc,pays:nv.pays,updatedAt:Date.now()},nv.cpDay?{cpDay:nv.cpDay}:{}))).then(h=>{if(ok)toast(ok+(h==="local"?" (인터넷 연결되면 올라가요)":""));}).catch(()=>toast("외상 잔액을 저장하지 못했어요. 다시 해 주세요."));
 }
 const ledNum=v=>parseInt(String(v||"").replace(/[^\d]/g,""),10)||0;
@@ -3532,7 +3537,7 @@ function ledPayRow(a,p){
   return r;
 }
 // 📒 외상 잔액 창
-function openLed(){ledView=null; ledNewDept=null; ledNewSign=-1; renderLed(); $("ledOverlay").hidden=false;}
+function openLed(){ledWant(); ledView=null; ledNewDept=null; ledNewSign=-1; renderLed(); $("ledOverlay").hidden=false;}
 function closeLed(){$("ledOverlay").hidden=true;}
 function renderLed(){
   const body=$("ledBody"); body.replaceChildren();
@@ -3715,17 +3720,19 @@ function renderLedOne(body,a){
 /* ---------- 💾 백업 (선정님 요청 2026-11-04: 주문판 안정성) ----------
    주문·외상 장부가 구글 저장소 한 곳에만 있어서, 카운터 컴퓨터 폴더에 파일로도 남겨요.
    - 하루 백업: 5분마다 오늘 주문 + 예약 주문 + 외상 장부·과 목록·재료 구매를 '주문판_백업_날짜.json' 에 덮어써요 (이미 화면에 있는 것만 써서 저장소를 더 읽지 않아요).
-   - 전체 백업: 7일마다(바쁜 4~7시는 피해서) 모든 주문을 '주문판_전체백업_날짜.json' 으로.
+   - 달 백업: 매달 지난달 주문을 '주문판_월백업_YYYY-MM.json' 으로 한 번 (12달치 남김). 예전엔 7일마다 모든 주문을 읽어서 해가 갈수록 읽기가 늘었어요 (2026-11-04 고침).
+   - 전체 백업: '지금 전체 백업 받기' 버튼을 누를 때만 (모든 주문을 읽어요).
    - 폴더는 한 번 고르면 기억해요 (OneDrive 폴더를 고르면 인터넷에도 한 벌 더 남아요). 크롬을 다시 켜면 한 번 눌러 허락해야 할 수 있어요.
    - 되살리기: 백업 파일을 열면 저장소에 없는 주문만 다시 넣고, 외상 장부는 따로 물어보고 되돌려요. */
-const BK_FULL_DAYS=7, BK_KEEP_DAYS=30, BK_KEEP_FULL=2; // 포스 저장 공간 아끼기 (선정님 2026-11-04): 하루 백업은 30일치, 전체 백업은 최근 2개만 남겨요
+const BK_KEEP_DAYS=30, BK_KEEP_FULL=2, BK_KEEP_MON=12; // 포스 저장 공간 아끼기 (선정님 2026-11-04): 하루 백업은 30일치, 전체 백업은 최근 2개만 남겨요
 // 오래된 백업 파일 지우기: 백업 폴더 안의 '주문판_백업_날짜' / '주문판_전체백업_날짜' 파일만 건드려요
 async function bkPrune(){
   if(bkPerm!=="ok"||!bkDir||!bkDir.entries)return 0;
   const cut=new Date(Date.now()-BK_KEEP_DAYS*864e5), cutDay=cut.getFullYear()+"-"+pad(cut.getMonth()+1)+"-"+pad(cut.getDate());
-  const day=[], full=[]; let n=0;
-  try{for await (const [name,h] of bkDir.entries()){ if(h.kind!=="file")continue; let m=name.match(/^주문판_백업_(\d{4}-\d{2}-\d{2})\.json$/); if(m){day.push([m[1],name]);continue;} m=name.match(/^주문판_전체백업_(\d{4}-\d{2}-\d{2})\.json$/); if(m)full.push([m[1],name]); }}catch(e){return 0;}
-  const del=day.filter(([d])=>d<cutDay).map(x=>x[1]).concat(full.sort((a,b)=>b[0].localeCompare(a[0])).slice(BK_KEEP_FULL).map(x=>x[1]));
+  const day=[], full=[], mon=[]; let n=0;
+  try{for await (const [name,h] of bkDir.entries()){ if(h.kind!=="file")continue; let m=name.match(/^주문판_백업_(\d{4}-\d{2}-\d{2})\.json$/); if(m){day.push([m[1],name]);continue;} m=name.match(/^주문판_전체백업_(\d{4}-\d{2}-\d{2})\.json$/); if(m){full.push([m[1],name]);continue;} m=name.match(/^주문판_월백업_(\d{4}-\d{2})\.json$/); if(m)mon.push([m[1],name]); }}catch(e){return 0;}
+  const del=day.filter(([d])=>d<cutDay).map(x=>x[1]).concat(full.sort((a,b)=>b[0].localeCompare(a[0])).slice(BK_KEEP_FULL).map(x=>x[1]))
+    .concat(mon.sort((a,b)=>b[0].localeCompare(a[0])).slice(BK_KEEP_MON).map(x=>x[1]));
   for(const name of del){try{await bkDir.removeEntry(name); n++;}catch(e){}}
   return n;
 }
@@ -3765,12 +3772,18 @@ async function bkTick(){
   try{
     const d=bkDayData(), sig=JSON.stringify([d.orders,d.depts]);
     if(sig!==bkLastSig&&(d.orders.length||d.depts.length)){ if(await bkWrite("주문판_백업_"+d.day+".json",d)){bkLastSig=sig; bkLS("bn_bklast",String(Date.now()));} }
-    const h=new Date().getHours(), lastFull=+bkLS("bn_bkfull")||0;
-    if(bkPerm==="ok"&&(h<16||h>=19)&&Date.now()-lastFull>BK_FULL_DAYS*864e5)await bkFull(false);
+    const h=new Date().getHours(), pm=monStart(1).slice(0,7);
+    if(bkPerm==="ok"&&(h<16||h>=19)&&bkLS("bn_bkmon")!==pm)await bkMonth(pm);
     if(bkPerm==="ok"&&bkLS("bn_bkprune")!==today()&&(h<16||h>=19)){await bkPrune(); bkLS("bn_bkprune",today());}
   }finally{bkBusy=false; bkBtnDraw(); if(!$("bkOverlay").hidden)renderBk();}
 }
-// 전체 백업: 모든 주문 (저장소를 한 번 다 읽어요)
+// 달 백업: 그 달 주문만 (한 달에 한 번, 그 달 주문 수만큼만 읽어요)
+async function bkMonth(ym){
+  const s=await col.where("day",">=",ym+"-01").where("day","<=",ym+"-31").get(), ords=s.docs.map(d=>Object.assign({id:d.id},d.data())).filter(o=>!o.example);
+  const obj={app:"복남이샌드 주문판",v:1,kind:"month",day:ym,at:Date.now(),orders:ords,depts:bkDepts};
+  if(await bkWrite("주문판_월백업_"+ym+".json",obj)){bkLS("bn_bkmon",ym); bkLS("bn_bkfull",String(Date.now())); await bkPrune();}
+}
+// 전체 백업: 모든 주문 (버튼을 누를 때만. 저장소를 한 번 다 읽어요)
 async function bkFull(manual){
   if(!col){toast("먼저 가게 구글 계정으로 로그인해 주세요.");return;}
   const s=await col.get(), ords=s.docs.map(d=>Object.assign({id:d.id},d.data())).filter(o=>!o.example);
@@ -3826,8 +3839,8 @@ function renderBk(){
   else if(bkPerm==="ask"){st.append(el("div","s","크롬을 다시 켜서 폴더 허락이 풀렸어요. 아래 버튼을 누르고 '허용'(가능하면 '방문할 때마다 허용')을 눌러 주세요."));
     const b=el("button","submit","다시 켜기 ('"+bkDir.name+"' 폴더)"); b.type="button"; b.onclick=async()=>{await bkCheckPerm(true); bkLastSig=""; await bkTick(); renderBk();}; st.append(b);}
   else st.append(el("div","s","아래에서 백업 폴더를 한 번 골라 주세요. 바탕화면(OneDrive) 안에 '주문판 백업' 폴더를 만들어 고르면, 컴퓨터가 고장 나도 인터넷에 한 벌 더 남아요."));
-  st.append(el("div","s","오래된 파일은 저절로 지워요: 하루 백업은 "+BK_KEEP_DAYS+"일치, 전체 백업은 최근 "+BK_KEEP_FULL+"개만 남아요."));
-  st.append(el("div","s","마지막 백업: "+(last?bkStamp(last):"없음")+" · 전체 백업: "+(full?bkStamp(full):"없음")+" ("+BK_FULL_DAYS+"일마다 저절로)"));
+  st.append(el("div","s","오래된 파일은 저절로 지워요: 하루 백업은 "+BK_KEEP_DAYS+"일치, 달 백업은 "+BK_KEEP_MON+"달치, 전체 백업은 최근 "+BK_KEEP_FULL+"개만 남아요."));
+  st.append(el("div","s","마지막 백업: "+(last?bkStamp(last):"없음")+" · 달·전체 백업: "+(full?bkStamp(full):"없음")+" (지난달 주문은 매달 저절로)"));
   const row=el("div","row"); row.style.cssText="display:flex;gap:8px;flex-wrap:wrap";
   const pick=el("button","linkbtn strong",bkDir?"백업 폴더 바꾸기":"📁 백업 폴더 고르기"); pick.type="button"; pick.onclick=bkPick;
   const fb=el("button","linkbtn","지금 전체 백업 받기"); fb.type="button"; fb.onclick=async()=>{fb.disabled=true; fb.textContent="받는 중…"; try{await bkFull(true);}catch(e){toast("백업하지 못했어요. 인터넷을 확인해 주세요.");} renderBk();};
