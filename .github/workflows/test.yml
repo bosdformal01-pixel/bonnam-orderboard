@@ -1,0 +1,27 @@
+# 주문판 자동 시험 (안정성 2026-11-04): 고친 내용을 가게 화면에 올리기 전에 시험해요.
+# 빨간 X 가 뜨면 합치지(merge) 마세요.
+name: 주문판 시험
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: 크롬 준비
+        run: |
+          npm i --no-save playwright@1.48.2
+          npx playwright install --with-deps chromium
+      - name: 세 화면 열기 + 인터넷 끊김
+        run: node tests/smoke.js .
+      - name: 배달앱 전표 끝까지 (배민·쿠팡이츠·요기요)
+        run: node tests/relay-e2e.js . out 30
+      - name: 쿠팡이츠·요기요 모든 조합
+        run: node tests/relay-combos.js .

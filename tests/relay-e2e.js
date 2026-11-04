@@ -278,4 +278,5 @@ const APPS=(process.env.APPS||"배민,쿠팡이츠,요기요").split(",");
   fs.writeFileSync(path.join(OUT,"report.json"),JSON.stringify(report,null,1));
   console.log(`\n${report.filter(r=>r.ok).length}/${report.length} 성공`+(errs.length?"\n페이지 오류: "+errs.join(" | "):""));
   await b.close(); srv.close();
+  process.exit(report.every(r=>r.ok)&&!errs.length?0:1); // 자동 시험(GitHub)에서 실패를 알 수 있게
 })();
