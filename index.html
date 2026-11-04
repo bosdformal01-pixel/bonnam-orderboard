@@ -3666,7 +3666,17 @@ function renderLedOne(body,a){
    - 전체 백업: 7일마다(바쁜 4~7시는 피해서) 모든 주문을 '주문판_전체백업_날짜.json' 으로.
    - 폴더는 한 번 고르면 기억해요 (OneDrive 폴더를 고르면 인터넷에도 한 벌 더 남아요). 크롬을 다시 켜면 한 번 눌러 허락해야 할 수 있어요.
    - 되살리기: 백업 파일을 열면 저장소에 없는 주문만 다시 넣고, 외상 장부는 따로 물어보고 되돌려요. */
-const BK_FULL_DAYS=7;
+const BK_FULL_DAYS=7, BK_KEEP_DAYS=30, BK_KEEP_FULL=2; // 포스 저장 공간 아끼기 (선정님 2026-11-04): 하루 백업은 30일치, 전체 백업은 최근 2개만 남겨요
+// 오래된 백업 파일 지우기: 백업 폴더 안의 '주문판_백업_날짜' / '주문판_전체백업_날짜' 파일만 건드려요
+async function bkPrune(){
+  if(bkPerm!=="ok"||!bkDir||!bkDir.entries)return 0;
+  const cut=new Date(Date.now()-BK_KEEP_DAYS*864e5), cutDay=cut.getFullYear()+"-"+pad(cut.getMonth()+1)+"-"+pad(cut.getDate());
+  const day=[], full=[]; let n=0;
+  try{for await (const [name,h] of bkDir.entries()){ if(h.kind!=="file")continue; let m=name.match(/^주문판_백업_(\d{4}-\d{2}-\d{2})\.json$/); if(m){day.push([m[1],name]);continue;} m=name.match(/^주문판_전체백업_(\d{4}-\d{2}-\d{2})\.json$/); if(m)full.push([m[1],name]); }}catch(e){return 0;}
+  const del=day.filter(([d])=>d<cutDay).map(x=>x[1]).concat(full.sort((a,b)=>b[0].localeCompare(a[0])).slice(BK_KEEP_FULL).map(x=>x[1]));
+  for(const name of del){try{await bkDir.removeEntry(name); n++;}catch(e){}}
+  return n;
+}
 let bkDir=null, bkPerm="none", bkLastSig="", bkBusy=false, bkFile=null;
 const bkLS=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k); localStorage.setItem(k,v);}catch(e){return null;}};
 function bkIdb(op,val){return new Promise(res=>{try{const r=indexedDB.open("bn_backup",1); r.onupgradeneeded=()=>r.result.createObjectStore("h");
@@ -3705,6 +3715,7 @@ async function bkTick(){
     if(sig!==bkLastSig&&(d.orders.length||d.depts.length)){ if(await bkWrite("주문판_백업_"+d.day+".json",d)){bkLastSig=sig; bkLS("bn_bklast",String(Date.now()));} }
     const h=new Date().getHours(), lastFull=+bkLS("bn_bkfull")||0;
     if(bkPerm==="ok"&&(h<16||h>=19)&&Date.now()-lastFull>BK_FULL_DAYS*864e5)await bkFull(false);
+    if(bkPerm==="ok"&&bkLS("bn_bkprune")!==today()&&(h<16||h>=19)){await bkPrune(); bkLS("bn_bkprune",today());}
   }finally{bkBusy=false; bkBtnDraw(); if(!$("bkOverlay").hidden)renderBk();}
 }
 // 전체 백업: 모든 주문 (저장소를 한 번 다 읽어요)
@@ -3716,6 +3727,7 @@ async function bkFull(manual){
   const where=await bkWrite(name,obj);
   if(!where){ if(!manual)return; bkDownload(name,obj); }
   bkLS("bn_bkfull",String(Date.now())); if(!bkLS("bn_bklast")||where)bkLS("bn_bklast",String(Date.now()));
+  if(where)await bkPrune();
   if(manual)toast("전체 백업 "+ords.length+"건을 "+(where?"백업 폴더에":"다운로드 폴더에")+" 저장했어요.");
 }
 async function bkPick(){
@@ -3762,6 +3774,7 @@ function renderBk(){
   else if(bkPerm==="ask"){st.append(el("div","s","크롬을 다시 켜서 폴더 허락이 풀렸어요. 아래 버튼을 누르고 '허용'(가능하면 '방문할 때마다 허용')을 눌러 주세요."));
     const b=el("button","submit","다시 켜기 ('"+bkDir.name+"' 폴더)"); b.type="button"; b.onclick=async()=>{await bkCheckPerm(true); bkLastSig=""; await bkTick(); renderBk();}; st.append(b);}
   else st.append(el("div","s","아래에서 백업 폴더를 한 번 골라 주세요. 바탕화면(OneDrive) 안에 '주문판 백업' 폴더를 만들어 고르면, 컴퓨터가 고장 나도 인터넷에 한 벌 더 남아요."));
+  st.append(el("div","s","오래된 파일은 저절로 지워요: 하루 백업은 "+BK_KEEP_DAYS+"일치, 전체 백업은 최근 "+BK_KEEP_FULL+"개만 남아요."));
   st.append(el("div","s","마지막 백업: "+(last?bkStamp(last):"없음")+" · 전체 백업: "+(full?bkStamp(full):"없음")+" ("+BK_FULL_DAYS+"일마다 저절로)"));
   const row=el("div","row"); row.style.cssText="display:flex;gap:8px;flex-wrap:wrap";
   const pick=el("button","linkbtn strong",bkDir?"백업 폴더 바꾸기":"📁 백업 폴더 고르기"); pick.type="button"; pick.onclick=bkPick;
