@@ -995,6 +995,7 @@ let resOrders=[], resUnsub=null, resMode=false, resEditing=null, resConfirm=null
 function setMode(){
   const h=(location.hash||"").replace("#","");
   mode=["salad","sandwich"].includes(h)?h:"counter";
+  if(mode==="counter"&&window.__ledReady)ledWant();
   document.querySelectorAll(".modes a").forEach(a=>a.setAttribute("aria-current",a.dataset.mode===mode?"page":"false"));
   $("counterView").hidden=mode!=="counter";
   $("stationView").hidden=mode==="counter";
@@ -2203,12 +2204,12 @@ function renderSummary(){
   $("deptWrap").hidden=!by.size;
   $("deptSum").replaceChildren(...[...by].sort((a,b)=>b[1].t-a[1].t).flatMap(([k,e])=>[el("span",null,k),el("span",null,e.n+"건"),el("span",null,won(e.t))]));
 }
-$("sumBtn").onclick=()=>{$("sumOverlay").hidden=false; setSumDay(today());};
+$("sumBtn").onclick=()=>{ledWant(); $("sumOverlay").hidden=false; setSumDay(today());};
 document.querySelectorAll("[data-sday]").forEach(b=>b.onclick=()=>setSumDay(daysAgo(Number(b.dataset.sday))));
 $("sumClose").onclick=closeSummary;
 
 /* ---------- form overlay for station tablets ---------- */
-function openFormOverlay(){$("formSlot").append($("formPanel"));$("formOverlay").hidden=false;renderRecent();}
+function openFormOverlay(){ledWant(); $("formSlot").append($("formPanel"));$("formOverlay").hidden=false;renderRecent();}
 function closeFormOverlay(){ if($("formPanel").parentElement!==$("counterView"))$("counterView").prepend($("formPanel")); $("formOverlay").hidden=true; }
 $("openForm").onclick=openFormOverlay;
 $("closeForm").onclick=closeFormOverlay;
@@ -3408,8 +3409,12 @@ function ledFromSnap(s){
   led.acc.forEach(ledWatch); ledRefresh(); setTimeout(ledRoll,3000);
 }
 // 잔액을 둔 과마다 그 과 주문만 따로 지켜봐요 (과 이름 하나로 찾아서 저장 공간 설정을 안 건드려도 돼요)
+// 샐러드바·샌드위치바 태블릿은 외상 잔액을 안 쓰니, 주문 칸·마감 요약·📒 창을 열 때만 불러와요 (읽기 줄이기 2026-11-04)
+let ledWanted=false;
+function ledWant(){ if(ledWanted)return; ledWanted=true; led.acc.forEach(ledWatch); }
+window.__ledReady=true;
 function ledWatch(a){
-  if(!col)return;
+  if(!col||(mode!=="counter"&&!ledWanted))return;
   const from=ledCp(a)&&!ledNoIdx?ledCpDay():"", sig=from||"all", cur=ledWatching.get(a.k);
   if(cur&&cur.sig===sig)return;
   if(cur)cur.stop();
@@ -3474,7 +3479,7 @@ function ledCalc(a){
 function ledSave(fn,ok){
   if(!deptCol){toast("지금은 저장이 안 돼요. 가게 구글 계정으로 로그인해 주세요.");return;}
   const nv={acc:led.acc.map(a=>Object.assign({},a)),pays:led.pays.slice(),cpDay:led.cpDay||null}; fn(nv);
-  led=nv; nv.acc.forEach(ledWatch); ledRefresh();
+  led=nv; nv.acc.forEach(a=>{try{ledWatch(a);}catch(e){console.warn("[외상 잔액]",e);}}); ledRefresh();
   fsw(deptCol.doc("_ledger").set(Object.assign({acc:nv.acc,pays:nv.pays,updatedAt:Date.now()},nv.cpDay?{cpDay:nv.cpDay}:{}))).then(h=>{if(ok)toast(ok+(h==="local"?" (인터넷 연결되면 올라가요)":""));}).catch(()=>toast("외상 잔액을 저장하지 못했어요. 다시 해 주세요."));
 }
 const ledNum=v=>parseInt(String(v||"").replace(/[^\d]/g,""),10)||0;
@@ -3532,7 +3537,7 @@ function ledPayRow(a,p){
   return r;
 }
 // 📒 외상 잔액 창
-function openLed(){ledView=null; ledNewDept=null; ledNewSign=-1; renderLed(); $("ledOverlay").hidden=false;}
+function openLed(){ledWant(); ledView=null; ledNewDept=null; ledNewSign=-1; renderLed(); $("ledOverlay").hidden=false;}
 function closeLed(){$("ledOverlay").hidden=true;}
 function renderLed(){
   const body=$("ledBody"); body.replaceChildren();
