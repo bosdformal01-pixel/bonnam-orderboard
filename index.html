@@ -594,7 +594,7 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
     </form>
   </section>
   <section class="panel" aria-labelledby="lTitle">
-    <div class="lhead"><h2 id="lTitle">오늘 주문</h2><button type="button" class="linkbtn" id="sumBtn">📋 마감 요약 · 달력</button><button type="button" class="linkbtn" id="soundBtn2" style="margin-left:0">🔔 알림음 켜기</button><button type="button" class="linkbtn" id="slipWBtn" style="margin-left:0" title="영수증 프린터 종이 폭">🖨 전표 종이 79mm</button><button type="button" class="linkbtn" id="serBtn" style="margin-left:0" title="영수증 프린터(COM4)에 연결">🔌 영수증 프린터 연결하기</button><button type="button" class="linkbtn" id="relayBtn" style="margin-left:0" title="배민·요기요·쿠팡이츠·네이버 전표를 받아 프린터로 넘기고 주문판에 넣어요">🛵 배달앱 전표 받기 꺼짐</button><span class="kf" role="group" aria-label="포장/배달만 보기"><button type="button" class="linkbtn" data-kf="">전체</button><button type="button" class="linkbtn" data-kf="포장">포장만</button><button type="button" class="linkbtn" data-kf="배달">배달만</button></span></div>
+    <div class="lhead"><h2 id="lTitle">오늘 주문</h2><button type="button" class="linkbtn" id="sumBtn">📋 마감 요약 · 달력</button><button type="button" class="linkbtn" id="bkBtn" style="margin-left:0" title="주문·외상 장부를 이 컴퓨터에 저장">💾 백업</button><button type="button" class="linkbtn" id="soundBtn2" style="margin-left:0">🔔 알림음 켜기</button><button type="button" class="linkbtn" id="slipWBtn" style="margin-left:0" title="영수증 프린터 종이 폭">🖨 전표 종이 79mm</button><button type="button" class="linkbtn" id="serBtn" style="margin-left:0" title="영수증 프린터(COM4)에 연결">🔌 영수증 프린터 연결하기</button><button type="button" class="linkbtn" id="relayBtn" style="margin-left:0" title="배민·요기요·쿠팡이츠·네이버 전표를 받아 프린터로 넘기고 주문판에 넣어요">🛵 배달앱 전표 받기 꺼짐</button><span class="kf" role="group" aria-label="포장/배달만 보기"><button type="button" class="linkbtn" data-kf="">전체</button><button type="button" class="linkbtn" data-kf="포장">포장만</button><button type="button" class="linkbtn" data-kf="배달">배달만</button></span></div>
     <div class="relaywarn" id="relayWarn" hidden><b>⚠️ 배달앱 전표 받기가 멈췄어요.</b> 지금은 배민·요기요·쿠팡이츠·네이버 전표가 종이로 안 나와요. <button type="button" id="relayRetry">다시 켜기</button><div class="s">급하면: 배달앱 프린터 설정을 COM4 로 돌리면 바로 원래대로 나와요.</div></div>
     <div class="olist" id="orderList"><p class="empty">오늘 들어온 주문이 아직 없어요. 왼쪽에서 첫 주문을 넣으면 여기와 태블릿에 바로 떠요.</p></div>
     <details class="done" id="outWrap" hidden>
@@ -736,6 +736,12 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
   </div>
 </div>
 
+<div class="overlay" id="bkOverlay" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="bkTitle">
+    <div class="sheet-head"><h2 id="bkTitle">💾 백업 (주문·외상 장부 지키기)</h2><button type="button" class="linkbtn x" id="bkClose">닫기</button></div>
+    <div id="bkBody" style="display:grid;gap:12px"></div>
+  </div>
+</div>
 <div class="overlay" id="ledOverlay" hidden>
   <div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="ledTitle">
     <div class="sheet-head"><h2 id="ledTitle">📒 과·개인 외상 잔액</h2><button type="button" class="linkbtn x" id="ledClose">닫기</button></div>
@@ -972,6 +978,7 @@ const nowHM=()=>{const d=new Date();return pad(d.getHours())+":"+pad(d.getMinute
 const minsTo=hm=>{if(!hm)return null;const[h,m]=hm.split(":").map(Number);const d=new Date();return h*60+m-(d.getHours()*60+d.getMinutes());};
 function toast(t){const e=$("toast");e.textContent=t;e.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>e.hidden=true,3500);}
 
+let bkDepts=[]; // 백업용: depts 모음 문서 전부 (외상 장부 _ledger, 재료 구매 _shopping 포함)
 let mode="counter", orders=[], customDepts=[], col=null, deptCol=null, dbReady=false, unsub=null, subDay=null;
 let firstSnap=true; const newIds=new Map(), lastEdit=new Map(), readyNew=new Map(); let readySet=new Set(); let sound=false;
 const draft={kind:"포장",kindSet:false,via:"전화",card:false,dept:null,items:[]}; let curCat=0;
@@ -1042,7 +1049,7 @@ let fbAuth=null;
     if(!u||started)return; started=true;
     col=fs.collection("orders"); deptCol=fs.collection("depts"); dbReady=true; subscribe();
     shopSubscribe();
-    deptCol.onSnapshot(s=>{customDepts=s.docs.map(d=>Object.assign({_id:d.id},d.data())).filter(d=>d&&d.name); ledFromSnap(s);},()=>{});
+    deptCol.onSnapshot(s=>{bkDepts=s.docs.map(d=>({id:d.id,data:d.data()})); customDepts=s.docs.map(d=>Object.assign({_id:d.id},d.data())).filter(d=>d&&d.name); ledFromSnap(s);},()=>{});
   });
 })();
 function renderWho(u){
@@ -3628,6 +3635,131 @@ function renderLedOne(body,a){
     ledView=null; renderLed();};
   fix.append(stop); body.append(fix);
 }
+/* ---------- 💾 백업 (선정님 요청 2026-11-04: 주문판 안정성) ----------
+   주문·외상 장부가 구글 저장소 한 곳에만 있어서, 카운터 컴퓨터 폴더에 파일로도 남겨요.
+   - 하루 백업: 5분마다 오늘 주문 + 예약 주문 + 외상 장부·과 목록·재료 구매를 '주문판_백업_날짜.json' 에 덮어써요 (이미 화면에 있는 것만 써서 저장소를 더 읽지 않아요).
+   - 전체 백업: 7일마다(바쁜 4~7시는 피해서) 모든 주문을 '주문판_전체백업_날짜.json' 으로.
+   - 폴더는 한 번 고르면 기억해요 (OneDrive 폴더를 고르면 인터넷에도 한 벌 더 남아요). 크롬을 다시 켜면 한 번 눌러 허락해야 할 수 있어요.
+   - 되살리기: 백업 파일을 열면 저장소에 없는 주문만 다시 넣고, 외상 장부는 따로 물어보고 되돌려요. */
+const BK_FULL_DAYS=7;
+let bkDir=null, bkPerm="none", bkLastSig="", bkBusy=false, bkFile=null;
+const bkLS=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k); localStorage.setItem(k,v);}catch(e){return null;}};
+function bkIdb(op,val){return new Promise(res=>{try{const r=indexedDB.open("bn_backup",1); r.onupgradeneeded=()=>r.result.createObjectStore("h");
+  r.onsuccess=()=>{try{const tx=r.result.transaction("h",op==="get"?"readonly":"readwrite"), st=tx.objectStore("h"); const q=op==="get"?st.get("dir"):op==="del"?st.delete("dir"):st.put(val,"dir"); q.onsuccess=()=>res(q.result); q.onerror=()=>res(null);}catch(e){res(null);}}; r.onerror=()=>res(null);}catch(e){res(null);}});}
+async function bkCheckPerm(ask){
+  if(!bkDir){bkPerm="none";return bkPerm;}
+  try{let p=await bkDir.queryPermission({mode:"readwrite"}); if(p!=="granted"&&ask)p=await bkDir.requestPermission({mode:"readwrite"}); bkPerm=p==="granted"?"ok":"ask";}catch(e){bkPerm="ask";}
+  bkBtnDraw(); return bkPerm;
+}
+const bkStamp=ms=>{const d=new Date(ms);return (d.getMonth()+1)+"/"+d.getDate()+" "+pad(d.getHours())+":"+pad(d.getMinutes());};
+function bkBtnDraw(){
+  const b=$("bkBtn"); if(!b)return;
+  const last=+bkLS("bn_bklast")||0, stale=!last||Date.now()-last>36*3600e3;
+  if(bkPerm==="ok"){b.textContent="💾 백업 "+(last?bkStamp(last).split(" ")[1]:"켜짐"); b.classList.remove("danger");}
+  else if(bkPerm==="ask"){b.textContent="💾 백업 멈춤 · 눌러 주세요"; b.classList.add("danger");}
+  else{b.textContent="💾 백업 "+(stale?"꺼짐":"("+bkStamp(last)+")"); b.classList.toggle("danger",stale);}
+}
+function bkDayData(){
+  return {app:"복남이샌드 주문판",v:1,kind:"day",day:today(),at:Date.now(),
+    orders:orders.filter(o=>!o.example).concat(resOrders),depts:bkDepts};
+}
+async function bkWrite(name,obj){
+  const txt=JSON.stringify(obj);
+  if(bkPerm==="ok"&&bkDir){try{const fh=await bkDir.getFileHandle(name,{create:true}); const w=await fh.createWritable(); await w.write(txt); await w.close(); return "folder";}catch(e){console.warn("[백업]",e); await bkCheckPerm(false); }}
+  return null;
+}
+function bkDownload(name,obj){
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([JSON.stringify(obj)],{type:"application/json"})); a.download=name; document.body.append(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);
+}
+// 5분마다: 바뀐 게 있으면 오늘 파일을 덮어써요
+async function bkTick(){
+  if(mode!=="counter"||!col||bkBusy||bkPerm!=="ok"||!dbReady)return;
+  bkBusy=true;
+  try{
+    const d=bkDayData(), sig=JSON.stringify([d.orders,d.depts]);
+    if(sig!==bkLastSig&&(d.orders.length||d.depts.length)){ if(await bkWrite("주문판_백업_"+d.day+".json",d)){bkLastSig=sig; bkLS("bn_bklast",String(Date.now()));} }
+    const h=new Date().getHours(), lastFull=+bkLS("bn_bkfull")||0;
+    if(bkPerm==="ok"&&(h<16||h>=19)&&Date.now()-lastFull>BK_FULL_DAYS*864e5)await bkFull(false);
+  }finally{bkBusy=false; bkBtnDraw(); if(!$("bkOverlay").hidden)renderBk();}
+}
+// 전체 백업: 모든 주문 (저장소를 한 번 다 읽어요)
+async function bkFull(manual){
+  if(!col){toast("먼저 가게 구글 계정으로 로그인해 주세요.");return;}
+  const s=await col.get(), ords=s.docs.map(d=>Object.assign({id:d.id},d.data())).filter(o=>!o.example);
+  const obj={app:"복남이샌드 주문판",v:1,kind:"full",day:today(),at:Date.now(),orders:ords,depts:bkDepts};
+  const name="주문판_전체백업_"+today()+".json";
+  const where=await bkWrite(name,obj);
+  if(!where){ if(!manual)return; bkDownload(name,obj); }
+  bkLS("bn_bkfull",String(Date.now())); if(!bkLS("bn_bklast")||where)bkLS("bn_bklast",String(Date.now()));
+  if(manual)toast("전체 백업 "+ords.length+"건을 "+(where?"백업 폴더에":"다운로드 폴더에")+" 저장했어요.");
+}
+async function bkPick(){
+  if(!window.showDirectoryPicker){toast("이 브라우저는 폴더 저장이 안 돼요. 카운터 크롬에서 해 주세요.");return;}
+  try{const d=await window.showDirectoryPicker({id:"bnbackup",mode:"readwrite",startIn:"documents"}); bkDir=d; await bkIdb("put",d); await bkCheckPerm(true); bkLastSig=""; await bkTick(); toast("'"+d.name+"' 폴더에 백업을 저장해요.");}
+  catch(e){if(e&&e.name!=="AbortError")toast("폴더를 고르지 못했어요.");}
+  renderBk();
+}
+// 되살리기
+function bkReadFile(f){
+  const r=new FileReader();
+  r.onload=async()=>{
+    let v=null; try{v=JSON.parse(r.result);}catch(e){}
+    if(!v||v.app!=="복남이샌드 주문판"||!Array.isArray(v.orders)){toast("주문판 백업 파일이 아니에요.");return;}
+    bkFile={name:f.name,v,missing:null}; renderBk();
+    // 저장소에 없는 주문 찾기
+    const ids=v.orders.map(o=>o.id).filter(Boolean), miss=[];
+    for(let i=0;i<ids.length;i+=50){const part=ids.slice(i,i+50); const got=await Promise.all(part.map(id=>col.doc(id).get().then(d=>d.exists).catch(()=>true))); part.forEach((id,k)=>{if(!got[k])miss.push(id);});}
+    bkFile.missing=miss; renderBk();
+  };
+  r.readAsText(f);
+}
+async function bkRestoreOrders(){
+  const v=bkFile.v, set=new Set(bkFile.missing||[]); const list=v.orders.filter(o=>set.has(o.id));
+  if(!list.length||!confirm("없어진 주문 "+list.length+"건을 다시 넣을까요? (있는 주문은 건드리지 않아요)"))return;
+  let n=0; for(const o of list){const {id,...body}=o; try{await col.doc(id).set(body); n++;}catch(e){}}
+  // 과 목록에서 없어진 이름도 다시
+  const have=new Set(bkDepts.map(d=>d.id)); for(const d of (v.depts||[]))if(d.id&&d.id[0]!=="_"&&!have.has(d.id)){try{await deptCol.doc(d.id).set(d.data);}catch(e){}}
+  toast(n+"건을 되살렸어요."); bkFile.missing=(bkFile.missing||[]).filter(id=>!list.some(o=>o.id===id)); renderBk();
+}
+async function bkRestoreLedger(){
+  const L=(bkFile.v.depts||[]).find(d=>d.id==="_ledger"); if(!L)return;
+  if(!confirm("외상 장부를 이 파일 때 ("+bkStamp(bkFile.v.at)+") 상태로 되돌릴까요?\n그 뒤에 적은 입금·잔액 맞추기는 사라져요. (주문은 그대로)"))return;
+  const cur=bkDepts.find(d=>d.id==="_ledger");
+  if(cur)bkDownload("주문판_되돌리기전_외상장부_"+today()+".json",{app:"복남이샌드 주문판",v:1,kind:"ledger",at:Date.now(),orders:[],depts:[cur]});
+  try{await deptCol.doc("_ledger").set(L.data); toast("외상 장부를 되돌렸어요. 되돌리기 전 장부는 다운로드 폴더에 남겨 뒀어요.");}catch(e){toast("되돌리지 못했어요. 다시 해 주세요.");}
+}
+function renderBk(){
+  const body=$("bkBody"); body.replaceChildren();
+  const last=+bkLS("bn_bklast")||0, full=+bkLS("bn_bkfull")||0;
+  const st=el("div","ledbox");
+  st.append(el("h3",null,bkPerm==="ok"?"✅ 자동 백업 켜짐":bkPerm==="ask"?"⚠️ 자동 백업 멈춤":"⚠️ 자동 백업 꺼짐"));
+  if(bkPerm==="ok")st.append(el("div","s","'"+bkDir.name+"' 폴더에 5분마다 오늘 주문과 외상 장부를 저장해요."));
+  else if(bkPerm==="ask"){st.append(el("div","s","크롬을 다시 켜서 폴더 허락이 풀렸어요. 아래 버튼을 누르고 '허용'(가능하면 '방문할 때마다 허용')을 눌러 주세요."));
+    const b=el("button","submit","다시 켜기 ('"+bkDir.name+"' 폴더)"); b.type="button"; b.onclick=async()=>{await bkCheckPerm(true); bkLastSig=""; await bkTick(); renderBk();}; st.append(b);}
+  else st.append(el("div","s","아래에서 백업 폴더를 한 번 골라 주세요. 바탕화면(OneDrive) 안에 '주문판 백업' 폴더를 만들어 고르면, 컴퓨터가 고장 나도 인터넷에 한 벌 더 남아요."));
+  st.append(el("div","s","마지막 백업: "+(last?bkStamp(last):"없음")+" · 전체 백업: "+(full?bkStamp(full):"없음")+" ("+BK_FULL_DAYS+"일마다 저절로)"));
+  const row=el("div","row"); row.style.cssText="display:flex;gap:8px;flex-wrap:wrap";
+  const pick=el("button","linkbtn strong",bkDir?"백업 폴더 바꾸기":"📁 백업 폴더 고르기"); pick.type="button"; pick.onclick=bkPick;
+  const fb=el("button","linkbtn","지금 전체 백업 받기"); fb.type="button"; fb.onclick=async()=>{fb.disabled=true; fb.textContent="받는 중…"; try{await bkFull(true);}catch(e){toast("백업하지 못했어요. 인터넷을 확인해 주세요.");} renderBk();};
+  row.append(pick,fb); st.append(row); body.append(st);
+  // 되살리기
+  const rs=el("details","ledbox"); rs.open=!!bkFile; rs.append(el("summary",null,"♻️ 백업 파일로 되살리기 (주문이 없어졌을 때만)"));
+  const inp=el("input"); inp.type="file"; inp.accept=".json,application/json"; inp.onchange=()=>{if(inp.files[0])bkReadFile(inp.files[0]);};
+  rs.append(el("div","s","백업 폴더의 파일을 고르면, 저장소에 없는 주문만 다시 넣어요. 지금 있는 주문은 건드리지 않아요."),inp);
+  if(bkFile){
+    const v=bkFile.v; rs.append(el("div","s","📄 "+bkFile.name+" · "+bkStamp(v.at)+" · 주문 "+v.orders.length+"건"));
+    if(bkFile.missing==null)rs.append(el("div","s","저장소와 맞춰 보는 중…"));
+    else if(!bkFile.missing.length)rs.append(el("div","s","✓ 이 파일의 주문은 모두 저장소에 있어요."));
+    else{const b=el("button","submit","없어진 주문 "+bkFile.missing.length+"건 되살리기"); b.type="button"; b.onclick=bkRestoreOrders; rs.append(b);}
+    if((v.depts||[]).some(d=>d.id==="_ledger")){const b=el("button","linkbtn danger","외상 장부를 이 파일 때로 되돌리기"); b.type="button"; b.style.justifySelf="start"; b.onclick=bkRestoreLedger; rs.append(b);}
+  }
+  body.append(rs);
+}
+$("bkBtn").onclick=()=>{renderBk(); $("bkOverlay").hidden=false;};
+$("bkClose").onclick=()=>{$("bkOverlay").hidden=true;};
+$("bkOverlay").addEventListener("click",e=>{if(e.target===$("bkOverlay"))$("bkOverlay").hidden=true;});
+(async()=>{ const d=await bkIdb("get"); if(d&&d.queryPermission){bkDir=d;} await bkCheckPerm(false); bkBtnDraw(); })();
+setInterval(bkTick,5*60e3); setTimeout(bkTick,20e3);
 $("ledBtn").onclick=openLed;
 $("ledClose").onclick=closeLed;
 $("ledOverlay").addEventListener("click",e=>{if(e.target===$("ledOverlay"))closeLed();});
