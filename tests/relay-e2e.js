@@ -123,7 +123,7 @@ const APPS=(process.env.APPS||"배민,쿠팡이츠,요기요").split(",");
       close:async function(){this.writable=null;}};
     relay.on=true; relay.tx=port; serPort=port; relay.last=0;
     let n=0; col={add:async body=>{const id="test"+(++n); orders.push(Object.assign({id},body)); window.__added.push(id); return {id};},
-      where:()=>({get:async()=>({docs:[]})})};
+      where:()=>({get:async()=>({docs:[]}),onSnapshot:()=>()=>{}})};
   });
   const report=[]; const N=+(process.argv[4]||10);
   for(let t=1;t<=N;t++){
