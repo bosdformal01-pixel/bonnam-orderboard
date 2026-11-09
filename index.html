@@ -532,18 +532,15 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
           <input type="tel" id="resPhone" inputmode="tel" placeholder="예: 010-1234-5678" maxlength="20" style="max-width:16em">
         </div>
         <div class="field">
-          <label for="resPay">결제 · 어디서 뺄지 (꼭 고르기)</label>
-          <select id="resPay" class="need" style="max-width:16em">
-            <option value="">고르세요</option>
-            <option value="장부">📒 장부 (과·이름 외상)</option>
-            <option value="카드">💳 카드</option>
-            <option value="현금">💵 현금</option>
+          <label for="resPay">결제 (꼭 고르기)</label>
+          <select id="resPay" class="need" style="max-width:26em;width:100%">
+            <option value="">결제 어디서 뺄지 (장부/현금/카드)</option>
           </select>
           <div class="reshint" id="resPayHint"></div>
         </div>
       </div>
       <div class="field" id="deptField">
-        <label for="deptSearch" id="deptLbl">어느 과·이름 (검색해서 고르기)</label>
+        <label for="deptSearch">어느 과·이름 (검색해서 고르기)</label>
         <div class="combo">
           <div class="picked-dept" id="deptPicked" hidden>
             <span><span class="org" id="deptPickedOrg"></span><br><b id="deptPickedName"></b></span>
@@ -1264,7 +1261,7 @@ function recentDepts(){
 function saveRecent(d){if(d.guest)return;try{const a=JSON.parse(localStorage.getItem("bn_depts2")||"[]").filter(x=>!(x.org===d.org&&x.name===d.name));a.unshift({org:d.org,name:d.name});localStorage.setItem("bn_depts2",JSON.stringify(a.slice(0,20)));}catch(e){}}
 function renderRecent(){
   const box=$("deptRecent"); box.replaceChildren();
-  if(!resMode){const g=el("button","chip guest","일반 손님 (장부 없음)"); g.type="button"; g.onclick=()=>pickDept(GUEST); box.append(g);}
+  const g=el("button","chip guest","일반 손님 (장부 없음)"); g.type="button"; g.onclick=()=>pickDept(GUEST); box.append(g);
   const r=recentDepts(); if(!r.length)return;
   box.append(el("span","lbl","최근:"));
   r.forEach(d=>{const b=el("button","chip",d.name);b.type="button";b.onclick=()=>pickDept(d);box.append(b);});
@@ -1494,19 +1491,37 @@ function setVia(v){draft.via=v==="매장"?"매장":"전화"; document.querySelec
 document.querySelectorAll("[data-via]").forEach(b=>b.onclick=()=>setVia(b.dataset.via));
 function setCard(v){draft.card=!!v; $("cardChip").setAttribute("aria-pressed",String(draft.card)); ledForm();}
 $("cardChip").onclick=()=>resMode?setPay(draft.card?"":"카드"):setCard(!draft.card);
-// 예약 주문 결제: 장부 / 카드 / 현금 (선정님 요청 2026-11-09). 장부면 과·이름을 골라 그 외상 잔액에서 그날 빠져요.
+// 예약 주문 결제 (선정님 요청 2026-11-09): 한 칸에서 현금 / 카드 / 모든 장부(과·개인) 중 골라요.
+// 장부를 고르면 그 과로 저장돼서 예약한 날 그 과 외상 잔액에서 빠져요. 값: "현금" | "카드" | "장부|org|name"
+const payKey=d=>"장부|"+(d.org||"기타")+"|"+d.name;
+function renderPaySel(){
+  const sel=$("resPay"), first=sel.options[0]; sel.replaceChildren(first);
+  const grp=(l,list)=>{if(!list.length)return; const g=document.createElement("optgroup"); g.label=l; list.forEach(([v,t])=>{const o=el("option",null,t); o.value=v; g.append(o);}); sel.append(g);};
+  grp("현금 · 카드 (장부 없음)",[["현금","💵 현금"],["카드","💳 카드"]]);
+  const seen=new Set(), accs=led.acc.slice().sort((x,y)=>x.org.localeCompare(y.org)||x.name.localeCompare(y.name));
+  grp("📒 잔액 적어 둔 장부",accs.map(a=>{const v=payKey(a); seen.add(v); return [v,"📒 "+a.name+" ("+[a.org,a.floor].filter(x=>x&&x!=="기타").join(" ")+")"];}));
+  const by=new Map(); allDepts().forEach(d=>{const v=payKey(d); if(seen.has(v))return; seen.add(v); if(!by.has(d.org))by.set(d.org,[]); by.get(d.org).push([v,"📒 "+d.name+(d.floor?" ("+d.floor+")":"")]);});
+  by.forEach((list,org)=>grp("📒 장부 · "+org,list));
+}
 function setPay(v){
-  v=["장부","카드","현금"].includes(v)?v:""; draft.pay=v;
-  const sel=$("resPay"); sel.value=v; sel.classList.toggle("need",!v);
-  setCard(v==="카드");
-  if(resMode){
-    $("deptField").hidden=v!=="장부";
-    $("deptLbl").textContent=v==="장부"?"장부에 올릴 과·이름 (꼭 고르기)":"어느 과·이름 (검색해서 고르기)";
-    if(v==="장부"&&draft.dept&&draft.dept.guest)clearDept();
-    renderRecent();
-  }
-  $("resPayHint").textContent=v==="장부"?"아래에서 과·이름을 골라 주세요. 그날 그 과 외상 잔액에서 빠져요.":v==="카드"?"카드 결제: 매출엔 들어가고 장부엔 안 올라가요.":v==="현금"?"현금 결제: 매출엔 들어가고 장부엔 안 올라가요.":"";
-  ledForm();
+  const sel=$("resPay"); v=v||"";
+  if(v.startsWith("장부|")){
+    const i=v.indexOf("|",3), org=v.slice(3,i), name=v.slice(i+1);
+    pickDept(findDept({org,name})||{org,name,floor:(led.acc.find(a=>a.org===org&&a.name===name)||{}).floor||""});
+    v="장부";
+  } else if(v!=="카드"&&v!=="현금")v="";
+  draft.pay=v; if(resMode&&v!=="장부")draft.dept=null;
+  const sv=v==="장부"&&draft.dept?payKey(draft.dept):v;
+  if(sv&&![...sel.options].some(o=>o.value===sv)){const o=el("option",null,"📒 "+draft.dept.name); o.value=sv; sel.append(o);}
+  sel.value=sv; sel.classList.toggle("need",!v);
+  setCard(v==="카드"); // ledForm 도 불러요
+}
+function payHint(){
+  const h=$("resPayHint"), v=draft.pay;
+  if(v==="카드"||v==="현금"){h.textContent=(v==="카드"?"💳 카드":"💵 현금")+" 결제: 매출엔 들어가고 장부엔 안 올라가요."; return;}
+  if(v!=="장부"||!draft.dept){h.textContent=""; return;}
+  const a=ledAcc(ledKey(draft.dept)), c=a&&ledCalc(a);
+  h.textContent="📒 "+[draft.dept.org!=="기타"?draft.dept.org:"",draft.dept.name].filter(Boolean).join(" ")+" 장부"+(c?" · 지금 "+(ledPost(a)?"쌓인 외상 ":"잔액 ")+ledSigned(c.bal)+" → 예약한 날 빠져요":a?" · 잔액 불러오는 중…":" · 예약한 날 장부 정리 목록에 나와요");
 }
 $("resPay").addEventListener("change",e=>setPay(e.target.value));
 document.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{
@@ -1692,12 +1707,12 @@ function openRes(o){
   $("memoLbl").textContent="특이사항 (안 써도 돼요)"; $("memo").placeholder="예: 2시까지 세팅, 수저 150개, 개별 포장";
   $("submitBtn").textContent=o?"고친 예약 저장":"예약 넣기";
   $("resSheetTitle").textContent=o?"📅 예약 고치기":"📅 예약 주문 받기";
-  setPay("");
+  renderPaySel(); setPay("");
   if(o){
     const pay=o.pay||(isCard(o)?"카드":isCash(o)?"현금":"");
     $("resDate").value=o.day||""; $("resTime").value=o.due||""; $("resWho").value=o.who!=null?o.who:pay==="장부"||o.dept==="예약 주문"?"":(o.dept||"");
-    $("resAddr").value=o.addr||""; $("resPhone").value=o.phone||""; $("memo").value=o.memo||""; setKind(o.kind||"포장"); setVia(o.via); setPay(pay);
-    if(pay==="장부"&&o.dept)pickDept({org:o.org||"기타",name:o.dept,floor:o.floor});
+    $("resAddr").value=o.addr||""; $("resPhone").value=o.phone||""; $("memo").value=o.memo||""; setKind(o.kind||"포장"); setVia(o.via); setPay(pay==="장부"?"":pay);
+    if(pay==="장부"&&o.dept)setPay(payKey({org:o.org||"기타",name:o.dept}));
     draft.items=[]; (o.items||[]).map(rebuildItem).forEach(i=>addDraftItem(i)); bumpIdx=-1; renderPicked();
   }
   updatePhoneBox(); renderResChips();
@@ -1710,7 +1725,7 @@ function openRes(o){
 function closeRes(quiet){
   if(!resMode)return true;
   if(!quiet&&draft.items.length&&!confirm(resEditing?"고친 내용을 저장하지 않고 닫을까요?":"적던 예약을 저장하지 않고 닫을까요?"))return false;
-  resMode=false; resEditing=null; setPay(""); $("deptLbl").textContent="어느 과·이름 (검색해서 고르기)";
+  resMode=false; resEditing=null; setPay("");
   $("resBox").hidden=true; $("deptField").hidden=false; $("dueField").hidden=false; $("fHead").hidden=false;
   $("memoLbl").textContent="주문 전체 메모"; $("memo").placeholder="예: 수저 10개, 영수증 따로"; $("submitBtn").textContent="주문 넣기";
   $("resOverlay").hidden=true; $("counterView").prepend($("formPanel"));
@@ -1726,9 +1741,7 @@ async function saveRes(){
   if(day<today()){msg.textContent="지난 날짜예요. 날짜를 다시 골라 주세요.";$("resMon").focus();return;}
   if(!draft.items.length){msg.textContent="메뉴를 하나 이상 골라 주세요.";return;}
   const pay=draft.pay||"";
-  if(!pay){msg.textContent="결제를 골라 주세요: 장부 / 카드 / 현금.";$("resPay").focus();return;}
-  if(pay==="장부"&&!draft.dept){const q=$("deptSearch").value.trim(); const ex=q&&allDepts().find(d=>norm(d.name)===norm(q)); if(ex)pickDept(ex);}
-  if(pay==="장부"&&(!draft.dept||draft.dept.guest)){msg.textContent="장부에 올릴 과나 이름을 골라 주세요.";$("deptSearch").focus();return;}
+  if(!pay||pay==="장부"&&(!draft.dept||draft.dept.guest)){msg.textContent="결제를 골라 주세요: 장부 / 현금 / 카드.";$("resPay").focus();return;}
   if(!draft.kindSet){msg.textContent="";askKind(saveRes);return;}
   if(!col){msg.textContent="지금은 저장이 안 돼요. 가게 구글 계정으로 로그인해 주세요.";return;}
   msg.className="msg";
@@ -1756,7 +1769,6 @@ async function saveRes(){
       Object.assign(body,{createdAt:Date.now(),resAt:Date.now(),no:day===today()?nextNo():0,from:mode,done:{salad:false,sandwich:false}});
       await fsw(col.add(body));
     }
-    if(bk&&bk.custom&&deptCol&&!customDepts.some(d=>d.name===bk.name)){deptCol.add({org:"기타",name:bk.name,addedAt:Date.now()}).catch(()=>{});}
     msg.textContent="";
     const was=!!resEditing; closeRes(true);
     toast((was?"예약을 고쳤어요: ":"예약을 넣었어요: ")+dayLabel(day)+" "+due+" 까지."+(day===today()?" 오늘 주문에 바로 떴어요.":" 그날 포스를 켜면 주문으로 들어가 있어요."));
@@ -3529,7 +3541,8 @@ function ledRefresh(){ ledForm(); if(!$("ledOverlay").hidden)renderLed(); if(!$(
 // 주문 칸: 과를 고르면 그 과 잔액과, 이 주문을 넣은 뒤 잔액
 function ledForm(){
   const box=$("ledLine"); if(!box)return;
-  const d=draft.dept, a=d&&!d.guest&&(!resMode||draft.pay==="장부")?ledAcc(ledKey(d)):null;
+  if(resMode){box.hidden=true; payHint(); return;} // 예약 창은 결제 칸 아래에 보여요
+  const d=draft.dept, a=d&&!d.guest?ledAcc(ledKey(d)):null;
   if(!a){box.hidden=true;return;}
   box.hidden=false; box.replaceChildren();
   const c=ledCalc(a); if(!c){box.textContent="📒 외상 잔액 불러오는 중…";return;}
@@ -3537,8 +3550,7 @@ function ledForm(){
   let delta=draft.card||resMode?0:tot;
   if(editing){const cur=orders.find(o=>o.id===editing); if(cur&&ledIn(a,cur)&&(cur.day||"")<=today())delta-=cur.total||0;}
   box.append(ledPost(a)?"📒 쌓인 외상 ":"📒 외상 잔액 ",el("span",ledClsA(a,c.bal),ledSigned(c.bal)));
-  if(resMode)box.append(el("span","s"," · 예약 주문은 그날 잔액에서 빠져요"));
-  else if(draft.card)box.append(el("span","s"," · 💳 카드라 잔액에서 안 빠져요"));
+  if(draft.card)box.append(el("span","s"," · 💳 카드라 잔액에서 안 빠져요"));
   else if(delta){box.append(" → "+(editing?"고치면 ":"이 주문 넣으면 "),el("span",ledClsA(a,c.bal+ledSg(a)*delta),ledSigned(c.bal+ledSg(a)*delta)));}
 }
 function ledAfterAdd(body){
