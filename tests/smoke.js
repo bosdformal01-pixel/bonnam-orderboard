@@ -23,6 +23,21 @@ const fails=[]; const ok=(c,m)=>{console.log((c?"성공 ":"실패 ")+m); if(!c)f
         return {ms:Date.now()-t,toast:$("toast").textContent,enabled:!$("submitBtn").disabled};
       });
       ok(r.enabled&&r.ms<4000&&/이 컴퓨터에 먼저 저장/.test(r.toast),"끊김: 주문 넣기가 멈추지 않음 ("+r.ms+"ms, '"+r.toast+"')");
+      // 예약 주문 결제 (2026-11-09): 장부/카드/현금을 꼭 고르고, 장부면 고른 과로 저장돼 외상 잔액에 잡혀요
+      const rv=await pg.evaluate(async()=>{
+        const got=[]; col={add:async b=>{got.push(b);return {id:"t"};},doc:()=>({update:async()=>{}}),where:()=>({where:()=>({onSnapshot:()=>()=>{}}),onSnapshot:()=>()=>{},get:async()=>({docs:[]})})};
+        const fill=()=>{$("resDate").value=daysAgo(-2); $("resTime").value="12:00"; draft.items.push({name:MENU[0].items[0][0],unit:5000,qty:3,opts:[],st:"sandwich",note:""}); draft.kindSet=true;};
+        openRes(); fill(); await saveRes(); const noPay=$("formMsg").textContent;
+        const vs=payChoices().map(c=>c.v), hasAll=vs.includes("현금")&&vs.includes("카드")&&vs.includes("장부|동구청|총무과");
+        // 초성 'ㅊㅁ' 를 치면 총무과가 나와요
+        $("resPay").value="ㅊㅁ"; $("resPay").dispatchEvent(new Event("input"));
+        const hit=[...$("resPayList").querySelectorAll("button")].find(b=>b.firstChild.textContent==="총무과"); if(hit)hit.click();
+        await saveRes(); const bk=got[0]||{};
+        openRes(); fill(); setPay("현금"); $("resWho").value="OO웨딩홀"; await saveRes(); const cs=got[1]||{};
+        return {noPay,hasAll,bk:[bk.org,bk.dept,bk.pay,ledCounts(bk)],cs:[cs.dept,cs.pay,ledCounts(cs)],n:got.length};
+      });
+      ok(/결제를 골라/.test(rv.noPay)&&rv.hasAll,"예약: 결제 칸에 현금·카드·장부(과)가 다 있고, 안 고르면 저장 안 됨, 초성으로 찾기");
+      ok(rv.n===2&&rv.bk.join()==="동구청,총무과,장부,true"&&rv.cs.join()==="OO웨딩홀,현금,false","예약: 장부는 과 잔액에, 현금은 장부 밖 ("+JSON.stringify(rv)+")");
     }
     await pg.close();
   }
