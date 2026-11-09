@@ -390,6 +390,7 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
 .resbox{border:2px solid var(--res);background:var(--res-soft);border-radius:10px;padding:12px 12px 0;margin-bottom:14px}
 .resbox .chips{margin-top:2px}
 .reshint{font-weight:700;color:var(--res);min-height:1.5em}
+.resbox select.need{border-color:var(--late);background:var(--late-soft)}
 .restag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:.8rem;font-weight:800;background:var(--res);color:#fff;white-space:nowrap}
 .ticket.isres{border-color:var(--res)}
 .chk{background:#fde8e6;color:#b42318;border:2px solid #e5484d;border-radius:8px;padding:6px 10px;margin:6px 0;font-weight:700;overflow-wrap:anywhere}
@@ -530,9 +531,19 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
           <label for="resPhone">전화번호 (안 써도 돼요)</label>
           <input type="tel" id="resPhone" inputmode="tel" placeholder="예: 010-1234-5678" maxlength="20" style="max-width:16em">
         </div>
+        <div class="field">
+          <label for="resPay">결제 · 어디서 뺄지 (꼭 고르기)</label>
+          <select id="resPay" class="need" style="max-width:16em">
+            <option value="">고르세요</option>
+            <option value="장부">📒 장부 (과·이름 외상)</option>
+            <option value="카드">💳 카드</option>
+            <option value="현금">💵 현금</option>
+          </select>
+          <div class="reshint" id="resPayHint"></div>
+        </div>
       </div>
       <div class="field" id="deptField">
-        <label for="deptSearch">어느 과·이름 (검색해서 고르기)</label>
+        <label for="deptSearch" id="deptLbl">어느 과·이름 (검색해서 고르기)</label>
         <div class="combo">
           <div class="picked-dept" id="deptPicked" hidden>
             <span><span class="org" id="deptPickedOrg"></span><br><b id="deptPickedName"></b></span>
@@ -1221,6 +1232,9 @@ const GUEST={org:"",name:"일반 손님",floor:"",guest:true};
 const isGuest=o=>!!(o&&(o.guest||o.dept==="일반 손님"));
 // 카드로 받은 주문 (장부 없는 곳 배달 등, 사용자 요청 2026-10-27): 매출엔 넣고 장부 정리 목록엔 안 보임
 const isCard=o=>!!(o&&o.card&&!o.src);
+// 현금으로 받은 예약 주문 (선정님 요청 2026-11-09): 카드처럼 매출엔 넣고 장부엔 안 올려요
+const isCash=o=>!!(o&&o.cash&&!o.src&&!isCard(o));
+const noBook=o=>isCard(o)||isCash(o);
 function pickDept(d){
   {const f=deptFix(d); if(f!==d)d=findDept(f)||f;}
   if(!d.guest&&!d.custom&&d.floor===undefined){const f=findDept(d); if(f)d=f;}
@@ -1250,7 +1264,7 @@ function recentDepts(){
 function saveRecent(d){if(d.guest)return;try{const a=JSON.parse(localStorage.getItem("bn_depts2")||"[]").filter(x=>!(x.org===d.org&&x.name===d.name));a.unshift({org:d.org,name:d.name});localStorage.setItem("bn_depts2",JSON.stringify(a.slice(0,20)));}catch(e){}}
 function renderRecent(){
   const box=$("deptRecent"); box.replaceChildren();
-  const g=el("button","chip guest","일반 손님 (장부 없음)"); g.type="button"; g.onclick=()=>pickDept(GUEST); box.append(g);
+  if(!resMode){const g=el("button","chip guest","일반 손님 (장부 없음)"); g.type="button"; g.onclick=()=>pickDept(GUEST); box.append(g);}
   const r=recentDepts(); if(!r.length)return;
   box.append(el("span","lbl","최근:"));
   r.forEach(d=>{const b=el("button","chip",d.name);b.type="button";b.onclick=()=>pickDept(d);box.append(b);});
@@ -1479,7 +1493,22 @@ document.querySelectorAll("[data-kind]").forEach(b=>b.onclick=()=>setKind(b.data
 function setVia(v){draft.via=v==="매장"?"매장":"전화"; document.querySelectorAll("[data-via]").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.via===draft.via)));}
 document.querySelectorAll("[data-via]").forEach(b=>b.onclick=()=>setVia(b.dataset.via));
 function setCard(v){draft.card=!!v; $("cardChip").setAttribute("aria-pressed",String(draft.card)); ledForm();}
-$("cardChip").onclick=()=>setCard(!draft.card);
+$("cardChip").onclick=()=>resMode?setPay(draft.card?"":"카드"):setCard(!draft.card);
+// 예약 주문 결제: 장부 / 카드 / 현금 (선정님 요청 2026-11-09). 장부면 과·이름을 골라 그 외상 잔액에서 그날 빠져요.
+function setPay(v){
+  v=["장부","카드","현금"].includes(v)?v:""; draft.pay=v;
+  const sel=$("resPay"); sel.value=v; sel.classList.toggle("need",!v);
+  setCard(v==="카드");
+  if(resMode){
+    $("deptField").hidden=v!=="장부";
+    $("deptLbl").textContent=v==="장부"?"장부에 올릴 과·이름 (꼭 고르기)":"어느 과·이름 (검색해서 고르기)";
+    if(v==="장부"&&draft.dept&&draft.dept.guest)clearDept();
+    renderRecent();
+  }
+  $("resPayHint").textContent=v==="장부"?"아래에서 과·이름을 골라 주세요. 그날 그 과 외상 잔액에서 빠져요.":v==="카드"?"카드 결제: 매출엔 들어가고 장부엔 안 올라가요.":v==="현금"?"현금 결제: 매출엔 들어가고 장부엔 안 올라가요.":"";
+  ledForm();
+}
+$("resPay").addEventListener("change",e=>setPay(e.target.value));
 document.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{
   const n=$("freeName").value.trim(); if(!n){$("freeName").focus();return;}
   const pr=parseInt(($("freePrice").value||"").replace(/\D/g,""),10)||0;
@@ -1489,7 +1518,7 @@ document.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{
 let kindNext=null;
 function askKind(next){
   if(draft.kindSet){next();return;}
-  const n=draft.items.reduce((s,i)=>s+i.qty,0), who=resMode?($("resWho").value.trim()||"예약 주문"):(draft.dept?draft.dept.name:"");
+  const n=draft.items.reduce((s,i)=>s+i.qty,0), who=resMode?(draft.pay==="장부"&&draft.dept?draft.dept.name:$("resWho").value.trim()||"예약 주문"):(draft.dept?draft.dept.name:"");
   kindNext=next; $("kindMenu").textContent=[who,"메뉴 "+n+"개"].filter(Boolean).join(" · ");
   $("kindPhoneBox").hidden=true; document.querySelectorAll("[data-kask]").forEach(x=>x.setAttribute("aria-pressed","false")); $("kindOverlay").hidden=false;
   return true;
@@ -1628,7 +1657,7 @@ function dayLabel(day){
 }
 const shortDay=ms=>{const d=new Date(ms);return (d.getMonth()+1)+"/"+d.getDate();};
 const qtySum=o=>(o.items||[]).reduce((s,i)=>s+(i.qty||0),0);
-function resInfo(o){return [o.addr?"주소: "+o.addr:"",o.phone?"전화: "+o.phone:""].filter(Boolean).join(" · ");}
+function resInfo(o){return [o.who&&o.who!==o.dept?"주문한 곳: "+o.who:"",o.addr?"주소: "+o.addr:"",o.phone?"전화: "+o.phone:""].filter(Boolean).join(" · ");}
 const resTag=()=>el("span","restag","📅 예약");
 // 예약 날짜는 월·일만 골라요 (선정님 요청: 연도는 필요 없음). 연도는 오늘 기준으로: 이미 지난 월·일이면 내년
 for(let m=1;m<=12;m++){const o=el("option",null,m+"월");o.value=String(m);$("resMon").append(o);}
@@ -1663,9 +1692,12 @@ function openRes(o){
   $("memoLbl").textContent="특이사항 (안 써도 돼요)"; $("memo").placeholder="예: 2시까지 세팅, 수저 150개, 개별 포장";
   $("submitBtn").textContent=o?"고친 예약 저장":"예약 넣기";
   $("resSheetTitle").textContent=o?"📅 예약 고치기":"📅 예약 주문 받기";
+  setPay("");
   if(o){
-    $("resDate").value=o.day||""; $("resTime").value=o.due||""; $("resWho").value=o.dept==="예약 주문"?"":(o.dept||"");
-    $("resAddr").value=o.addr||""; $("resPhone").value=o.phone||""; $("memo").value=o.memo||""; setKind(o.kind||"포장"); setVia(o.via); setCard(o.card);
+    const pay=o.pay||(isCard(o)?"카드":isCash(o)?"현금":"");
+    $("resDate").value=o.day||""; $("resTime").value=o.due||""; $("resWho").value=o.who!=null?o.who:pay==="장부"||o.dept==="예약 주문"?"":(o.dept||"");
+    $("resAddr").value=o.addr||""; $("resPhone").value=o.phone||""; $("memo").value=o.memo||""; setKind(o.kind||"포장"); setVia(o.via); setPay(pay);
+    if(pay==="장부"&&o.dept)pickDept({org:o.org||"기타",name:o.dept,floor:o.floor});
     draft.items=[]; (o.items||[]).map(rebuildItem).forEach(i=>addDraftItem(i)); bumpIdx=-1; renderPicked();
   }
   updatePhoneBox(); renderResChips();
@@ -1678,7 +1710,7 @@ function openRes(o){
 function closeRes(quiet){
   if(!resMode)return true;
   if(!quiet&&draft.items.length&&!confirm(resEditing?"고친 내용을 저장하지 않고 닫을까요?":"적던 예약을 저장하지 않고 닫을까요?"))return false;
-  resMode=false; resEditing=null;
+  resMode=false; resEditing=null; setPay(""); $("deptLbl").textContent="어느 과·이름 (검색해서 고르기)";
   $("resBox").hidden=true; $("deptField").hidden=false; $("dueField").hidden=false; $("fHead").hidden=false;
   $("memoLbl").textContent="주문 전체 메모"; $("memo").placeholder="예: 수저 10개, 영수증 따로"; $("submitBtn").textContent="주문 넣기";
   $("resOverlay").hidden=true; $("counterView").prepend($("formPanel"));
@@ -1693,12 +1725,18 @@ async function saveRes(){
   if(!due){msg.textContent="몇 시까지인지 넣어 주세요.";$("resTime").focus();return;}
   if(day<today()){msg.textContent="지난 날짜예요. 날짜를 다시 골라 주세요.";$("resMon").focus();return;}
   if(!draft.items.length){msg.textContent="메뉴를 하나 이상 골라 주세요.";return;}
+  const pay=draft.pay||"";
+  if(!pay){msg.textContent="결제를 골라 주세요: 장부 / 카드 / 현금.";$("resPay").focus();return;}
+  if(pay==="장부"&&!draft.dept){const q=$("deptSearch").value.trim(); const ex=q&&allDepts().find(d=>norm(d.name)===norm(q)); if(ex)pickDept(ex);}
+  if(pay==="장부"&&(!draft.dept||draft.dept.guest)){msg.textContent="장부에 올릴 과나 이름을 골라 주세요.";$("deptSearch").focus();return;}
   if(!draft.kindSet){msg.textContent="";askKind(saveRes);return;}
   if(!col){msg.textContent="지금은 저장이 안 돼요. 가게 구글 계정으로 로그인해 주세요.";return;}
   msg.className="msg";
   const items=packItems(), food=items.reduce((s,i)=>s+i.unit*i.qty,0), fee=feeFor(draft.kind,food);
   const phone=$("resPhone").value.trim();
-  const body={day,due,reserved:true,org:"",dept:$("resWho").value.trim()||"예약 주문",floor:"",guest:false,kind:draft.kind,via:draft.via,card:draft.card,
+  const who=$("resWho").value.trim(), bk=pay==="장부"?draft.dept:null;
+  const body={day,due,reserved:true,org:bk?bk.org:"",dept:bk?bk.name:who||"예약 주문",floor:bk?bk.floor||"":"",guest:false,kind:draft.kind,via:draft.via,
+    pay,card:pay==="카드",cash:pay==="현금",who,
     memo:$("memo").value.trim(),items,fee,total:food+fee,phone,phone4:phone.replace(/\D/g,"").slice(-4),addr:$("resAddr").value.trim()};
   const btn=$("submitBtn"); btn.disabled=true; msg.textContent="저장하는 중…";
   try{
@@ -1718,6 +1756,7 @@ async function saveRes(){
       Object.assign(body,{createdAt:Date.now(),resAt:Date.now(),no:day===today()?nextNo():0,from:mode,done:{salad:false,sandwich:false}});
       await fsw(col.add(body));
     }
+    if(bk&&bk.custom&&deptCol&&!customDepts.some(d=>d.name===bk.name)){deptCol.add({org:"기타",name:bk.name,addedAt:Date.now()}).catch(()=>{});}
     msg.textContent="";
     const was=!!resEditing; closeRes(true);
     toast((was?"예약을 고쳤어요: ":"예약을 넣었어요: ")+dayLabel(day)+" "+due+" 까지."+(day===today()?" 오늘 주문에 바로 떴어요.":" 그날 포스를 켜면 주문으로 들어가 있어요."));
@@ -1981,7 +2020,7 @@ document.addEventListener("paste",e=>{
 $("scanBox").addEventListener("drop",e=>{e.preventDefault(); runScan([...((e.dataTransfer&&e.dataTransfer.files)||[])]);});
 
 /* ---------- 오늘 마감 요약: today's finished orders, in the order the ledger is written ---------- */
-function signText(o){if(o.src)return (o.kind==="배달"?"배달":"포장")+" · "+o.src+" (앱 결제, 장부 없음)"; if(isCard(o))return (o.kind==="배달"?"배달":"포장")+" · 💳 카드 결제 (장부 없음)"+(o.phone4?" · 뒷자리 "+o.phone4:""); if(isGuest(o))return (o.kind==="배달"?"배달":"포장")+" · 일반 손님 (장부 없음)"+(o.phone4?" · 뒷자리 "+o.phone4:""); return o.kind==="배달"?(o.phone4?"배달 · 전화 뒷자리 "+o.phone4:"배달 · 전화 뒷자리 (안 적어 둠)"):"포장 · 손님 싸인";}
+function signText(o){if(o.src)return (o.kind==="배달"?"배달":"포장")+" · "+o.src+" (앱 결제, 장부 없음)"; if(isCard(o))return (o.kind==="배달"?"배달":"포장")+" · 💳 카드 결제 (장부 없음)"+(o.phone4?" · 뒷자리 "+o.phone4:""); if(isCash(o))return (o.kind==="배달"?"배달":"포장")+" · 💵 현금 결제 (장부 없음)"+(o.phone4?" · 뒷자리 "+o.phone4:""); if(isGuest(o))return (o.kind==="배달"?"배달":"포장")+" · 일반 손님 (장부 없음)"+(o.phone4?" · 뒷자리 "+o.phone4:""); return o.kind==="배달"?(o.phone4?"배달 · 전화 뒷자리 "+o.phone4:"배달 · 전화 뒷자리 (안 적어 둠)"):"포장 · 손님 싸인";}
 // 마감 요약은 날짜를 골라 볼 수 있어요 (사장님 요청 2026-10-21: 바쁜 날은 다음 날 장부 정리). 지난 날 주문은 저장 공간에 그대로 남아 있어요.
 const dayStr=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
 const daysAgo=n=>{const d=new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate()-n); return dayStr(d);};
@@ -2115,7 +2154,7 @@ function orderSheetRows(list){
   const head=["날짜","받은 시각","예약","포장/배달","주문 경로","주문한 곳","메뉴","개수","금액(원)","배달비(원)","장부에 옮김","손님 확인","메모"];
   const rows=list.slice().sort((a,b)=>(a.day||"").localeCompare(b.day||"")||(a.createdAt||0)-(b.createdAt||0)).map(o=>[
     o.day||"", o.createdAt?hm(o.createdAt):"", o.reserved?"예약 "+(o.due||"")+" 까지":"", o.kind||"", srcOf(o), deptLabel(o)||"", itemsText(o), qtySum(o), o.total||0, o.fee||0,
-    isCard(o)?"(카드 결제)":isGuest(o)?"(장부 없음)":o.logged?"옮김":"", signText(o), o.memo||""]);
+    isCard(o)?"(카드 결제)":isCash(o)?"(현금 결제)":isGuest(o)?"(장부 없음)":o.logged?"옮김":"", signText(o), o.memo||""]);
   return [head].concat(rows);
 }
 async function downloadExcel(){
@@ -2155,7 +2194,7 @@ function renderSummary(){
   const src=isToday?orders:sumOrders;
   const real=src.filter(o=>!o.example), gone=real.filter(o=>o.out).sort((a,b)=>(a.outAt||0)-(b.outAt||0)), left=real.filter(o=>!o.out).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   const sum=l=>l.reduce((s,o)=>s+(o.total||0),0), all=gone.concat(left), pk=all.filter(o=>o.kind!=="배달"), dl=all.filter(o=>o.kind==="배달");
-  const fees=dl.reduce((s,o)=>s+(o.fee||0),0), books=all.filter(o=>!isGuest(o)&&!isCard(o)), logged=books.filter(o=>o.logged).length, gs=all.filter(o=>isGuest(o)&&!isCard(o)), cards=all.filter(isCard);
+  const fees=dl.reduce((s,o)=>s+(o.fee||0),0), books=all.filter(o=>!isGuest(o)&&!noBook(o)), logged=books.filter(o=>o.logged).length, gs=all.filter(o=>isGuest(o)&&!noBook(o)), cards=all.filter(isCard), cashes=all.filter(isCash);
   if(isFuture){
     top.replaceChildren(el("div","big","예약 "+all.length+"건 · "+won(sum(all))),el("div","s",dayLabel(day)+" · 그날 포스를 켜면 주문으로 들어가 있어요. 고치기·취소는 카운터의 '예약 목록'에서 해요."));
     rows.replaceChildren(...(all.length?all.slice().sort((a,b)=>(a.due||"").localeCompare(b.due||"")).map(o=>{
@@ -2172,9 +2211,10 @@ function renderSummary(){
   if(gn.length)top.append(el("div","s","일반 손님 "+gn.length+"건 "+won(sum(gn))+" (장부 없음)"));
   if(ap.length)top.append(el("div","s","배달앱 "+ap.length+"건 "+won(sum(ap))+" (앱 결제, 장부 없음)"));
   if(cards.length)top.append(el("div","s","💳 카드 "+cards.length+"건 "+won(sum(cards))+" (장부 없음 · 아래 장부 정리 목록엔 안 나와요)"));
+  if(cashes.length)top.append(el("div","s","💵 현금 "+cashes.length+"건 "+won(sum(cashes))+" (예약 주문 · 장부 없음 · 아래 장부 정리 목록엔 안 나와요)"));
   if(all.length)top.append(srcSplit(all,"어디서 들어온 주문인지"));
   // 📒 장부 주문만 보기 (선정님 요청 2026-11-03): 일반 손님·배달앱·카드 빼고 장부 정리할 것만
-  const bookOk=o=>!isCard(o)&&(!sumBookOnly||(!isGuest(o)&&!o.src));
+  const bookOk=o=>!noBook(o)&&(!sumBookOnly||(!isGuest(o)&&!o.src));
   const goneB=gone.filter(bookOk), leftB=left.filter(bookOk);
   if(leftB.length)top.append(el("div","s",(isToday?"아직 안 나간 주문 ":"'포장 완료'를 안 누른 주문 ")+leftB.length+"건 ("+won(sum(leftB))+")은 맨 아래에 있어요."));
   const row=o=>{
@@ -2198,7 +2238,7 @@ function renderSummary(){
   }else parts=goneB.map(row);
   if(!sumBookOnly&&leftB.length){parts.push(el("div","sec",isToday?"아직 안 나간 주문":"'포장 완료'를 안 누른 주문")); leftB.forEach(o=>parts.push(row(o)));}
   if(!parts.length&&sumBookOnly)rows.replaceChildren(el("p","empty","장부 정리할 주문이 없어요."));
-  else if(!parts.length)rows.replaceChildren(el("p","empty",cards.length?"장부 정리할 주문이 없어요. (카드 주문만 있어요)":isToday?"오늘 주문이 아직 없어요.":"이 날 주문이 없어요."));
+  else if(!parts.length)rows.replaceChildren(el("p","empty",cards.length||cashes.length?"장부 정리할 주문이 없어요. (카드·현금 주문만 있어요)":isToday?"오늘 주문이 아직 없어요.":"이 날 주문이 없어요."));
   else rows.replaceChildren(...parts);
   const by=new Map(); all.forEach(o=>{const k=o.src||(isGuest(o)?"일반 손님":deptLabel(o)||"(과 없음)"); const e=by.get(k)||{n:0,t:0}; e.n++; e.t+=o.total||0; by.set(k,e);});
   $("deptWrap").hidden=!by.size;
@@ -2391,7 +2431,7 @@ function slipNode(o){
   w.append(noDueApp(o)?rw("받은 시간",hm(o.createdAt)):rw(dl?"배달시간":"픽업시간",o.due?o.due+" 까지":"미정"));
   if(o.phone)w.append(rw("연락처",o.phone)); else if(o.phone4)w.append(rw("연락처","뒷자리 "+o.phone4));
   if(o.memo)w.append(el("div",null,"요청사항: "+o.memo));
-  if(isCard(o))w.append(rw("결제","카드")); else if(!g)w.append(rw("결제","장부"));
+  if(isCard(o))w.append(rw("결제","카드")); else if(isCash(o))w.append(rw("결제","현금")); else if(!g)w.append(rw("결제","장부"));
   {const lb=ledSlip(o); if(lb)w.append(rw("외상 잔액",lb));}
   w.append(dash());
   // ---- 포스 영수증과 같은 부분 ----
@@ -2477,7 +2517,7 @@ function slipBytes(o){
   raw(0x1b,0x45,1); ln(noDueApp(o)?lr("받은 시간",hm(o.createdAt),W):lr(dl?"배달시간":"픽업시간",o.due?o.due+" 까지":"미정",W)); raw(0x1b,0x45,0);
   if(o.phone)ln(lr("연락처",o.phone,W)); else if(o.phone4)ln(lr("연락처","뒷자리 "+o.phone4,W));
   if(o.memo)wrapLn("요청사항: "+o.memo,"  ");
-  if(isCard(o))ln(lr("결제","카드",W)); else if(!g)ln(lr("결제","장부",W));
+  if(isCard(o))ln(lr("결제","카드",W)); else if(isCash(o))ln(lr("결제","현금",W)); else if(!g)ln(lr("결제","장부",W));
   {const lb=ledSlip(o); if(lb){raw(0x1b,0x45,1); ln(lr("외상 잔액",lb,W)); raw(0x1b,0x45,0);}}
   dash();
   // ---- 포스 영수증과 같은 부분 ----
@@ -3090,6 +3130,7 @@ function readyCard(o){
   if(o.total)r.append(el("div","s","금액 "+moneyText(o)));
   if(o.src)r.append(el("div","sign",o.src+" 주문 · 앱 결제 · 장부 없음"));
   else if(isCard(o))r.append(el("div","sign","💳 카드 결제 · 장부 없음"));
+  else if(isCash(o))r.append(el("div","sign","💵 현금 결제 · 장부 없음"));
   else if(isGuest(o))r.append(el("div","sign","일반 손님 · 장부 없음"));
   else if(o.kind==="배달")r.append(el("div","sign",o.phone4?"장부 싸인: 전화 뒷자리 "+o.phone4:"장부 싸인: 전화 뒷자리 (안 적어 둠)"));
   else r.append(el("div","sign","장부 싸인: 손님이 가져갈 때 받기"));
@@ -3128,7 +3169,7 @@ function outRow(o){
   const pt=slipTag(o); if(pt)h.append(pt);
   r.append(h, el("div","tm",(o.reserved?"예약 ("+shortDay(o.resAt||o.createdAt)+" 접수)":"받음 "+(o.createdAt?hm(o.createdAt):"--:--"))+" · 완료 "+(o.outAt?hm(o.outAt):"--:--")+(o.due?" · 예상 "+o.due:"")), el("div","s",itemsText(o)));
   if(o.memo)r.append(el("div","s","메모: "+o.memo));
-  if(isCard(o))r.append(el("div","s","💳 카드 결제 · 장부 없음")); else if(o.kind==="배달"&&o.phone4&&!isGuest(o))r.append(el("div","s","장부 싸인: 전화 뒷자리 "+o.phone4));
+  if(isCard(o))r.append(el("div","s","💳 카드 결제 · 장부 없음")); else if(isCash(o))r.append(el("div","s","💵 현금 결제 · 장부 없음")); else if(o.kind==="배달"&&o.phone4&&!isGuest(o))r.append(el("div","s","장부 싸인: 전화 뒷자리 "+o.phone4));
   const act=el("div","act"), back=el("button","linkbtn","되돌리기"); back.type="button"; back.disabled=busy.has(o.id);
   back.onclick=()=>write(o.id,ref=>ref.update({out:false}));
   const sb=el("button","linkbtn",o.printedAt?"🖨 전표 다시":"🖨 전표"); sb.type="button"; sb.onclick=()=>printSlip(o);
@@ -3450,7 +3491,7 @@ function ledRoll(target){
   ledSave(nv=>{nv.cpDay=target; nv.acc.forEach(a=>{if(upd[a.k])a.cp=upd[a.k]; else delete a.cp;});});
   return true;
 }
-const ledCounts=o=>!!(o&&o.dept&&!o.example&&!isGuest(o)&&!isCard(o)&&!o.src);
+const ledCounts=o=>!!(o&&o.dept&&!o.example&&!isGuest(o)&&!noBook(o)&&!o.src);
 const ledAt=o=>o.reserved?Math.max(o.createdAt||0,dayMs(o.day)):(o.createdAt||0);
 const ledIn=(a,o)=>ledCounts(o)&&ledKey({org:o.org,name:o.dept})===a.k&&ledAt(o)>a.startAt;
 const ymOf=ms=>{const d=new Date(ms);return d.getFullYear()+"-"+pad(d.getMonth()+1);};
@@ -3488,7 +3529,7 @@ function ledRefresh(){ ledForm(); if(!$("ledOverlay").hidden)renderLed(); if(!$(
 // 주문 칸: 과를 고르면 그 과 잔액과, 이 주문을 넣은 뒤 잔액
 function ledForm(){
   const box=$("ledLine"); if(!box)return;
-  const d=draft.dept, a=d&&!d.guest?ledAcc(ledKey(d)):null;
+  const d=draft.dept, a=d&&!d.guest&&(!resMode||draft.pay==="장부")?ledAcc(ledKey(d)):null;
   if(!a){box.hidden=true;return;}
   box.hidden=false; box.replaceChildren();
   const c=ledCalc(a); if(!c){box.textContent="📒 외상 잔액 불러오는 중…";return;}
