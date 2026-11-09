@@ -390,7 +390,7 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
 .resbox{border:2px solid var(--res);background:var(--res-soft);border-radius:10px;padding:12px 12px 0;margin-bottom:14px}
 .resbox .chips{margin-top:2px}
 .reshint{font-weight:700;color:var(--res);min-height:1.5em}
-.resbox select.need{border-color:var(--late);background:var(--late-soft)}
+.resbox input.need{border-color:var(--late);background:var(--late-soft)}
 .restag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:.8rem;font-weight:800;background:var(--res);color:#fff;white-space:nowrap}
 .ticket.isres{border-color:var(--res)}
 .chk{background:#fde8e6;color:#b42318;border:2px solid #e5484d;border-radius:8px;padding:6px 10px;margin:6px 0;font-weight:700;overflow-wrap:anywhere}
@@ -533,9 +533,14 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
         </div>
         <div class="field">
           <label for="resPay">결제 (꼭 고르기)</label>
-          <select id="resPay" class="need" style="max-width:26em;width:100%">
-            <option value="">결제 어디서 뺄지 (장부/현금/카드)</option>
-          </select>
+          <div class="combo">
+            <div class="picked-dept" id="resPayPicked" hidden>
+              <span><span class="org" id="resPayOrg"></span><br><b id="resPayName"></b></span>
+              <button type="button" class="linkbtn" id="resPayClear">다시 고르기</button>
+            </div>
+            <input type="text" id="resPay" class="need" autocomplete="off" placeholder="결제 어디서 뺄지 (장부/현금/카드) · 예: ㅊㅁ, ㅎㄱ" role="combobox" aria-expanded="false" aria-controls="resPayList">
+            <div class="dlist" id="resPayList" role="listbox" hidden></div>
+          </div>
           <div class="reshint" id="resPayHint"></div>
         </div>
       </div>
@@ -1494,26 +1499,49 @@ $("cardChip").onclick=()=>resMode?setPay(draft.card?"":"카드"):setCard(!draft.
 // 예약 주문 결제 (선정님 요청 2026-11-09): 한 칸에서 현금 / 카드 / 모든 장부(과·개인) 중 골라요.
 // 장부를 고르면 그 과로 저장돼서 예약한 날 그 과 외상 잔액에서 빠져요. 값: "현금" | "카드" | "장부|org|name"
 const payKey=d=>"장부|"+(d.org||"기타")+"|"+d.name;
-function renderPaySel(){
-  const sel=$("resPay"), first=sel.options[0]; sel.replaceChildren(first);
-  const grp=(l,list)=>{if(!list.length)return; const g=document.createElement("optgroup"); g.label=l; list.forEach(([v,t])=>{const o=el("option",null,t); o.value=v; g.append(o);}); sel.append(g);};
-  grp("현금 · 카드 (장부 없음)",[["현금","💵 현금"],["카드","💳 카드"]]);
-  const seen=new Set(), accs=led.acc.slice().sort((x,y)=>x.org.localeCompare(y.org)||x.name.localeCompare(y.name));
-  grp("📒 잔액 적어 둔 장부",accs.map(a=>{const v=payKey(a); seen.add(v); return [v,"📒 "+a.name+" ("+[a.org,a.floor].filter(x=>x&&x!=="기타").join(" ")+")"];}));
-  const by=new Map(); allDepts().forEach(d=>{const v=payKey(d); if(seen.has(v))return; seen.add(v); if(!by.has(d.org))by.set(d.org,[]); by.get(d.org).push([v,"📒 "+d.name+(d.floor?" ("+d.floor+")":"")]);});
-  by.forEach((list,org)=>grp("📒 장부 · "+org,list));
+// 초성으로 찾아 골라요 (선정님 요청: 패드에서 긴 목록을 내리기 힘들어요). 현금·카드는 맨 위, 그다음 잔액 적어 둔 장부, 나머지 모든 과·개인.
+function payChoices(){
+  const out=[{v:"현금",t:"💵 현금",g:"현금 · 카드 (장부 없음)",s:"현금"},{v:"카드",t:"💳 카드",g:"현금 · 카드 (장부 없음)",s:"카드"}], seen=new Set();
+  led.acc.slice().sort((x,y)=>x.org.localeCompare(y.org)||x.name.localeCompare(y.name)).forEach(a=>{const v=payKey(a); seen.add(v);
+    out.push({v,t:a.name,fl:[a.org,a.floor].filter(x=>x&&x!=="기타").join(" "),g:"📒 잔액 적어 둔 장부",s:a.org+a.name,f:a.floor||""});});
+  allDepts().forEach(d=>{const v=payKey(d); if(seen.has(v))return; seen.add(v); out.push({v,t:d.name,fl:d.floor||"",g:"📒 장부 · "+d.org,s:d.org+d.name,f:d.floor||""});});
+  return out;
 }
+let payActive=-1;
+function openPayList(){
+  const q=norm($("resPay").value), onlyCho=/^[ㄱ-ㅎ]+$/.test(q), box=$("resPayList"); box.replaceChildren(); payActive=-1;
+  const res=payChoices().filter(c=>!q||norm(c.s).includes(q)||norm(c.f).includes(q)||(onlyCho&&cho(c.s).includes(q))).slice(0,60);
+  let lg=null;
+  res.forEach(c=>{ if(c.g!==lg){box.append(el("div","grp",c.g));lg=c.g;}
+    const b=el("button",null,c.t); b.type="button"; b.setAttribute("role","option"); if(c.fl)b.append(el("span","fl",c.fl));
+    b.onmousedown=e=>e.preventDefault(); b.onclick=()=>setPay(c.v); box.append(b);});
+  if(!res.length)box.append(el("div","grp","찾는 곳이 없어요. 과 이름이나 초성(예: ㅊㅁ)을 다시 쳐 보세요."));
+  box.hidden=false; $("resPay").setAttribute("aria-expanded","true");
+}
+function closePayList(){$("resPayList").hidden=true; $("resPay").setAttribute("aria-expanded","false");}
+$("resPay").addEventListener("focus",openPayList);
+$("resPay").addEventListener("input",openPayList);
+$("resPay").addEventListener("blur",()=>setTimeout(closePayList,150));
+$("resPay").addEventListener("keydown",e=>{
+  if(e.key==="ArrowDown"&&$("resPayList").hidden){e.preventDefault();openPayList();return;}
+  const btns=[...$("resPayList").querySelectorAll("button")]; if(!btns.length||$("resPayList").hidden){if(e.key==="Enter")e.preventDefault();return;}
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();payActive=(payActive+(e.key==="ArrowDown"?1:-1)+btns.length)%btns.length;btns.forEach((b,i)=>b.classList.toggle("on",i===payActive));btns[payActive].scrollIntoView({block:"nearest"});}
+  if(e.key==="Enter"){e.preventDefault();btns[payActive>=0?payActive:0].click();}
+  if(e.key==="Escape")closePayList();
+});
+$("resPayClear").onclick=()=>{setPay(""); $("resPay").focus();};
 function setPay(v){
-  const sel=$("resPay"); v=v||"";
+  v=v||"";
   if(v.startsWith("장부|")){
     const i=v.indexOf("|",3), org=v.slice(3,i), name=v.slice(i+1);
     pickDept(findDept({org,name})||{org,name,floor:(led.acc.find(a=>a.org===org&&a.name===name)||{}).floor||""});
     v="장부";
   } else if(v!=="카드"&&v!=="현금")v="";
   draft.pay=v; if(resMode&&v!=="장부")draft.dept=null;
-  const sv=v==="장부"&&draft.dept?payKey(draft.dept):v;
-  if(sv&&![...sel.options].some(o=>o.value===sv)){const o=el("option",null,"📒 "+draft.dept.name); o.value=sv; sel.append(o);}
-  sel.value=sv; sel.classList.toggle("need",!v);
+  const inp=$("resPay"), d=draft.dept; inp.value=""; closePayList();
+  $("resPayPicked").hidden=!v; inp.hidden=!!v; inp.classList.toggle("need",!v);
+  $("resPayOrg").textContent=v==="장부"&&d?"📒 장부 · "+[d.org!=="기타"?d.org:"",d.floor].filter(Boolean).join(" "):"장부 없음";
+  $("resPayName").textContent=v==="장부"&&d?d.name:v==="카드"?"💳 카드":v==="현금"?"💵 현금":"";
   setCard(v==="카드"); // ledForm 도 불러요
 }
 function payHint(){
@@ -1523,7 +1551,6 @@ function payHint(){
   const a=ledAcc(ledKey(draft.dept)), c=a&&ledCalc(a);
   h.textContent="📒 "+[draft.dept.org!=="기타"?draft.dept.org:"",draft.dept.name].filter(Boolean).join(" ")+" 장부"+(c?" · 지금 "+(ledPost(a)?"쌓인 외상 ":"잔액 ")+ledSigned(c.bal)+" → 예약한 날 빠져요":a?" · 잔액 불러오는 중…":" · 예약한 날 장부 정리 목록에 나와요");
 }
-$("resPay").addEventListener("change",e=>setPay(e.target.value));
 document.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{
   const n=$("freeName").value.trim(); if(!n){$("freeName").focus();return;}
   const pr=parseInt(($("freePrice").value||"").replace(/\D/g,""),10)||0;
@@ -1707,7 +1734,7 @@ function openRes(o){
   $("memoLbl").textContent="특이사항 (안 써도 돼요)"; $("memo").placeholder="예: 2시까지 세팅, 수저 150개, 개별 포장";
   $("submitBtn").textContent=o?"고친 예약 저장":"예약 넣기";
   $("resSheetTitle").textContent=o?"📅 예약 고치기":"📅 예약 주문 받기";
-  renderPaySel(); setPay("");
+  setPay("");
   if(o){
     const pay=o.pay||(isCard(o)?"카드":isCash(o)?"현금":"");
     $("resDate").value=o.day||""; $("resTime").value=o.due||""; $("resWho").value=o.who!=null?o.who:pay==="장부"||o.dept==="예약 주문"?"":(o.dept||"");
