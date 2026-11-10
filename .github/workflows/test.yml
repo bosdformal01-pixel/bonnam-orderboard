@@ -25,3 +25,5 @@ jobs:
         run: node tests/relay-e2e.js . out 30
       - name: 쿠팡이츠·요기요 모든 조합
         run: node tests/relay-combos.js .
+      - name: 샐러드바·샌드위치바 나뉨 모든 조합
+        run: node tests/bar-combos.js .
