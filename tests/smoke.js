@@ -38,6 +38,17 @@ const fails=[]; const ok=(c,m)=>{console.log((c?"성공 ":"실패 ")+m); if(!c)f
       });
       ok(/결제를 골라/.test(rv.noPay)&&rv.hasAll,"예약: 결제 칸에 현금·카드·장부(과)가 다 있고, 안 고르면 저장 안 됨, 초성으로 찾기");
       ok(rv.n===2&&rv.bk.join()==="동구청,총무과,장부,true"&&rv.cs.join()==="OO웨딩홀,현금,false","예약: 장부는 과 잔액에, 현금은 장부 밖 ("+JSON.stringify(rv)+")");
+      // 전화번호 칸 (2026-11-11): 4개면 뒷자리 그대로, 5개 넘으면 앞에 010 붙여 전체 번호로
+      const pf=await pg.evaluate(async()=>{
+        const cases=[["1234","1234"],["12345678","010-1234-5678"],["1234-5678","010-1234-5678"],["01012345678","010-1234-5678"],["010-1234-5678","010-1234-5678"],["1234567","010-123-4567"],["052-123-4567","052-123-4567"],["",""]];
+        const bad=cases.filter(([i,o])=>phoneFull(i)!==o).map(([i,o])=>i+"→"+phoneFull(i)+"(원래 "+o+")");
+        if(typeof resMode!=="undefined"&&resMode)closeRes&&closeRes();
+        const got=[]; col={add:async b=>{got.push(b);return {id:"p"};},doc:()=>({update:async()=>{}}),where:()=>({where:()=>({onSnapshot:()=>()=>{}}),onSnapshot:()=>()=>{},get:async()=>({docs:[]})})};
+        const save=async v=>{resetForm(); pickDept(GUEST); draft.items.push({name:MENU[0].items[0][0],unit:5000,qty:1,opts:[],st:"sandwich",note:""}); setKind("배달"); draft.kindSet=true; $("phone4").value=v; $("orderForm").requestSubmit(); for(let i=0;i<30&&got.length<want;i++)await new Promise(r=>setTimeout(r,100));};
+        let want=1; await save("98765432"); want=2; await save("4321");
+        return {bad,a:got[0]&&[got[0].phone,got[0].phone4],b:got[1]&&[got[1].phone,got[1].phone4]};
+      });
+      ok(!pf.bad.length&&pf.a&&pf.a.join()==="010-9876-5432,5432"&&pf.b&&pf.b.join()===",4321","전화번호: 8자리면 010 붙여 저장, 4자리면 뒷자리만 ("+JSON.stringify(pf)+")");
     }
     await pg.close();
   }
