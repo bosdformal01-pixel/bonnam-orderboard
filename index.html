@@ -582,8 +582,8 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
         </div>
       </div>
       <div class="field" id="phoneBox" hidden>
-        <label for="phone4" id="phoneLbl">전화번호 (뒷자리 4개만, 또는 010 빼고 8자리 · 장부 싸인용, 안 써도 돼요)</label>
-        <input type="text" id="phone4" inputmode="tel" placeholder="예: 1234 또는 1234-5678 (010 은 저절로)" style="max-width:16em;font-size:1.2rem;font-variant-numeric:tabular-nums">
+        <label for="phone4" id="phoneLbl">전화번호 (뒷자리 4개만, 또는 010·052 빼고 · 장부 싸인용, 안 써도 돼요)</label>
+        <input type="text" id="phone4" inputmode="tel" placeholder="예: 1234 또는 1234-5678 (010·052 는 저절로)" style="max-width:16em;font-size:1.2rem;font-variant-numeric:tabular-nums">
       </div>
       <div class="field">
         <span class="lbl">메뉴 (누르면 옵션 고르는 창이 떠요)</span>
@@ -782,8 +782,8 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
       <button type="button" data-kask="배달">🛵 배달</button>
     </div>
     <div class="kindphone" id="kindPhoneBox" hidden>
-      <label for="kindPhone">전화번호 (뒷자리 4개만, 또는 010 빼고 8자리 · 장부 싸인용, 안 써도 돼요)</label>
-      <input type="text" id="kindPhone" inputmode="tel" placeholder="예: 1234 또는 1234-5678 (010 은 저절로)">
+      <label for="kindPhone">전화번호 (뒷자리 4개만, 또는 010·052 빼고 · 장부 싸인용, 안 써도 돼요)</label>
+      <input type="text" id="kindPhone" inputmode="tel" placeholder="예: 1234 또는 1234-5678 (010·052 는 저절로)">
       <button type="button" class="submit" id="kindGo">배달로 주문 넣기</button>
     </div>
     <button type="button" class="linkbtn" id="kindCancel">닫기</button>
@@ -1488,7 +1488,7 @@ function updatePhoneBox(){
   const g=!!(draft.dept&&draft.dept.guest);
   if(resMode){$("phoneBox").hidden=true;return;}
   $("phoneBox").hidden=draft.kind!=="배달"&&!g;
-  $("phoneLbl").textContent=g?"손님 전화번호 (뒷자리 4개만, 또는 010 빼고 8자리 · 손님 구분용, 안 써도 돼요)":"전화번호 (뒷자리 4개만, 또는 010 빼고 8자리 · 장부 싸인용, 안 써도 돼요)";
+  $("phoneLbl").textContent=g?"손님 전화번호 (뒷자리 4개만, 또는 010·052 빼고 · 손님 구분용, 안 써도 돼요)":"전화번호 (뒷자리 4개만, 또는 010·052 빼고 · 장부 싸인용, 안 써도 돼요)";
 }
 document.querySelectorAll("[data-kind]").forEach(b=>b.onclick=()=>setKind(b.dataset.kind));
 // 전화로 받은 주문인지, 가게에 온 손님 주문인지 (앱별 매출 나눠 보기용). 안 고르면 전화
@@ -1578,14 +1578,15 @@ document.querySelectorAll("[data-kask]").forEach(b=>b.onclick=()=>{
 });
 // 전화번호 칸: 숫자와 '-' 만, 길이 제한 없음. 뒷자리 4개만 써도 되고 전체 번호도 돼요 (2026-11-10 선정님 요청: 6시 넘은 보건소 배달은 전화하고 건네요)
 const phoneClean=v=>String(v||"").replace(/[^\d-]/g,"");
-// 숫자 4개면 그대로(뒷자리), 5개 넘으면 앞에 010 을 붙여요 (0 으로 시작하면 이미 전체 번호라 그대로) (2026-11-11 선정님 요청)
-// 예: 12345678 → 010-1234-5678, 01012345678 → 010-1234-5678, 052-123-4567 → 그대로
+// 숫자 4개면 그대로(뒷자리), 7개면 앞에 052(울산 집전화), 그 밖에 5개 넘으면 앞에 010 을 붙여요.
+// 0 으로 시작하면 이미 전체 번호라 그대로 (2026-11-11 선정님 요청)
+// 예: 12345678 → 010-1234-5678, 2345678 → 052-234-5678, 01012345678 → 010-1234-5678, 052-123-4567 → 그대로
 function phoneFull(v){
   const t=phoneClean(v).replace(/^-+|-+$/g,""), d=t.replace(/\D/g,"");
   if(d.length<=4)return d;
-  const f=d[0]==="0"?d:"010"+d;
+  const f=d[0]==="0"?d:(d.length===7?"052":"010")+d;
   if(/^010\d{8}$/.test(f))return f.slice(0,3)+"-"+f.slice(3,7)+"-"+f.slice(7);
-  if(/^010\d{7}$/.test(f))return f.slice(0,3)+"-"+f.slice(3,6)+"-"+f.slice(6);
+  if(/^0(10|52)\d{7}$/.test(f))return f.slice(0,3)+"-"+f.slice(3,6)+"-"+f.slice(6);
   return d[0]==="0"?t:f;
 }
 $("kindPhone").addEventListener("input",e=>{const v=phoneClean(e.target.value); if(v!==e.target.value)e.target.value=v;});
