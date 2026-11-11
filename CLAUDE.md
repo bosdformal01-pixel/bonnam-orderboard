@@ -3,7 +3,7 @@
 이 주문판은 가게의 모든 주문 전표와 외상 장부를 맡고 있어요. main 에 합치면 몇 분 안에 가게 화면(GitHub Pages)에 그대로 반영돼요.
 
 1. **바쁜 시간에는 main 에 합치지 않기**: 한국 시간 15:30~19:30 (피크 16~19시). 급한 고장 수리만 예외, 그것도 사장님 확인 후.
-2. **합치기 전에 시험**: `node tests/smoke.js`, `node tests/relay-e2e.js . out 30`, 전표 읽기(parseSlip·appItem 등)를 고쳤으면 `node tests/relay-combos.js` 도. GitHub 자동 시험(주문판 시험)이 초록인지 확인.
+2. **합치기 전에 시험**: `node tests/smoke.js`, `node tests/relay-e2e.js . out 30`, 전표 읽기(parseSlip·appItem 등)를 고쳤으면 `node tests/relay-combos.js`, `node tests/bar-combos.js` 도. GitHub 자동 시험(주문판 시험)이 초록인지 확인.
 3. **문제가 생기면 바로 되돌리기**: 그 PR 의 Revert 로 새 PR 을 만들어 합쳐요. 고치는 건 그다음.
 4. 저장소 쓰기는 `fsw()` 로 감싸서 인터넷이 끊겨도 버튼이 멈추지 않게 해요. 오프라인 저장(enablePersistence)과 sw.js 는 지우지 않기.
 5. 종이 장부가 진짜고 주문판 외상 잔액은 보조예요.

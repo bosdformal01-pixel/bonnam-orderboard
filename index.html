@@ -424,7 +424,7 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
 .kindpick button{padding:26px 8px;border:2px solid var(--ink);border-radius:12px;background:var(--paper);color:var(--ink);font:inherit;font-size:1.6rem;font-weight:800;cursor:pointer}
 .kindpick button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
 .kindphone{display:grid;gap:8px;text-align:left}
-.kindphone input{font-size:1.4rem;font-variant-numeric:tabular-nums;max-width:10em}
+.kindphone input{font-size:1.4rem;font-variant-numeric:tabular-nums;max-width:16em}
 .kindpick button:hover,.kindpick button:focus-visible{background:var(--ink);color:var(--paper)}
 .sheet.peak{max-width:520px;border:3px solid var(--late);margin-top:10vh}
 .sheet.peak h2{font-family:var(--display);font-weight:400;font-size:1.6rem;margin:0;color:var(--late)}
@@ -582,8 +582,8 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
         </div>
       </div>
       <div class="field" id="phoneBox" hidden>
-        <label for="phone4" id="phoneLbl">전화 뒷자리 4개 (장부 싸인용, 안 써도 돼요)</label>
-        <input type="text" id="phone4" inputmode="numeric" maxlength="4" placeholder="예: 1234" style="max-width:10em;font-size:1.2rem;font-variant-numeric:tabular-nums">
+        <label for="phone4" id="phoneLbl">전화번호 (뒷자리 4개만 써도 되고 전체도 돼요 · 장부 싸인용, 안 써도 돼요)</label>
+        <input type="text" id="phone4" inputmode="tel" placeholder="예: 1234 또는 010-1234-5678" style="max-width:16em;font-size:1.2rem;font-variant-numeric:tabular-nums">
       </div>
       <div class="field">
         <span class="lbl">메뉴 (누르면 옵션 고르는 창이 떠요)</span>
@@ -782,8 +782,8 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
       <button type="button" data-kask="배달">🛵 배달</button>
     </div>
     <div class="kindphone" id="kindPhoneBox" hidden>
-      <label for="kindPhone">전화 뒷자리 4개 (장부 싸인용, 안 써도 돼요)</label>
-      <input type="text" id="kindPhone" inputmode="numeric" maxlength="4" placeholder="예: 1234">
+      <label for="kindPhone">전화번호 (뒷자리 4개만 써도 되고 전체도 돼요 · 장부 싸인용, 안 써도 돼요)</label>
+      <input type="text" id="kindPhone" inputmode="tel" placeholder="예: 1234 또는 010-1234-5678">
       <button type="button" class="submit" id="kindGo">배달로 주문 넣기</button>
     </div>
     <button type="button" class="linkbtn" id="kindCancel">닫기</button>
@@ -881,7 +881,7 @@ const G={
  // 드레싱은 무료. 오리엔탈이 기본으로 눌려 있고, 한 번 더 누르면 빠져서 '드레싱 없음'으로 찍혀요 (선정님 요청 2026-10-21)
  // 2개까지 무료로 골라요 (동구청 요청 시 두 개, 선정님 요청 2026-10-27). 처음 다른 걸 누르면 오리엔탈 대신 바뀌고, 그다음부터는 하나 더 붙어요
  bmDress:{l:"드레싱 (무료)",m:1,max:2,swapDef:1,key:1,d:0,hideDef:1,emptyAs:"드레싱 없음",st:"salad",hint:"오리엔탈 기본 · 2개까지 · 다시 누르면 빠져요",o:[["오리엔탈 드레싱"],["발사믹 드레싱"],["사우전아일랜드 드레싱"],["유자 드레싱"],["참깨 드레싱"],["스리라차마요 드레싱"],["흑임자 드레싱"],["케이준 드레싱"]]},
- bmSalTop:{l:"샐러드 토핑 추가",m:1,max:2,o:[["스위트콘"],["견과류"],["슬라이스 햄 추가",700],["계란 추가",700],["찐 단호박 추가",1000],["구운두부",1000],["abc라페",1500],["에그마요 추가",1500],["감자샐러드 추가",1500],["단호박샐러드 추가",1500],["베이컨(3줄) 추가",2000],["현미밥 추가",2000],["닭가슴살 추가",2500],["닭다리살 추가",2500],["수제리코타치즈 추가",2500],["버터갈릭새우4p 추가",2500],["아보카도 추가",2500],["치킨텐더 2조각",2500],["과일 추가",3000],["우삼겹 추가",3000],["오리훈제 추가",3000],["소불고기 추가",3000],["연어 추가",5000]]},
+ bmSalTop:{l:"샐러드 토핑 추가",m:1,max:4,o:[["스위트콘"],["견과류"],["슬라이스 햄 추가",700],["계란 추가",700],["찐 단호박 추가",1000],["구운두부",1000],["abc라페",1500],["에그마요 추가",1500],["감자샐러드 추가",1500],["단호박샐러드 추가",1500],["베이컨(3줄) 추가",2000],["현미밥 추가",2000],["닭가슴살 추가",2500],["닭다리살 추가",2500],["수제리코타치즈 추가",2500],["버터갈릭새우4p 추가",2500],["아보카도 추가",2500],["치킨텐더 2조각",2500],["과일 추가",3000],["우삼겹 추가",3000],["오리훈제 추가",3000],["소불고기 추가",3000],["연어 추가",5000]]},
  bmSauce:{l:"소스 따로 추가 (유료)",m:1,max:13,o:[["피클 추가",700],["할라피뇨 추가",700],["오리엔탈 드레싱",700],["발사믹 드레싱",700],["유자 드레싱",700],["참깨 드레싱",700],["흑임자 드레싱",700],["사우전 드레싱",700],["케이준 드레싱",700],["타르타르 드레싱",700],["스리라차 드레싱",700],["데리야끼 소스",700],["매운 데리야끼 소스",700],["치폴레 소스",700],["딸기쨈",1000],["바질 페스토(50g)",1500]]},
  bmMini:{l:"샐러드 토핑",m:1,max:2,o:[["견과류"],["스위트콘"],["구운두부",700],["abc라페",700],["에그마요 샐러드",1500],["감자 샐러드",1500],["단호박 샐러드",1500],["닭가슴살",1500],["수제리코타치즈",1500],["불고기",1500],["오리훈제",1500],["새우",1500],["과일2종",1500],["아보카도 반개",2500]]},
  bmBread:{l:"빵",d:0,hideDef:1,emptyAs:"빵 없음",o:[["통밀식빵"],["우유식빵"],["베이글 (중간빵 추가 불가)",1000]]},
@@ -1488,7 +1488,7 @@ function updatePhoneBox(){
   const g=!!(draft.dept&&draft.dept.guest);
   if(resMode){$("phoneBox").hidden=true;return;}
   $("phoneBox").hidden=draft.kind!=="배달"&&!g;
-  $("phoneLbl").textContent=g?"손님 전화 뒷자리 4개 (손님 구분용, 안 써도 돼요)":"전화 뒷자리 4개 (장부 싸인용, 안 써도 돼요)";
+  $("phoneLbl").textContent=g?"손님 전화번호 (뒷자리 4개만 써도 되고 전체도 돼요 · 손님 구분용, 안 써도 돼요)":"전화번호 (뒷자리 4개만 써도 되고 전체도 돼요 · 장부 싸인용, 안 써도 돼요)";
 }
 document.querySelectorAll("[data-kind]").forEach(b=>b.onclick=()=>setKind(b.dataset.kind));
 // 전화로 받은 주문인지, 가게에 온 손님 주문인지 (앱별 매출 나눠 보기용). 안 고르면 전화
@@ -1576,7 +1576,9 @@ document.querySelectorAll("[data-kask]").forEach(b=>b.onclick=()=>{
   $("kindGo").textContent="배달로 주문 넣기 · "+won(food+fee)+(fee?" (배달비 "+won(fee)+" 포함)":"");
   $("kindPhone").value=$("phone4").value; $("kindPhoneBox").hidden=false; $("kindPhone").focus();
 });
-$("kindPhone").addEventListener("input",e=>{const v=e.target.value.replace(/\D/g,"").slice(0,4); if(v!==e.target.value)e.target.value=v;});
+// 전화번호 칸: 숫자와 '-' 만, 길이 제한 없음. 뒷자리 4개만 써도 되고 전체 번호도 돼요 (2026-11-10 선정님 요청: 6시 넘은 보건소 배달은 전화하고 건네요)
+const phoneClean=v=>String(v||"").replace(/[^\d-]/g,"");
+$("kindPhone").addEventListener("input",e=>{const v=phoneClean(e.target.value); if(v!==e.target.value)e.target.value=v;});
 $("kindPhone").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();$("kindGo").click();}});
 $("kindGo").onclick=()=>{$("phone4").value=$("kindPhone").value; kindDone("배달");};
 $("kindCancel").onclick=closeKind;
@@ -1603,14 +1605,14 @@ $("orderForm").addEventListener("submit",async e=>{
   const body={day:today(),createdAt:Date.now(),no:nextNo(),org:draft.dept.org,dept:draft.dept.name,floor:draft.dept.floor||"",guest:!!draft.dept.guest,due:$("due").value||"",kind:draft.kind,via:draft.via,card:draft.card,
     memo:$("memo").value.trim(),items,total:0,from:mode,done:{salad:false,sandwich:false}};
   const food=items.reduce((s,i)=>s+i.unit*i.qty,0); body.fee=feeFor(draft.kind,food); body.total=food+body.fee;
-  const p4=$("phone4").value.replace(/\D/g,"").slice(0,4);
-  body.phone4=draft.kind==="배달"||body.guest?p4:"";
+  const ph=draft.kind==="배달"||body.guest?phoneClean($("phone4").value).replace(/^-+|-+$/g,"").slice(0,40):"", phd=ph.replace(/\D/g,"");
+  body.phone4=phd.slice(-4); body.phone=phd.length>4?ph:"";
   if(editing){
     const cur=orders.find(o=>o.id===editing);
     if(!cur){msg.className="msg err";msg.textContent="이 주문은 이미 지워졌어요.";btn.disabled=false;return;}
     const done={}, prevDone=cur.done||{};
     ["salad","sandwich"].forEach(st=>{done[st]=sigFor(cur.items,st)===sigFor(items,st)?!!prevDone[st]:false;});
-    const upd={org:body.org,dept:body.dept,floor:body.floor,guest:body.guest,due:body.due,kind:body.kind,via:body.via,card:body.card,memo:body.memo,items,total:body.total,fee:body.fee,phone4:body.phone4,editedAt:Date.now(),done};
+    const upd={org:body.org,dept:body.dept,floor:body.floor,guest:body.guest,due:body.due,kind:body.kind,via:body.via,card:body.card,memo:body.memo,items,total:body.total,fee:body.fee,phone4:body.phone4,phone:body.phone,editedAt:Date.now(),done};
     if(!done.salad&&prevDone.salad||!done.sandwich&&prevDone.sandwich)upd.out=false;
     try{
       await fsw(col.doc(editing).update(upd));
@@ -1664,7 +1666,7 @@ function startEdit(o){
   if(!editing)stashDraft();
   editing=o.id;
   pickDept(isGuest(o)?GUEST:o.floor!==undefined?{org:o.org||"기타",name:o.dept||"",floor:o.floor,custom:(o.org||"기타")==="기타"}:{org:o.org||"기타",name:o.dept||""});
-  $("due").value=o.due||""; dueAuto=false; renderDueChips(); setKind(o.kind||"포장"); setVia(o.via); setCard(o.card); $("phone4").value=o.phone4||""; $("memo").value=o.memo||"";
+  $("due").value=o.due||""; dueAuto=false; renderDueChips(); setKind(o.kind||"포장"); setVia(o.via); setCard(o.card); $("phone4").value=o.phone||o.phone4||""; $("memo").value=o.memo||"";
   draft.items=[]; (o.items||[]).map(rebuildItem).forEach(i=>addDraftItem(i)); bumpIdx=-1; renderPicked();
   $("editWho").textContent=[o.due,o.dept].filter(Boolean).join(" "); $("editBar").hidden=false;
   $("fTitle").textContent="주문 고치기"; $("submitBtn").textContent="고친 내용 저장"; $("formMsg").textContent="";
@@ -1684,7 +1686,7 @@ function restoreStash(){
   if(s.dueAuto)setDueNow(); else {$("due").value=s.due; dueAuto=false; renderDueChips();}
   renderPicked(); return true;
 }
-$("phone4").addEventListener("input",e=>{const v=e.target.value.replace(/\D/g,"").slice(0,4); if(v!==e.target.value)e.target.value=v;});
+$("phone4").addEventListener("input",e=>{const v=phoneClean(e.target.value); if(v!==e.target.value)e.target.value=v;});
 $("editCancel").onclick=()=>{ if(stopEdit())toast("받던 새 주문을 다시 불러왔어요."); };
 
 /* ---------- 예약 주문 (2026-10-21 선정님 요청): 학교·결혼식장 단체 주문을 전화 받은 날 미리 넣어 두기.
@@ -2366,7 +2368,7 @@ function renderBatch(){
   const map=new Map();
   inc.forEach(o=>itemsFor(o,st).forEach(i=>{
     const name=barName(i,st);
-    const ops=shownOpts(i).filter(op=>i.st!=="both"||!op.st||op.st===st).map(optText);
+    const ops=barOpts(i,st).map(optText);
     if(i.note)ops.push("요청: "+i.note);
     const ck=ops.join(" · ")||"기본";
     if(!map.has(name))map.set(name,{name,base:i.name,total:0,combos:new Map(),depts:new Set()});
@@ -2411,6 +2413,8 @@ function drinksOf(o){
   return out;
 }
 const itemsFor=(o,st)=>(o.items||[]).filter(i=>i.st===st||i.st==="both");
+// 바 표에 찍을 옵션: 반반 세트는 그 바 옵션만 (샐러드 것은 샐러드바, 샌드위치·음료 것은 샌드위치바)
+const barOpts=(i,st)=>shownOpts(i).filter(op=>i.st!=="both"||!op.st||op.st===st);
 const needs=o=>({salad:itemsFor(o,"salad").length>0,sandwich:itemsFor(o,"sandwich").length>0});
 function isReady(o){const n=needs(o),d=o.done||{};return !o.out&&(n.salad||n.sandwich)&&(!n.salad||!!d.salad)&&(!n.sandwich||!!d.sandwich);}
 // 배달앱 주문은 예상 시간이 없어서 "시간 미정" 대신 받은 시각과 받은 지 몇 분인지 보여요 (2026-10-24 선정님 요청)
@@ -2971,10 +2975,12 @@ function relayJob(){
   if(!real.length){toast("🛵 "+got[0].src+" 테스트 전표를 받아서 프린터로 넘겼어요. 잘 돼요! (주문판엔 안 넣어요)");return;}
   real.forEach(addAppOrder);
 }
-// 배달앱 메뉴 이름 → 주문판 메뉴 이름 (못 찾으면 null: 전표 글자 그대로, 두 바 모두에 떠요)
+// 배달앱 메뉴 이름 → 주문판 메뉴 이름 (못 찾으면 null: 전표 글자 그대로. 어느 바에 띄울지는 appGuessSt 가 이름 보고 정해요)
 // 글자·숫자만 남겨 비교 ("(현미밥)오리훈제 샐러드" = "현미밥 오리훈제 샐러드"). 배달앱마다 다른 이름은 APP_ALIAS 에.
 const APP_ALIAS=[["훈제오리","오리훈제"],["통밀식빵샌드위치","통밀식빵"],["우유식빵샌드위치","우유식빵"],["치폴레새우크래미","치폴레새우"],["250보틀","250ml"],["500보틀","500ml"],["유부초밥세트","유부초밥샐러드세트"],["쌈밥세트","쌈밥샐러드세트"]];
-const akey=s=>{let k=String(s||"").replace(/\[[^\]]*\]/g,"").replace(/[^가-힣a-zA-Z0-9]/g,"").toLowerCase(); APP_ALIAS.forEach(([a,b])=>{k=k.split(a.toLowerCase()).join(b.toLowerCase());}); return k;};
+// '애/에', '얘/예' 는 같은 글자로 봐요: 배민 "크렌베리치킨" = 주문판 "크랜베리치킨" (2026-11-10)
+const vkey=s=>s.replace(/[가-힣]/g,c=>{const k=c.charCodeAt(0)-0xAC00, v=Math.floor(k/28)%21; return v===5||v===7?String.fromCharCode(c.charCodeAt(0)-112):c;});
+const akey=s=>{let k=String(s||"").replace(/\[[^\]]*\]/g,"").replace(/[^가-힣a-zA-Z0-9]/g,"").toLowerCase(); APP_ALIAS.forEach(([a,b])=>{k=k.split(a.toLowerCase()).join(b.toLowerCase());}); return vkey(k);};
 // 괄호 속 글자를 뺀 이름도 비교해요: "토당주스(피로야가라)" = "토당주스 (보틀)" (2026-10-25)
 const pkey=s=>akey(String(s||"").replace(/\([^)]*\)/g,""));
 function appMenuName(n){
@@ -2989,19 +2995,40 @@ function appOpt(menu,v){
   const m=MENU_IDX[menu]; if(!m)return v;
   const all=m.groups.flatMap(g=>G[g].o.map(o=>o[0])), k=akey(v);
   return all.find(x=>akey(x)===k)||all.filter(x=>akey(x).length>=2&&k.includes(akey(x))).sort((a,b)=>akey(b).length-akey(a).length)[0]
-    ||(k.length>=2?all.filter(x=>akey(x).includes(k)).sort((a,b)=>akey(a).length-akey(b).length)[0]:null)||v;
+    ||(k.length>=2&&!m.half?all.filter(x=>akey(x).includes(k)).sort((a,b)=>akey(a).length-akey(b).length)[0]:null)||v;
 }
 // 반반 세트의 주문판에 없는 옵션은 어느 바 것인지 짐작해서 그 바에만 보여요 (2026-10-25 배민 1인세트):
 // 샌드위치·빵 → 샌드위치바, 음료 → 샌드위치바, 나머지(토핑·드레싱) → 샐러드바. 0원 오리엔탈 드레싱은 기본이라 안 찍어요.
-const appOptSt=v=>/샌드위치|토스트|식빵|베이글/.test(v)?"sandwich":/주스|음료|에이드|아메리카노|라떼|커피|아이스티|콜라|사이다|보틀|\d+\s*ml/i.test(v)?"sandwich":"salad";
+// 2026-11-10: 먼저 주문판 옵션 글자로 찾아요. 샌드위치 메뉴 옵션에만 있는 글자(예: 기본 뚱샌드, 치즈 1장 추가)는 샌드위치바,
+// 샐러드 메뉴 옵션에만 있는 글자(예: 견과류, 스위트콘)는 샐러드바. 둘 다 있거나 없는 글자만 아래 낱말로 짐작해요.
+let OPT_BAR=null;
+function optBarMap(){
+  if(OPT_BAR)return OPT_BAR; OPT_BAR=new Map();
+  const add=(v,st)=>{const k=akey(v); if(!k)return; const s=OPT_BAR.get(k)||new Set(); s.add(st); OPT_BAR.set(k,s);};
+  Object.values(MENU_IDX).forEach(mi=>mi.groups.forEach(g=>{const gg=G[g]; if(!gg||!gg.o)return;
+    const st=gg.st||(gg.drink?"sandwich":mi.st); if(st!=="both")gg.o.forEach(o=>add(o[0],st));}));
+  Object.entries(MENU_IDX).forEach(([n,mi])=>{if(mi.st!=="both")add(n,mi.st);});
+  return OPT_BAR;
+}
+const SAND_RE=/샌드위치|샌드|토스트|식빵|베이글|크로와상/, DRINK_RE=/주스|음료|에이드|아메리카노|라떼|커피|아이스티|스무디|콜라|사이다|보틀|\d+\s*ml/i, SALAD_RE=/샐러드|드레싱|현미밥/;
+function appOptSt(v){
+  const s=optBarMap().get(akey(String(v).replace(/^.*:/,""))); if(s&&s.size===1)return [...s][0];
+  return SAND_RE.test(v)?"sandwich":DRINK_RE.test(v)?"sandwich":"salad";
+}
+// 주문판에 없는 메뉴: 이름에 샌드위치·토스트·음료 낱말만 있으면 샌드위치바, 샐러드 낱말만 있으면 샐러드바, 세트나 애매하면 두 바 모두 (2026-11-10)
+function appGuessSt(name){
+  const n=String(name||""), sw=SAND_RE.test(n)||DRINK_RE.test(n), sl=SALAD_RE.test(n);
+  if(/세트/.test(n)||sw===sl)return "both";
+  return sw?"sandwich":"salad";
+}
 function appItem(it){
   // 배달앱 '탄산음료' + 콜라/사이다 옵션 → 주문판 콜라·사이다 메뉴 (2026-10-30)
   if(/탄산/.test(it.name)){const so=(it.opts||[]).find(o=>/콜라|사이다/.test(o.v)); if(so){it={...it,name:/콜라/.test(so.v)?"콜라":"사이다",price:(it.price||0)+(so.p||0),opts:it.opts.filter(o=>o!==so)};}}
   const menu=appMenuName(it.name), mi=MENU_IDX[menu];
   const known=v=>!!mi&&mi.groups.some(g=>G[g].o.some(x=>nsp(x[0])===nsp(v)));
-  const opts=it.opts.filter(o=>!(/^기본\s/.test(o.v)&&!o.p)).map(o=>({o,value:appOpt(menu,o.v)}));
+  const opts=it.opts.filter(o=>!(/^기본\s/.test(o.v.replace(/^.*:\s*/,""))&&!o.p)).map(o=>({o,value:appOpt(menu,o.v)}));
   const free=mi&&mi.half?opts.filter(x=>!known(x.value)&&!(!x.o.p&&/^오리엔탈\s*드레싱$/.test(x.value.trim()))):[];
-  const r=scanItem({menu,printed:it.name,qty:it.qty,bar:"both",
+  const r=scanItem({menu,printed:it.name,qty:it.qty,bar:appGuessSt(it.name),
     options:opts.filter(x=>!(mi&&mi.half)||known(x.value)).map(x=>({value:x.value})),note:""}).item;
   let ro=r.opts||[];
   if(free.length){
@@ -3165,6 +3192,7 @@ function readyCard(o){
   if(o.reserved){h.append(resTag()); r.classList.add("isres");}
   r.append(h); {const ck=checkLine(o,true); if(ck)r.append(ck);} r.append(el("div","s",itemsText(o)));
   if(o.reserved&&resInfo(o))r.append(el("div","s",resInfo(o)));
+  else if(o.phone&&!o.src)r.append(el("div","s","전화: "+o.phone));
   if(o.memo)r.append(el("div","s","메모: "+o.memo));
   if(o.total)r.append(el("div","s","금액 "+moneyText(o)));
   if(o.src)r.append(el("div","sign",o.src+" 주문 · 앱 결제 · 장부 없음"));
@@ -3191,6 +3219,7 @@ function makingRow(o){
   r.append(h); {const ck=checkLine(o,true); if(ck)r.append(ck);} r.append(el("div","s",itemsText(o)));
   if(o.reserved&&resInfo(o))r.append(el("div","s",resInfo(o)));
   if(o.kind==="배달"&&o.phone4&&!o.phone&&!isGuest(o))r.append(el("div","s","전화 뒷자리: "+o.phone4));
+  else if(o.phone&&!o.src&&!o.reserved)r.append(el("div","s","전화: "+o.phone));
   if(o.memo)r.append(el("div","s","메모: "+o.memo));
   const act=el("div","act"), n=needs(o), d=o.done||{};
   ["salad","sandwich"].forEach(st=>{ if(n[st])act.append(el("span","tag "+st,ST_NAME[st]+(d[st]?" 완료":" 만드는 중"))); });
@@ -3250,7 +3279,7 @@ function ticket(o,st){
     const li=el("li"), ln=el("div","ln");
     ln.append(el("span","q",String(i.qty)),el("span",null,barName(i,st)));
     li.append(ln);
-    const ops=shownOpts(i).filter(op=>i.st!=="both"||!op.st||op.st===st);
+    const ops=barOpts(i,st);
     if(ops.length){const w=el("div","ops");ops.forEach(op=>w.append(el("span","op"+(op.k?" key":""),optText(op))));li.append(w);}
     if(i.note)li.append(el("div","nt","요청: "+i.note));
     ul.append(li);
