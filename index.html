@@ -582,8 +582,8 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
         </div>
       </div>
       <div class="field" id="phoneBox" hidden>
-        <label for="phone4" id="phoneLbl">전화번호 (뒷자리 4개만 써도 되고 전체도 돼요 · 장부 싸인용, 안 써도 돼요)</label>
-        <input type="text" id="phone4" inputmode="tel" placeholder="예: 1234 또는 010-1234-5678" style="max-width:16em;font-size:1.2rem;font-variant-numeric:tabular-nums">
+        <label for="phone4" id="phoneLbl">전화번호 (뒷자리 4개만, 또는 010 빼고 8자리 · 장부 싸인용, 안 써도 돼요)</label>
+        <input type="text" id="phone4" inputmode="tel" placeholder="예: 1234 또는 1234-5678 (010 은 저절로)" style="max-width:16em;font-size:1.2rem;font-variant-numeric:tabular-nums">
       </div>
       <div class="field">
         <span class="lbl">메뉴 (누르면 옵션 고르는 창이 떠요)</span>
@@ -782,8 +782,8 @@ input[type=date]{padding:10px 12px;border:1.5px solid var(--line);border-radius:
       <button type="button" data-kask="배달">🛵 배달</button>
     </div>
     <div class="kindphone" id="kindPhoneBox" hidden>
-      <label for="kindPhone">전화번호 (뒷자리 4개만 써도 되고 전체도 돼요 · 장부 싸인용, 안 써도 돼요)</label>
-      <input type="text" id="kindPhone" inputmode="tel" placeholder="예: 1234 또는 010-1234-5678">
+      <label for="kindPhone">전화번호 (뒷자리 4개만, 또는 010 빼고 8자리 · 장부 싸인용, 안 써도 돼요)</label>
+      <input type="text" id="kindPhone" inputmode="tel" placeholder="예: 1234 또는 1234-5678 (010 은 저절로)">
       <button type="button" class="submit" id="kindGo">배달로 주문 넣기</button>
     </div>
     <button type="button" class="linkbtn" id="kindCancel">닫기</button>
@@ -1488,7 +1488,7 @@ function updatePhoneBox(){
   const g=!!(draft.dept&&draft.dept.guest);
   if(resMode){$("phoneBox").hidden=true;return;}
   $("phoneBox").hidden=draft.kind!=="배달"&&!g;
-  $("phoneLbl").textContent=g?"손님 전화번호 (뒷자리 4개만 써도 되고 전체도 돼요 · 손님 구분용, 안 써도 돼요)":"전화번호 (뒷자리 4개만 써도 되고 전체도 돼요 · 장부 싸인용, 안 써도 돼요)";
+  $("phoneLbl").textContent=g?"손님 전화번호 (뒷자리 4개만, 또는 010 빼고 8자리 · 손님 구분용, 안 써도 돼요)":"전화번호 (뒷자리 4개만, 또는 010 빼고 8자리 · 장부 싸인용, 안 써도 돼요)";
 }
 document.querySelectorAll("[data-kind]").forEach(b=>b.onclick=()=>setKind(b.dataset.kind));
 // 전화로 받은 주문인지, 가게에 온 손님 주문인지 (앱별 매출 나눠 보기용). 안 고르면 전화
@@ -1578,9 +1578,20 @@ document.querySelectorAll("[data-kask]").forEach(b=>b.onclick=()=>{
 });
 // 전화번호 칸: 숫자와 '-' 만, 길이 제한 없음. 뒷자리 4개만 써도 되고 전체 번호도 돼요 (2026-11-10 선정님 요청: 6시 넘은 보건소 배달은 전화하고 건네요)
 const phoneClean=v=>String(v||"").replace(/[^\d-]/g,"");
+// 숫자 4개면 그대로(뒷자리), 5개 넘으면 앞에 010 을 붙여요 (0 으로 시작하면 이미 전체 번호라 그대로) (2026-11-11 선정님 요청)
+// 예: 12345678 → 010-1234-5678, 01012345678 → 010-1234-5678, 052-123-4567 → 그대로
+function phoneFull(v){
+  const t=phoneClean(v).replace(/^-+|-+$/g,""), d=t.replace(/\D/g,"");
+  if(d.length<=4)return d;
+  const f=d[0]==="0"?d:"010"+d;
+  if(/^010\d{8}$/.test(f))return f.slice(0,3)+"-"+f.slice(3,7)+"-"+f.slice(7);
+  if(/^010\d{7}$/.test(f))return f.slice(0,3)+"-"+f.slice(3,6)+"-"+f.slice(6);
+  return d[0]==="0"?t:f;
+}
 $("kindPhone").addEventListener("input",e=>{const v=phoneClean(e.target.value); if(v!==e.target.value)e.target.value=v;});
+$("kindPhone").addEventListener("blur",e=>{e.target.value=phoneFull(e.target.value);});
 $("kindPhone").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();$("kindGo").click();}});
-$("kindGo").onclick=()=>{$("phone4").value=$("kindPhone").value; kindDone("배달");};
+$("kindGo").onclick=()=>{$("phone4").value=phoneFull($("kindPhone").value); kindDone("배달");};
 $("kindCancel").onclick=closeKind;
 $("kindOverlay").addEventListener("click",e=>{if(e.target===$("kindOverlay"))closeKind();});
 const finePointer=()=>window.matchMedia&&matchMedia("(pointer:fine)").matches;
@@ -1605,7 +1616,7 @@ $("orderForm").addEventListener("submit",async e=>{
   const body={day:today(),createdAt:Date.now(),no:nextNo(),org:draft.dept.org,dept:draft.dept.name,floor:draft.dept.floor||"",guest:!!draft.dept.guest,due:$("due").value||"",kind:draft.kind,via:draft.via,card:draft.card,
     memo:$("memo").value.trim(),items,total:0,from:mode,done:{salad:false,sandwich:false}};
   const food=items.reduce((s,i)=>s+i.unit*i.qty,0); body.fee=feeFor(draft.kind,food); body.total=food+body.fee;
-  const ph=draft.kind==="배달"||body.guest?phoneClean($("phone4").value).replace(/^-+|-+$/g,"").slice(0,40):"", phd=ph.replace(/\D/g,"");
+  const ph=draft.kind==="배달"||body.guest?phoneFull($("phone4").value).slice(0,40):"", phd=ph.replace(/\D/g,"");
   body.phone4=phd.slice(-4); body.phone=phd.length>4?ph:"";
   if(editing){
     const cur=orders.find(o=>o.id===editing);
@@ -1687,6 +1698,7 @@ function restoreStash(){
   renderPicked(); return true;
 }
 $("phone4").addEventListener("input",e=>{const v=phoneClean(e.target.value); if(v!==e.target.value)e.target.value=v;});
+$("phone4").addEventListener("blur",e=>{e.target.value=phoneFull(e.target.value);});
 $("editCancel").onclick=()=>{ if(stopEdit())toast("받던 새 주문을 다시 불러왔어요."); };
 
 /* ---------- 예약 주문 (2026-10-21 선정님 요청): 학교·결혼식장 단체 주문을 전화 받은 날 미리 넣어 두기.
