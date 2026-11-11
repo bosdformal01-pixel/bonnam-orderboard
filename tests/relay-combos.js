@@ -72,6 +72,42 @@ const srv=http.createServer((q,s)=>{let p=path.join(ROOT,q.url.split('?')[0].spl
         if(!f.length&&opts.length===1&&v!=="qtynext"&&nk==="none"&&q===1){const y=p.items[1]; const m=appOpt(menu,y.opts[0].v); if(ns(m)!==ns(opts[0][0]))mapMiss[menu+" / "+opts[0][0]]=m;}
       })))));
     });
+    // 쿠팡이츠 옵션 이름이 길어 다음 줄로 넘어가는 모양 (2026-11-11: '종이 포장 (세워서 보관해 주세요)' 의 '세요)' 가 요청으로 찍혔어요)
+    //   이름 칸(+ 포함 26·28·30칸)에서 끊고 뒷부분은 들여 쓴 다음 줄 / 수량·금액이 뒷줄에 / 괄호를 닫는 뒷부분이 줄 맨 앞
+    //   → 한 줄로 찍힌 것과 똑같이 읽혀야 하고, 가게 안내 "(세워서 보관해 주세요)" 는 옵션에서 빠져야 해요
+    const cutW=(s,w)=>{let a="",k=0;for(const c of s){if(k+cw(c)>w)break;a+=c;k+=cw(c);}return [a,s.slice(a.length)];};
+    const padR=(s,w)=>" ".repeat(Math.max(0,w-cw(s)))+s;
+    const cpLine=(l,q,a)=>{const r=padR(String(q),4)+padR(a,9); return l+" ".repeat(Math.max(1,40-cw(l)-cw(r)))+r;};
+    const WRAP={
+      indent:(L,ov,p,w)=>{const [a,b]=cutW(" + "+ov,w); L.push(cpLine(a,1,num(p))); if(b)L.push("   "+b);},
+      numsnext:(L,ov,p,w)=>{const [a,b]=cutW(" + "+ov,w); if(b){L.push(a); L.push(cpLine("   "+b,1,num(p)));} else L.push(cpLine(a,1,num(p)));},
+      parencol0:(L,ov,p,w)=>{const [a,b]=cutW(" + "+ov,w); if(b&&/\)/.test(b)&&/\(/.test(a)){L.push(cpLine(a,1,num(p))); L.push(b);} else L.push(cpLine(" + "+ov,1,num(p)));},
+      oneline:(L,ov,p)=>L.push(cpLine(" + "+ov,1,num(p)))};
+    const NOTE=" (세워서 보관해 주세요)";
+    const readOpts=(menu,price,opts,lay,w)=>{
+      const L=["coupang eats    [고객용]","----------------------------------------","      ABCD12","","----------------------------------------","메뉴                       수량     금액","----------------------------------------"];
+      let food=price; L.push(cpLine(menu,1,num(price))); opts.forEach(([ov,op])=>{WRAP[lay](L,ov,op,w); food+=op;});
+      L.push(cpLine("아메리카노",1,"3,000")); food+=3000;
+      L.push("----------------------------------------","주문금액"+padR(num(food),40-cw("주문금액")),"----------------------------------------","요청사항: 수저포크X","");
+      const p=parseSlip(L.join("\n")); return {p,items:p.items.map(appItem)};
+    };
+    Object.entries(MENU_IDX).forEach(([menu,mi])=>{
+      const all=[]; (mi.groups||[]).forEach(g=>(G[g]?G[g].o:[]).forEach(o=>all.push([o[0],o[1]||0])));
+      all.forEach(([ov,op])=>[ov,ov+NOTE].forEach(v=>{
+        const base=readOpts(menu,mi.base,[[ov,op]],"oneline",30).items[0];
+        ["indent","numsnext","parencol0"].forEach(lay=>[26,28,30].forEach(w=>{
+          const {p,items}=readOpts(menu,mi.base,[[v,op]],lay,w), y=items[0]; n++; const f=[];
+          if(p.check)f.push("경고");
+          if(items.length!==2)f.push("메뉴 줄 수");
+          if(y&&JSON.stringify(y.opts.map(o=>o.v))!==JSON.stringify(base.opts.map(o=>o.v)))f.push("옵션");
+          if(y&&y.note!==base.note)f.push("요청");
+          if(y&&y.unit!==base.unit)f.push("금액");
+          if(items.some(i=>/주세요|보관/.test(i.note+i.opts.map(o=>o.v).join())))f.push("가게 안내 글이 남음");
+          if(f.length)bad("쿠팡이츠 옵션 줄바꿈 "+lay+"/"+w+" → "+f.join("+"),{menu,name:menu,opts:[[v,op]],q:1,text:"",got:p.items});
+          else ok++;
+        }));
+      }));
+    });
     return {n,ok,fails,mapMiss};
   });
   console.log(`${out.n}건 중 ${out.ok}건 성공 (${(out.ok/out.n*100).toFixed(2)}%)`);

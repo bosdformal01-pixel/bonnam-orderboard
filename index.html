@@ -2805,6 +2805,19 @@ function parseSlip(text){
       // 다음 줄이 메뉴 줄이면 그 메뉴 이름의 앞부분일 수도 있어서, 그때는 짧은 줄(7글자쯤까지)만 뒷부분으로 봐요.
       // 요기요는 수량이 늘 첫 줄에 있고 옵션은 "- " 로 시작해요: 그 밖의 수량 없는 줄은 모두 이름 뒷부분 (앞이 띄어쓰기면 띄워서, 아니면 붙여서)
       // 쿠팡이츠는 이름 앞부분이 윗줄로 가는 모양도 있어서, 다음 줄이 메뉴 줄이면 짧은 줄(7글자쯤까지)만 뒷부분으로 봐요.
+      // 옵션 이름이 길어 다음 줄로 넘어간 뒷부분 (2026-11-11 쿠팡이츠 '종이 포장 (세워서 보관해 주세요)' → '세요)' 가 요청으로 찍힘):
+      //    + 종이 포장 (세워서 보관해 주      1        0
+      //      세요)
+      // 바로 윗줄이 옵션이고, 이 줄은 옵션 표시(+ - └)가 없고, 윗줄 괄호를 닫거나 / 윗줄이 칸을 꽉 채웠고 이 줄이 들여 써 있으면 이어 붙여요.
+      {const lo=cur&&cur.opts[cur.opts.length-1];
+        if(lo&&optAt===prevAt&&!/^\s*[-+ㄴ└·>*]/.test(l)){
+          const t=l.trim(), tm=t.match(/^(.*?\S)\s+(\d{1,3})\s+(-?[\d,]+)\s*원?$/), tx=tm?tm[1]:t;
+          const open=(lo.v.match(/\(/g)||[]).length>(lo.v.match(/\)/g)||[]).length;
+          const closes=open&&/\)/.test(tx)&&!/\(/.test(tx.split(")")[0])&&cw(tx)<=30;
+          // 쿠팡이츠 옵션은 늘 '+' 로 시작해요. 윗줄에 수량·금액이 없었으면 뒷줄에 수량·금액이 붙어 있어도 뒷부분이에요
+          const indented=(lo.cut||r.src==="쿠팡이츠")&&(!m||lo.nonum)&&/^\s{2,}/.test(l)&&cw(tx)<=30;
+          if(closes||indented){lo.v+=(r.src==="쿠팡이츠"||r.src==="요기요"?"":" ")+tx; if(tm&&!lo.p)lo.p=slipNum(tm[3]); delete lo.cut; delete lo.nonum; optAt=i; continue;}
+        }}
       const yo=r.src==="요기요";
       if(!m&&!pre&&(yo?!/^\s*-\s/.test(l):(/^\S/.test(l)&&!/^[-+ㄴ└·>*]\s/.test(l)))){
         const t0=l.trim(), nx=nextLine(i), nxTaken=nx&&!isEnd(nx)&&(numOnly(nx)||qtyLine(nx)), ok=yo||!nxTaken||cw(raw)<=14, sep=yo?(/^\s/.test(l)?" ":""):" ";
@@ -2831,7 +2844,7 @@ function parseSlip(text){
       if(!name)continue;
       if(opt&&cur){ // 옵션 줄: 배민은 "ㄴ 아보카도추가   2,500" 처럼 금액만 있어요
         const t=l.replace(/^\s*[-+ㄴ└·>*]\s*/,"").trim(), two=t.match(/^(.*?\S)\s+(\d{1,3})\s+(-?[\d,]+)\s*원?$/), one=t.match(/^(.*?\S)\s+(-?[\d,]+)\s*원?$/);
-        const o=two?{v:two[1],p:slipNum(two[3])}:one?{v:one[1],p:r.src==="배민"?slipNum(one[2]):0}:{v:name,p:0};
+        const o=two?{v:two[1],p:slipNum(two[3])}:one?{v:one[1],p:r.src==="배민"?slipNum(one[2]):0}:{v:name,p:0,nonum:true};
         if((two||one)&&cw(o.v)>=24)o.cut=true; // 옵션 이름 칸이 꽉 찼으면 다음 줄에 이어질 수 있어요
         cur.opts.push(o); optAt=i; continue;}
       if(!m){ if(cur)cur.opts.push({v:name,p:0}); continue; }
@@ -2839,7 +2852,7 @@ function parseSlip(text){
       cur={name:(pre.endsWith("\u0000")?pre.slice(0,-1)+name:(pre+" "+name)).trim(),qty:Math.max(1,+m[2]),price:m[3]?slipNum(m[3]):0,opts:[]}; r.items.push(cur); pre=""; curAt=i;
       if(cw(m[1])>=18||r.src==="쿠팡이츠"||r.src==="요기요")cur.cut=true; // 이름 칸이 꽉 찼으면 다음 줄에 이름이 이어질 수 있어요 (쿠팡이츠·요기요 메뉴는 늘 수량이 있어서 언제나)
     }
-    r.items.forEach(it=>{if(it.wrap)r.warn.push("'"+it.name+"' 수량·금액을 못 읽었어요"); delete it.wrap; delete it.cut; it.opts.forEach(o=>delete o.cut);});
+    r.items.forEach(it=>{if(it.wrap)r.warn.push("'"+it.name+"' 수량·금액을 못 읽었어요"); delete it.wrap; delete it.cut; it.opts.forEach(o=>{delete o.cut; delete o.nonum;});});
     // 스스로 맞춰 보기 (2026-10-25): 전표의 '주문금액 (개수) 금액'과 읽은 메뉴를 비교해서 다르면 확인하라고 알려요
     const amt=r.items.reduce((s,it)=>s+(it.price||0)+it.opts.reduce((t,o)=>t+(o.p||0),0),0);
     const qty=r.items.reduce((s,it)=>s+it.qty,0);
@@ -3039,6 +3052,8 @@ function appItem(it){
   if(/탄산/.test(it.name)){const so=(it.opts||[]).find(o=>/콜라|사이다/.test(o.v)); if(so){it={...it,name:/콜라/.test(so.v)?"콜라":"사이다",price:(it.price||0)+(so.p||0),opts:it.opts.filter(o=>o!==so)};}}
   const menu=appMenuName(it.name), mi=MENU_IDX[menu];
   const known=v=>!!mi&&mi.groups.some(g=>G[g].o.some(x=>nsp(x[0])===nsp(v)));
+  // 옵션 뒤 가게 안내 글 "(세워서 보관해 주세요)" 는 빼요 (2026-11-11 선정님: 주문표에 찍을 필요 없어요)
+  it={...it,opts:(it.opts||[]).map(o=>({...o,v:o.v.replace(/\s*\([^()]*(주세요|보관|세워)[^()]*\)?\s*$/,"").trim()||o.v}))};
   const opts=it.opts.filter(o=>!(/^기본\s/.test(o.v.replace(/^.*:\s*/,""))&&!o.p)).map(o=>({o,value:appOpt(menu,o.v)}));
   const free=mi&&mi.half?opts.filter(x=>!known(x.value)&&!(!x.o.p&&/^오리엔탈\s*드레싱$/.test(x.value.trim()))):[];
   const r=scanItem({menu,printed:it.name,qty:it.qty,bar:appGuessSt(it.name),
