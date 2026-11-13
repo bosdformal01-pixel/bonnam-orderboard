@@ -2486,7 +2486,7 @@ function slipNode(o){
   if(o.addr)w.append(el("div",null,"주소: "+o.addr));
   w.append(noDueApp(o)?rw("받은 시간",hm(o.createdAt)):rw(dl?"배달시간":"픽업시간",o.due?o.due+" 까지":"미정"));
   if(o.phone)w.append(rw("연락처",o.phone)); else if(o.phone4)w.append(rw("연락처","뒷자리 "+o.phone4));
-  if(o.memo)w.append(el("div",null,"요청사항: "+o.memo));
+  // 요청사항(주문 메모·메뉴별 요청)은 전표에 안 찍어요. 화면·바 태블릿에는 그대로 보여요 (2026-11-13 선정님 요청)
   if(isCard(o))w.append(rw("결제","카드")); else if(isCash(o))w.append(rw("결제","현금")); else if(!g)w.append(rw("결제","장부"));
   {const lb=ledSlip(o); if(lb)w.append(rw("외상 잔액",lb));}
   w.append(dash());
@@ -2499,7 +2499,6 @@ function slipNode(o){
   inOrder(o.items).forEach(i=>{
     w.append(el("div","n",i.name));
     shownOpts(i).forEach(op=>w.append(el("div","opt",optText(op))));
-    if(i.note)w.append(el("div","opt","요청: "+i.note));
     w.append(c4("",i.unit?num(i.unit):"",String(i.qty),i.unit?num(i.unit*i.qty):""));
   });
   if(o.fee){w.append(el("div","n","배달비"), c4("",num(o.fee),"1",num(o.fee)));}
@@ -2572,7 +2571,7 @@ function slipBytes(o){
   if(o.addr)wrapLn("주소: "+o.addr,"  ");
   raw(0x1b,0x45,1); ln(noDueApp(o)?lr("받은 시간",hm(o.createdAt),W):lr(dl?"배달시간":"픽업시간",o.due?o.due+" 까지":"미정",W)); raw(0x1b,0x45,0);
   if(o.phone)ln(lr("연락처",o.phone,W)); else if(o.phone4)ln(lr("연락처","뒷자리 "+o.phone4,W));
-  if(o.memo)wrapLn("요청사항: "+o.memo,"  ");
+  // 요청사항(주문 메모·메뉴별 요청)은 전표에 안 찍어요 (2026-11-13 선정님 요청)
   if(isCard(o))ln(lr("결제","카드",W)); else if(isCash(o))ln(lr("결제","현금",W)); else if(!g)ln(lr("결제","장부",W));
   {const lb=ledSlip(o); if(lb){raw(0x1b,0x45,1); ln(lr("외상 잔액",lb,W)); raw(0x1b,0x45,0);}}
   dash();
@@ -2586,7 +2585,6 @@ function slipBytes(o){
   inOrder(o.items).forEach(i=>{
     wrapLn(i.name);
     shownOpts(i).forEach(op=>wrapLn("  "+optText(op),"    "));
-    if(i.note)wrapLn("  요청: "+i.note,"    ");
     row("",i.unit?num(i.unit):"",String(i.qty),i.unit?num(i.unit*i.qty):"");
   });
   if(o.fee){ln("배달비"); row("",num(o.fee),"1",num(o.fee));}
