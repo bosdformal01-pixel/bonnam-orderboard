@@ -49,6 +49,13 @@ const fails=[]; const ok=(c,m)=>{console.log((c?"성공 ":"실패 ")+m); if(!c)f
         return {bad,a:got[0]&&[got[0].phone,got[0].phone4],b:got[1]&&[got[1].phone,got[1].phone4]};
       });
       ok(!pf.bad.length&&pf.a&&pf.a.join()==="010-9876-5432,5432"&&pf.b&&pf.b.join()===",4321","전화번호: 8자리면 010 붙여 저장, 4자리면 뒷자리만 ("+JSON.stringify(pf)+")");
+      // 전표에 요청사항 안 찍기 (2026-11-13): 주문 메모·메뉴별 요청은 화면에만
+      const sl=await pg.evaluate(()=>{
+        const o={id:"s",day:today(),createdAt:Date.now(),no:7,org:"동구청",dept:"총무과",kind:"배달",due:"12:00",memo:"수저 10개 메모시험",items:[{name:MENU[0].items[0][0],qty:1,unit:5000,st:"sandwich",opts:[],note:"소스 따로 노트시험"}],total:5000,fee:0,done:{}};
+        const t=escText(slipBytes(o)), h=slipNode(o).textContent;
+        return {bytes:/메모시험|노트시험|요청/.test(t), html:/메모시험|노트시험|요청/.test(h), name:t.includes(MENU[0].items[0][0])};
+      });
+      ok(!sl.bytes&&!sl.html&&sl.name,"전표: 요청사항(주문 메모·메뉴별 요청)은 안 찍고 메뉴는 찍음 ("+JSON.stringify(sl)+")");
     }
     await pg.close();
   }
