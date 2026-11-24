@@ -56,6 +56,30 @@ const fails=[]; const ok=(c,m)=>{console.log((c?"성공 ":"실패 ")+m); if(!c)f
         return {bytes:/메모시험|노트시험|요청/.test(t), html:/메모시험|노트시험|요청/.test(h), name:t.includes(MENU[0].items[0][0])};
       });
       ok(!sl.bytes&&!sl.html&&sl.name,"전표: 요청사항(주문 메모·메뉴별 요청)은 안 찍고 메뉴는 찍음 ("+JSON.stringify(sl)+")");
+      // 달콤 샌드 속 (2026-11-24): 에그 기본(안 찍음), 단호박·감자 +500
+      const dk=await pg.evaluate(()=>{
+        resetForm(); const groups=MENU_IDX["달콤 샌드위치"].groups; openOpt({name:"달콤 샌드위치",base:7000,st:"sandwich",groups},null);
+        const first=[...$("optGroups").querySelectorAll(".og")][0], on=[...first.querySelectorAll(".chip")].filter(b=>b.getAttribute("aria-pressed")==="true").map(b=>b.firstChild.textContent);
+        $("optAdd").click(); const egg=draft.items[draft.items.length-1];
+        openOpt({name:"달콤 샌드위치",base:7000,st:"sandwich",groups},null);
+        [...$("optGroups").querySelectorAll(".og")][0].querySelectorAll(".chip")[1].click(); $("optAdd").click(); const pk=draft.items[draft.items.length-1];
+        return {g0:first.dataset.g,on,eggTxt:itemsText({items:[egg]}),eggUnit:egg.unit,pkTxt:itemsText({items:[pk]}),pkUnit:pk.unit};
+      });
+      ok(dk.g0==="dalkomType"&&dk.on.join()==="에그 속"&&dk.eggUnit===7000&&!/속/.test(dk.eggTxt)&&dk.pkUnit===7500&&/단호박 속/.test(dk.pkTxt),"달콤 샌드: 에그 기본·전표엔 안 찍음, 단호박 +500 ("+JSON.stringify(dk)+")");
+      // 만드는 중 배달지 찾기 (2026-11-24): 초성·글자로 찾고, 찾는 칸은 다시 그려도 그대로
+      const mk=await pg.evaluate(()=>{
+        const mkO=(id,org,dept,floor)=>({id,day:today(),createdAt:Date.now(),no:1,org,dept,floor,kind:"배달",items:[{name:MENU[0].items[0][0],qty:1,unit:5000,st:"sandwich",opts:[]}],total:5000,done:{}});
+        orders=[mkO("a","동구청","총무과","3층"),mkO("b","동구청","안전총괄과","4층"),mkO("c","보건소","건강증진과","2층")]; kindF="";
+        renderCounter(); const inp=document.querySelector("#orderList .mksearch"), head=inp&&inp.closest(".sec");
+        const rows=()=>[...document.querySelectorAll("#orderList .orow .d")].map(x=>x.textContent);
+        inp.focus(); inp.value="ㅊㅁ"; inp.dispatchEvent(new Event("input")); const r1=rows();
+        renderCounter(); const keep=document.activeElement===inp&&inp.isConnected;
+        inp.value="4층"; inp.dispatchEvent(new Event("input")); const r2=rows();
+        inp.value="ㅋㅋㅋ"; inp.dispatchEvent(new Event("input")); const none=rows().length, msg=document.querySelector("#orderList .mknote").textContent;
+        document.querySelector("#orderList .mknote button").click(); const r3=rows();
+        return {head:head&&head.textContent,r1,keep,r2,none,msg,r3:r3.length};
+      });
+      ok(mk.head==="만드는 중 3건"&&mk.r1.length===1&&/총무과/.test(mk.r1[0])&&mk.keep&&mk.r2.length===1&&/안전총괄과/.test(mk.r2[0])&&mk.none===0&&/없어요/.test(mk.msg)&&mk.r3===3,"만드는 중: 배달지 찾기 (초성·층, 다시 그려도 칸 유지) ("+JSON.stringify(mk)+")");
     }
     await pg.close();
   }
