@@ -232,8 +232,7 @@ input.qty{width:4.2em;padding:6px 4px;border:1.5px solid var(--line);border-radi
 .kfnote{font-weight:700;margin:0 0 8px}
 /* 만드는 중 옆 배달지 찾기 (2026-11-24): 같은 줄에 작게 */
 .sec.mkhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0 4px}
-.mksearch{flex:0 1 200px;min-width:0;height:30px;padding:2px 8px;font-size:.9rem;font-weight:400;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink)}
-.mknote{font-size:.9rem;color:var(--muted);margin:0 0 6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mksearch{flex:0 1 300px;min-width:0;height:30px;padding:2px 8px;font-size:.9rem;font-weight:400;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink)}
 .sec{font-weight:700;color:var(--muted);font-size:.92rem;margin:14px 0 6px;letter-spacing:.02em}
 .sec:first-child{margin-top:0}
 .ready{border:2.5px solid var(--salad);background:var(--salad-soft);border-radius:10px;padding:12px 14px;display:grid;gap:6px}
@@ -856,7 +855,7 @@ const G={
  tofuAdd:{l:"추가",m:1,o:[["햄 추가",500],["햄 2장 추가",800],["치즈 추가",500],["치즈 2장 추가",800],["계란 후라이 추가",500],["베이컨 3줄 추가",2000]]},
  tofuOff:{l:"빼기",m:1,o:[["토마토 빼기"],["새싹 빼기"],["쨈 빼기"]]},
  // 달콤 샌드 속: 에그가 기본으로 눌려 있고(전표엔 안 찍음), 단호박·감자는 오케이포스처럼 +500원 (선정님 요청 2026-11-24)
- dalkomType:{l:"달콤 샌드 속",req:1,key:1,d:0,hideDef:1,hint:"기본 에그 · 단호박·감자는 +500원",o:[["에그 속"],["단호박 속",500],["감자 속",500]]},
+ dalkomType:{l:"달콤 샌드",req:1,key:1,d:0,hideDef:1,hint:"기본 에그 · 단호박·감자는 +500원",o:[["에그"],["단호박",500],["감자",500]]},
  dalkomAdd:{l:"추가",m:1,o:[["계란후라이 추가",500],["치즈 1장 추가",500],["치즈 2장 추가",1000],["햄 1장 추가",500],["햄 2장 추가",1000],["닭가슴살 추가",2000],["아보카도 반개 추가",2000]]},
  dalkomOff:{l:"빼기",m:1,o:[["딸기쨈 빼기"]]},
  /* 오케이포스 사이드메뉴 그대로 (2026-10-21 선정님이 Claude in Chrome으로 뽑은 표). 에그마요 추가는 오케이포스 샌드위치 그룹엔 없지만 선정님이 1,000원이라고 알려줌 */
@@ -3305,8 +3304,6 @@ function renderCounter(){
   if(!making.length){box.replaceChildren(...parts);return;}
   const mq=mkQ.trim(), shown=mq?making.filter(o=>mkMatch(o,mq)):making, after=[];
   mkTitle.textContent="만드는 중 "+making.length+"건";
-  if(mq){const nt=el("p","mknote",shown.length?"'"+mq+"' 찾는 중 · "+shown.length+"건 보임 · 숨긴 주문 "+(making.length-shown.length)+"건":"'"+mq+"' 에 맞는 주문이 없어요"), all=el("button","linkbtn","모두 보기");
-    all.type="button"; all.onclick=()=>{mkIn.value=""; mkQ=""; renderCounter();}; nt.append(all); after.push(nt);}
   shown.forEach(o=>after.push(makingRow(o)));
   // 찾는 칸(mkHead)은 빼지 않고 앞뒤만 바꿔요 (글자 치는 중 포커스 유지)
   [...box.childNodes].forEach(c=>{if(c!==mkHead)c.remove();});
