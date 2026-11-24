@@ -230,6 +230,9 @@ input.qty{width:4.2em;padding:6px 4px;border:1.5px solid var(--line);border-radi
 .lhead .kf button:last-child{border-radius:0 8px 8px 0}
 .lhead .kf button+button{border-left-width:0}
 .kfnote{font-weight:700;margin:0 0 8px}
+/* 만드는 중 옆 배달지 찾기 (2026-11-24): 같은 줄에 작게 */
+.sec.mkhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0 4px}
+.mksearch{flex:0 1 300px;min-width:0;height:30px;padding:2px 8px;font-size:.9rem;font-weight:400;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink)}
 .sec{font-weight:700;color:var(--muted);font-size:.92rem;margin:14px 0 6px;letter-spacing:.02em}
 .sec:first-child{margin-top:0}
 .ready{border:2.5px solid var(--salad);background:var(--salad-soft);border-radius:10px;padding:12px 14px;display:grid;gap:6px}
@@ -851,7 +854,8 @@ const G={
  eggOff:{l:"빼기",m:1,o:[["잼 빼기"],["치즈 빼기"]]},
  tofuAdd:{l:"추가",m:1,o:[["햄 추가",500],["햄 2장 추가",800],["치즈 추가",500],["치즈 2장 추가",800],["계란 후라이 추가",500],["베이컨 3줄 추가",2000]]},
  tofuOff:{l:"빼기",m:1,o:[["토마토 빼기"],["새싹 빼기"],["쨈 빼기"]]},
- dalkomType:{l:"달콤 샌드위치 속",req:1,key:1,o:[["에그 샐러드"],["단호박 샐러드",500],["감자 샐러드",500]]},
+ // 달콤 샌드 속: 에그가 기본으로 눌려 있고(전표엔 안 찍음), 단호박·감자는 오케이포스처럼 +500원 (선정님 요청 2026-11-24)
+ dalkomType:{l:"달콤 샌드",req:1,key:1,d:0,hideDef:1,hint:"기본 에그 · 단호박·감자는 +500원",o:[["에그"],["단호박",500],["감자",500]]},
  dalkomAdd:{l:"추가",m:1,o:[["계란후라이 추가",500],["치즈 1장 추가",500],["치즈 2장 추가",1000],["햄 1장 추가",500],["햄 2장 추가",1000],["닭가슴살 추가",2000],["아보카도 반개 추가",2000]]},
  dalkomOff:{l:"빼기",m:1,o:[["딸기쨈 빼기"]]},
  /* 오케이포스 사이드메뉴 그대로 (2026-10-21 선정님이 Claude in Chrome으로 뽑은 표). 에그마요 추가는 오케이포스 샌드위치 그룹엔 없지만 선정님이 1,000원이라고 알려줌 */
@@ -924,7 +928,7 @@ const MENU=[
   ["리코타치즈 샌드위치",8000,SWT("offRicotta")],["단호박 샌드위치",7500,[]],
   ["두부새싹 샌드위치",7000,[]],
   ["치킨텐더 샌드위치",8000,B.concat(["bmTender","bmSauce","bmPack","offSpicy"])],
-  ["달콤 샌드위치",7000,B.concat(["bmDalkom","bmSauce","bmPack"])],
+  ["달콤 샌드위치",7000,["dalkomType"].concat(B,["bmDalkom","bmSauce","bmPack"])],
   ["닭가슴살 단호박 샌드위치",8500,[]]]},
  {cat:"샐러드",st:"salad",items:[
   ["복남이샐러드",8000,SLA],
@@ -3274,6 +3278,18 @@ function outRow(o){
 let kindF=""; try{kindF=localStorage.getItem("bn_kindf")||"";}catch(e){}
 document.querySelectorAll("[data-kf]").forEach(b=>b.onclick=()=>{kindF=b.dataset.kf; try{localStorage.setItem("bn_kindf",kindF);}catch(e){} renderCounter();});
 const kindOk=o=>!kindF||(kindF==="배달"?o.kind==="배달":o.kind!=="배달");
+// 만드는 중 주문을 배달지(과·이름·층·주문번호)로 찾기. 초성만 쓰면 초성으로 (선정님 요청 2026-11-24: 주방에서 "~과 먼저 가자" 할 때)
+// 찾는 칸은 다시 그려도 그대로 두어서 한글을 치는 중에 끊기지 않아요.
+let mkQ="";
+const mkHead=el("div","sec mkhead"), mkTitle=el("span"), mkIn=el("input","mksearch");
+mkIn.type="search"; mkIn.placeholder="배달지 찾기 (예: ㅊㅁ)"; mkIn.autocomplete="off"; mkIn.setAttribute("aria-label","만드는 중 주문에서 배달지 찾기");
+mkHead.append(mkTitle,mkIn);
+mkIn.addEventListener("input",()=>{mkQ=mkIn.value; renderCounter();});
+mkIn.addEventListener("keydown",e=>{if(e.key==="Escape"){mkIn.value=""; mkQ=""; renderCounter();}});
+function mkMatch(o,q){
+  const s=[cardLabel(o),o.org,o.dept,o.floor,o.appNo,o.src,o.phone4].filter(Boolean).join(" "), nq=norm(q);
+  return norm(s).includes(nq)||(/^[ㄱ-ㅎ]+$/.test(nq)&&cho(s).includes(nq));
+}
 function renderCounter(){
   renderRecent();
   document.querySelectorAll("[data-kf]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.kf===kindF)));
@@ -3281,11 +3297,18 @@ function renderCounter(){
   const ready=sorted(vis.filter(isReady)), making=sorted(vis.filter(o=>!o.out&&!isReady(o))), gone=vis.filter(o=>o.out).sort((a,b)=>(b.outAt||0)-(a.outAt||0));
   $("outWrap").hidden=!gone.length; $("outSum").textContent=(kindF?kindF+" ":"")+"나간 주문 "+gone.length+"건 (받은 시간 · 완료 시간 · 전표)"; $("outList").replaceChildren(...gone.map(outRow));
   const hidden=orders.filter(o=>!o.out&&!kindOk(o)).length, note=kindF?el("p","kfnote",kindF+" 주문만 보는 중"+(hidden?" · 숨긴 "+(kindF==="배달"?"포장":"배달")+" 주문 "+hidden+"건":"")):null;
+  if(!making.length&&mkQ){mkQ=""; mkIn.value="";}
   if(!ready.length&&!making.length){box.replaceChildren(...[note,el("p","empty",!dbReady?"주문 목록을 불러오는 중이에요.":kindF?"지금 남은 "+kindF+" 주문이 없어요.":gone.length?"지금 남은 주문이 없어요.":"오늘 들어온 주문이 아직 없어요. 왼쪽에서 첫 주문을 넣으면 여기와 태블릿에 바로 떠요.")].filter(Boolean));return;}
   const parts=note?[note]:[];
   if(ready.length){parts.push(el("div","sec","포장할 차례 "+ready.length+"건"));ready.forEach(o=>parts.push(readyCard(o)));}
-  if(making.length){parts.push(el("div","sec","만드는 중 "+making.length+"건"));making.forEach(o=>parts.push(makingRow(o)));}
-  box.replaceChildren(...parts);
+  if(!making.length){box.replaceChildren(...parts);return;}
+  const mq=mkQ.trim(), shown=mq?making.filter(o=>mkMatch(o,mq)):making, after=[];
+  mkTitle.textContent="만드는 중 "+making.length+"건";
+  shown.forEach(o=>after.push(makingRow(o)));
+  // 찾는 칸(mkHead)은 빼지 않고 앞뒤만 바꿔요 (글자 치는 중 포커스 유지)
+  [...box.childNodes].forEach(c=>{if(c!==mkHead)c.remove();});
+  if(mkHead.parentNode!==box)box.append(mkHead);
+  mkHead.before(...parts); mkHead.after(...after);
 }
 function ticket(o,st){
   const d=o.done||{}, isDone=!!d[st], m=minsTo(o.due);
