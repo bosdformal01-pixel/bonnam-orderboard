@@ -56,16 +56,22 @@ const fails=[]; const ok=(c,m)=>{console.log((c?"성공 ":"실패 ")+m); if(!c)f
         return {bytes:/메모시험|노트시험|요청/.test(t), html:/메모시험|노트시험|요청/.test(h), name:t.includes(MENU[0].items[0][0])};
       });
       ok(!sl.bytes&&!sl.html&&sl.name,"전표: 요청사항(주문 메모·메뉴별 요청)은 안 찍고 메뉴는 찍음 ("+JSON.stringify(sl)+")");
-      // 달콤 샌드 속 (2026-11-24): 에그 기본(안 찍음), 단호박·감자 +500
+      // 달콤 샌드 (2026-11-24, 이름은 2026-11-25): 안 고르면 '달콤 에그', 단호박·감자 고르면 '달콤 단호박'·'달콤 감자' (+500). 옵션 줄엔 안 찍음
       const dk=await pg.evaluate(()=>{
         resetForm(); const groups=MENU_IDX["달콤 샌드위치"].groups; openOpt({name:"달콤 샌드위치",base:7000,st:"sandwich",groups},null);
         const first=[...$("optGroups").querySelectorAll(".og")][0], on=[...first.querySelectorAll(".chip")].filter(b=>b.getAttribute("aria-pressed")==="true").map(b=>b.firstChild.textContent);
         $("optAdd").click(); const egg=draft.items[draft.items.length-1];
         openOpt({name:"달콤 샌드위치",base:7000,st:"sandwich",groups},null);
         [...$("optGroups").querySelectorAll(".og")][0].querySelectorAll(".chip")[1].click(); $("optAdd").click(); const pk=draft.items[draft.items.length-1];
-        return {g0:first.dataset.g,on,eggTxt:itemsText({items:[egg]}),eggUnit:egg.unit,pkTxt:itemsText({items:[pk]}),pkUnit:pk.unit};
+        const pkTxt=itemsText({items:[pk]}), pkIdx=draft.items.indexOf(pk);
+        // 담은 '달콤 단호박'을 눌러 감자로 바꾸면 이름도 '달콤 감자'
+        const it=draft.items[pkIdx]; openOpt({name:it.name,base:it.base,st:it.st,groups:it.groups},pkIdx);
+        [...$("optGroups").querySelectorAll(".og")][0].querySelectorAll(".chip")[2].click(); $("optAdd").click();
+        const ch=draft.items[pkIdx], rb=rebuildItem(ch);
+        const slip=escText(slipBytes({id:"d",day:today(),createdAt:Date.now(),no:3,org:"동구청",dept:"총무과",kind:"포장",items:[egg,ch],total:14500,fee:0,done:{}}));
+        return {g0:first.dataset.g,on,eggTxt:itemsText({items:[egg]}),eggUnit:egg.unit,pkTxt,pkUnit:pk.unit,chTxt:itemsText({items:[ch]}),chUnit:ch.unit,rbGroups:rb.groups.length,picked:$("picked")?$("picked").textContent.includes("달콤 감자"):null,slipEgg:slip.includes("달콤 에그"),slipGam:slip.includes("달콤 감자"),slipSand:/달콤 샌드위치|\(감자\)/.test(slip)};
       });
-      ok(dk.g0==="dalkomType"&&dk.on.join()==="에그"&&dk.eggUnit===7000&&!/에그/.test(dk.eggTxt)&&dk.pkUnit===7500&&/\(단호박\)/.test(dk.pkTxt),"달콤 샌드: 에그 기본·전표엔 안 찍음, 단호박 +500 ("+JSON.stringify(dk)+")");
+      ok(dk.g0==="dalkomType"&&dk.on.join()==="에그"&&dk.eggUnit===7000&&dk.eggTxt==="달콤 에그 1"&&dk.pkUnit===7500&&/^달콤 단호박 1/.test(dk.pkTxt)&&!/\(단호박\)/.test(dk.pkTxt)&&/^달콤 감자 1/.test(dk.chTxt)&&dk.chUnit===7500&&dk.rbGroups>0&&dk.slipEgg&&dk.slipGam&&!dk.slipSand,"달콤 샌드: 안 고르면 달콤 에그, 단호박·감자는 이름으로 +500, 고치면 이름도 바뀜 ("+JSON.stringify(dk)+")");
       // 만드는 중 배달지 찾기 (2026-11-24): 초성·글자로 찾고, 찾는 칸은 다시 그려도 그대로
       const mk=await pg.evaluate(()=>{
         const mkO=(id,org,dept,floor)=>({id,day:today(),createdAt:Date.now(),no:1,org,dept,floor,kind:"배달",items:[{name:MENU[0].items[0][0],qty:1,unit:5000,st:"sandwich",opts:[]}],total:5000,done:{}});
