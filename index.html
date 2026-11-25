@@ -854,8 +854,9 @@ const G={
  eggOff:{l:"빼기",m:1,o:[["잼 빼기"],["치즈 빼기"]]},
  tofuAdd:{l:"추가",m:1,o:[["햄 추가",500],["햄 2장 추가",800],["치즈 추가",500],["치즈 2장 추가",800],["계란 후라이 추가",500],["베이컨 3줄 추가",2000]]},
  tofuOff:{l:"빼기",m:1,o:[["토마토 빼기"],["새싹 빼기"],["쨈 빼기"]]},
- // 달콤 샌드 속: 에그가 기본으로 눌려 있고(전표엔 안 찍음), 단호박·감자는 오케이포스처럼 +500원 (선정님 요청 2026-11-24)
- dalkomType:{l:"달콤 샌드",req:1,key:1,d:0,hideDef:1,hint:"기본 에그 · 단호박·감자는 +500원",o:[["에그"],["단호박",500],["감자",500]]},
+ // 달콤 샌드 속: 에그가 기본으로 눌려 있고, 단호박·감자는 오케이포스처럼 +500원 (선정님 요청 2026-11-24)
+ // 고른 속은 메뉴 이름이 돼요: 달콤 에그 / 달콤 단호박 / 달콤 감자 (inName: 옵션 줄에는 안 찍어요, 2026-11-25)
+ dalkomType:{l:"달콤 샌드",req:1,key:1,d:0,hideDef:1,inName:"달콤 ",hint:"기본 에그 · 단호박·감자는 +500원",o:[["에그"],["단호박",500],["감자",500]]},
  dalkomAdd:{l:"추가",m:1,o:[["계란후라이 추가",500],["치즈 1장 추가",500],["치즈 2장 추가",1000],["햄 1장 추가",500],["햄 2장 추가",1000],["닭가슴살 추가",2000],["아보카도 반개 추가",2000]]},
  dalkomOff:{l:"빼기",m:1,o:[["딸기쨈 빼기"]]},
  /* 오케이포스 사이드메뉴 그대로 (2026-10-21 선정님이 Claude in Chrome으로 뽑은 표). 에그마요 추가는 오케이포스 샌드위치 그룹엔 없지만 선정님이 1,000원이라고 알려줌 */
@@ -1397,7 +1398,8 @@ function commitItem(){
     [...sheet.sel[gid]].sort((a,b)=>a-b).forEach(i=>{
     const o={gid,g:g.l,v:g.o[i][0]}, np=optP(gid,i); if(np)o.p=np; if(np!==(g.o[i][1]||0))o.p0=g.o[i][1]||0; if(g.st)o.st=g.st; if(g.key)o.k=1; if(g.p)o.pl=1; opts.push(o);});});
   const fv=$("optFree").value.trim(); if(fv){const o={gid:"_free",g:"추가",v:fv}; if(freeP())o.p=freeP(); opts.push(o);}
-  const item={name:sheet.name,qty:sheet.qty,st:sheet.st,unit:unitPrice(),opts,note:$("optNote").value.trim(),base:sheet.base,groups:sheet.groups};
+  const nmG=sheet.groups.find(g=>G[g].inName&&sheet.sel[g].size);
+  const item={name:nmG?G[nmG].inName+G[nmG].o[[...sheet.sel[nmG]][0]][0]:sheet.name,qty:sheet.qty,st:sheet.st,unit:unitPrice(),opts,note:$("optNote").value.trim(),base:sheet.base,groups:sheet.groups};
   if(sheet.editIdx!=null){
     const ei=sheet.editIdx, j=draft.items.findIndex((x,ix)=>ix!==ei&&itemKey(x)===itemKey(item));
     if(j>=0){draft.items[j].qty+=item.qty; draft.items.splice(ei,1); bumpIdx=j>ei?j-1:j;} else {draft.items[ei]=item; bumpIdx=ei;}
@@ -1422,7 +1424,7 @@ function isDefSet(i,gid){
 }
 // 드레싱 두 개(오리엔탈 + 다른 것)를 골랐으면 오리엔탈도 찍어요
 const soleInGrp=(i,o)=>!o.gid||(i.opts||[]).filter(x=>x.gid===o.gid).length===1;
-const shownOpts=i=>(i.opts||[]).filter(o=>!(isDefOpt(o)&&soleInGrp(i,o))&&!isDefSet(i,o.gid));
+const shownOpts=i=>(i.opts||[]).filter(o=>!(isDefOpt(o)&&soleInGrp(i,o))&&!isDefSet(i,o.gid)&&!(G[o.gid]&&G[o.gid].inName));
 // same menu + same options + same request → one line with a bigger count (사장님 요청: 같은 메뉴 한 줄로)
 const itemKey=i=>JSON.stringify([i.name,i.st,MENU_IDX[i.name]?0:(i.unit||0),(i.opts||[]).map(o=>(o.gid||o.g)+"="+o.v+(o.gid==="_free"||o.p0!=null?"@"+(o.p||0):"")).sort(),i.note||""]);
 let bumpIdx=-1;
@@ -1438,7 +1440,7 @@ function renderPicked(){
     const r=el("div","pick"); if(idx===bumpIdx)r.classList.add("bump");
     const nm=el("button","nm"); nm.type="button";
     const head=el("b"); head.append(el("span","tag "+it.st,it.st==="both"&&!(MENU_IDX[it.name]||{}).half?"두 곳 다":ST_NAME[it.st])," ",it.name); nm.append(head);
-    const ot=(it.opts||[]).map(o=>o.p0!=null?optText(o)+" ("+won(o.p||0)+"으로)":optText(o)).concat(it.note?["요청: "+it.note]:[]).join(" · ");
+    const ot=(it.opts||[]).filter(o=>!(G[o.gid]&&G[o.gid].inName)).map(o=>o.p0!=null?optText(o)+" ("+won(o.p||0)+"으로)":optText(o)).concat(it.note?["요청: "+it.note]:[]).join(" · ");
     if(ot)nm.append(el("span","ops",ot));
     if(it.groups&&(it.groups.length||MENU_IDX[it.name])){nm.title="눌러서 옵션 바꾸기";nm.onclick=()=>openOpt({name:it.name,base:it.base,st:it.st,groups:it.groups},idx);}
     else if(!MENU_IDX[it.name]){ // 직접 쓴 메뉴: 눌러서 1개 가격 넣기·바꾸기
@@ -1657,6 +1659,8 @@ const packItems=()=>draft.items.map(i=>({name:i.name,qty:i.qty,st:i.st,unit:i.un
 /* ---------- 주문 고치기 ---------- */
 let editing=null;
 const MENU_IDX={}; MENU.forEach(c=>c.items.forEach(([n,price,groups,ist])=>{MENU_IDX[n]={base:price,st:ist||c.st,groups,half:c.cat==="세트 (반반)"};}));
+// 속을 고르면 이름이 바뀌는 메뉴(달콤 에그·달콤 단호박·달콤 감자)도 원래 메뉴처럼 찾을 수 있게 (메뉴 칸에는 안 나와요)
+Object.entries(MENU_IDX).forEach(([n,m])=>m.groups.forEach(g=>{const gg=G[g]; if(gg&&gg.inName)gg.o.forEach(o=>{MENU_IDX[gg.inName+o[0]]=m;});}));
 // what one bar has to make, to tell whether an edit changed that bar's work
 // counts per (menu + that bar's options + note), so merging or reordering lines doesn't look like a change
 function sigFor(items,st){
