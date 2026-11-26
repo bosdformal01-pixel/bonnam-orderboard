@@ -1,4 +1,4 @@
-// 배민·쿠팡이츠·요기요 전표 → 주문판 → 전표 출력 끝까지 시험 (가짜 COM 칸·가짜 저장소)
+// 배민·쿠팡이츠·요기요·네이버 전표 → 주문판 → 전표 출력 끝까지 시험 (가짜 COM 칸·가짜 저장소)
 // APPS=배민 처럼 앱을 골라 돌릴 수 있어요 (기본: 세 앱을 번갈아). PORT 로 칸 번호를 바꾸면 여러 개를 함께 돌릴 수 있어요.
 const {chromium}=require('playwright');const http=require('http'),fs=require('fs'),path=require('path');
 const ROOT=process.argv[2]||path.join(__dirname,'..'), OUT=process.argv[3]||'out';
@@ -274,6 +274,48 @@ const APPS=(process.env.APPS||"배민,쿠팡이츠,요기요").split(",");
     (y.want||[]).forEach(([b,q,u],k)=>{const oi=(ord&&ord.items.find(i=>i.name===b))||{}; if(oi.qty!==q||oi.unit!==u)fail.push(`주문판 '${b}' ${oi.qty}개 ${oi.unit}원 (기대 ${q}개 ${u}원)`);});
     report.push({t:"요기요",variant:y.no,ok:!fail.length,fail});
     console.log(`요기요 ${y.no} → ${fail.length?"실패\n  - "+fail.join("\n  - "):"성공"}\n  주문판: ${res.txt}`);
+  }
+  // ---------- 네이버 주문 실제 주문 (2026-10-28 픽업 1, 종이 전표 사진) ----------
+  // 네이버 전표엔 '네이버' 글자가 없어요: "픽업번호 / 유형 : 포장주문 / 주문접수시간" 으로 알아봐요. 같은 전표를 다시 뽑아도 한 번만 들어가요.
+  {
+    const nvL=(l,q,a)=>l+" ".repeat(Math.max(1,42-cw(l)-4-8))+padL(String(q),4)+padL(a,8);
+    const L=["              픽업번호 : 1","유형 : 포장주문","주문접수시간 : 2026-10-28 15:47:11","------------------------------------------","메뉴"+padL("수량    금액",42-cw("메뉴")),"------------------------------------------",
+      nvL("new//치킨텐더샌드위치",1,"8,000"),nvL("  + 통밀식빵",1,"0"),nvL("  + 기본 통샌드",1,"0"),
+      nvL("깻잎불고기 샌드위치",1,"8,000"),nvL("  + 기본 통샌드",1,"0"),
+      nvL("바질 아보카도 샌드위치",1,"8,000"),nvL("  + 기본 통샌드",1,"0"),
+      "------------------------------------------","합계"+padL("24,000",42-cw("합계")),"------------------------------------------",
+      "일회용수저필요 : 예","요청사항 : 4시35분 정도에 찾으러 갈 수 있어","요","시간 맞추어 준비 부탁드립니다",""];
+    const text=L.join("\n"); fs.writeFileSync(path.join(OUT,"네이버_픽업1.txt"),text);
+    const res=await pg.evaluate(async text=>{
+      const map=ksMap(), bytes=[0x1b,0x40];
+      for(const ch of text){ if(ch==="\n"){bytes.push(0x0d,0x0a);continue;} const k=ch.charCodeAt(0); if(k<0x80)bytes.push(k); else{const m=map.get(ch); if(!m)throw new Error("인코딩 안 됨: "+ch); bytes.push(...m);} }
+      bytes.push(0x1d,0x56,0x42,0x00);
+      const send=async()=>{const before=window.__added.length;
+        for(let i=0;i<bytes.length;i+=64){relayGot(new Uint8Array(bytes.slice(i,i+64))); await new Promise(r=>setTimeout(r,15));}
+        for(let k=0;k<30&&window.__added.length===before;k++)await new Promise(r=>setTimeout(r,100));
+        return window.__added.length>before?orders.find(x=>x.id===window.__added[window.__added.length-1]):null;};
+      const ord=await send(), again=await send();
+      // 메뉴 칸이 없는 네이버 전표 (테스트 출력·QR): 프린터로만 넘기고 주문은 안 넣어요
+      const tb=[0x1b,0x40]; for(const ch of "네이버 주문\n프린터 연결 확인\nQR\n"){if(ch==="\n"){tb.push(0x0a);continue;} const k=ch.charCodeAt(0); if(k<0x80)tb.push(k); else tb.push(...map.get(ch));} tb.push(0x1d,0x56,0x42,0x00);
+      const b0=window.__added.length; window.__com4=[]; for(let i=0;i<tb.length;i+=64){relayGot(new Uint8Array(tb.slice(i,i+64))); await new Promise(r=>setTimeout(r,15));}
+      await new Promise(r=>setTimeout(r,1500)); const testAdded=window.__added.length>b0, testPassed=[].concat(...window.__com4).length===tb.length;
+      return {ord:ord&&JSON.parse(JSON.stringify(ord)),again:!!again,testAdded,testPassed,parsed:parseSlip(escText(new Uint8Array(bytes))),txt:ord?itemsText(ord):"",
+        tix:ord?ticket(ord,"sandwich").innerText:""};
+    },text);
+    const fail=[], P=res.parsed, ord=res.ord;
+    if(!ord)fail.push("주문판에 안 들어옴");
+    if(res.again)fail.push("다시 뽑은 같은 전표가 또 들어옴");
+    if(res.testAdded)fail.push("메뉴 없는 네이버 전표(테스트)가 주문으로 들어옴");
+    if(!res.testPassed)fail.push("네이버 테스트 전표가 프린터로 안 넘어감");
+    if(P.src!=="네이버"||P.no!=="픽업 1 (15:47)")fail.push(`앱·번호 ${P.src} ${P.no}`);
+    if(P.kind!=="포장")fail.push("포장/배달 "+P.kind);
+    if(P.check)fail.push("확인 경고: "+P.check);
+    if(!/수저/.test(P.memo)||!/있어요/.test(P.memo))fail.push("요청사항 '"+P.memo+"'");
+    [["치킨텐더 샌드위치",1,8000],["깻잎불고기샌드위치",1,8000],["바질아보카도샌드위치",1,8000]].forEach(([b,q,u])=>{const oi=(ord&&ord.items.find(i=>i.name===b))||{}; if(oi.qty!==q||oi.unit!==u)fail.push(`주문판 '${b}' ${oi.qty}개 ${oi.unit}원`);});
+    if(ord&&ord.total!==24000)fail.push("합계 "+ord.total);
+    if(/뚱샌드|통샌드/.test(res.tix))fail.push("기본 옵션이 샌드위치바에 찍힘");
+    report.push({t:"네이버",variant:"픽업1",ok:!fail.length,fail});
+    console.log(`네이버 픽업 1 → ${fail.length?"실패\n  - "+fail.join("\n  - "):"성공"}\n  주문판: ${res.txt}`);
   }
   fs.writeFileSync(path.join(OUT,"report.json"),JSON.stringify(report,null,1));
   console.log(`\n${report.filter(r=>r.ok).length}/${report.length} 성공`+(errs.length?"\n페이지 오류: "+errs.join(" | "):""));
