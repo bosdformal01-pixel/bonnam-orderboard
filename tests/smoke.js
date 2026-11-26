@@ -72,6 +72,15 @@ const fails=[]; const ok=(c,m)=>{console.log((c?"성공 ":"실패 ")+m); if(!c)f
         return {g0:first.dataset.g,on,eggTxt:itemsText({items:[egg]}),eggUnit:egg.unit,pkTxt,pkUnit:pk.unit,chTxt:itemsText({items:[ch]}),chUnit:ch.unit,rbGroups:rb.groups.length,picked:$("picked")?$("picked").textContent.includes("달콤 감자"):null,slipEgg:slip.includes("달콤 에그"),slipGam:slip.includes("달콤 감자"),slipSand:/달콤 샌드위치|\(감자\)/.test(slip)};
       });
       ok(dk.g0==="dalkomType"&&dk.on.join()==="에그"&&dk.eggUnit===7000&&dk.eggTxt==="달콤 에그 1"&&dk.pkUnit===7500&&/^달콤 단호박 1/.test(dk.pkTxt)&&!/\(단호박\)/.test(dk.pkTxt)&&/^달콤 감자 1/.test(dk.chTxt)&&dk.chUnit===7500&&dk.rbGroups>0&&dk.slipEgg&&dk.slipGam&&!dk.slipSand,"달콤 샌드: 안 고르면 달콤 에그, 단호박·감자는 이름으로 +500, 고치면 이름도 바뀜 ("+JSON.stringify(dk)+")");
+      // 단체⑤ (2026-11-26): 샌드위치 반개 + 샐러드 + 과일 + 음료, 10,000원부터, 샌드위치 종류엔 값 안 붙음, 두 곳 다
+      const g5=await pg.evaluate(()=>{
+        resetForm(); const n="단체⑤ 박스: 샌드위치 반개 + 샐러드 + 과일 + 음료", m=MENU_IDX[n]; if(!m)return {none:1};
+        openOpt({name:n,base:m.base,st:m.st,groups:m.groups},null); $("optAdd").click(); const miss=$("optMsg").textContent;
+        const ogs=[...$("optGroups").querySelectorAll(".og")]; const sand=ogs[0].querySelectorAll(".chip"), dr=ogs[1].querySelectorAll(".chip");
+        sand[0].click(); dr[0].click(); $("optAdd").click(); const it=draft.items[draft.items.length-1];
+        return {st:m.st,price:m.base,groups:m.groups,miss,unit:it&&it.unit,name:it&&it.name,txt:it&&itemsText({items:[it]})};
+      });
+      ok(g5.st==="both"&&g5.price===10000&&g5.groups.join()==="grpSand5,grpDrink"&&/샌드위치 반개/.test(g5.miss)&&g5.unit===11000&&/깻잎불고기/.test(g5.txt),"단체⑤: 10,000원부터, 샌드위치 값 안 붙고 음료만 더함, 두 곳 다 ("+JSON.stringify(g5)+")");
       // 만드는 중 배달지 찾기 (2026-11-24): 초성·글자로 찾고, 찾는 칸은 다시 그려도 그대로
       const mk=await pg.evaluate(()=>{
         const mkO=(id,org,dept,floor)=>({id,day:today(),createdAt:Date.now(),no:1,org,dept,floor,kind:"배달",items:[{name:MENU[0].items[0][0],qty:1,unit:5000,st:"sandwich",opts:[]}],total:5000,done:{}});
