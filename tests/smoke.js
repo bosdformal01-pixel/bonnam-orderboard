@@ -56,6 +56,20 @@ const fails=[]; const ok=(c,m)=>{console.log((c?"성공 ":"실패 ")+m); if(!c)f
         return {bytes:/메모시험|노트시험|요청/.test(t), html:/메모시험|노트시험|요청/.test(h), name:t.includes(MENU[0].items[0][0])};
       });
       ok(!sl.bytes&&!sl.html&&sl.name,"전표: 요청사항(주문 메모·메뉴별 요청)은 안 찍고 메뉴는 찍음 ("+JSON.stringify(sl)+")");
+      // 외상 잔액 영수증 (2026-11-26): 이름·지금 잔액·최근 내역, 요청사항은 안 찍음. 학교(후불)는 이번 달 쌓인 금액
+      const lr=await pg.evaluate(()=>{
+        const now=Date.now(), H=3600e3, keep=led;
+        led={acc:[{k:"개인|시험손님",org:"개인",name:"시험손님",floor:"",start:87200,startAt:now-9*24*H},{k:"학교|시험학교",org:"학교",name:"시험학교",floor:"",start:0,startAt:now-2*H}],
+          pays:[{id:"p1",k:"개인|시험손님",amt:50000,at:now-2*24*H,memo:"계좌이체"}],cpDay:null};
+        const mk=(id,k,org,dept,ago,total)=>({id,day:today(),createdAt:now-ago*H,org,dept,kind:"포장",items:[{name:"햄에그샌드위치",qty:2,unit:7000,opts:[],note:"노트시험"}],total,fee:0,done:{}});
+        ledOrd.set("개인|시험손님",{from:"",list:[mk("o1","","개인","시험손님",5*24,14000)]});
+        ledOrd.set("학교|시험학교",{from:"",list:[mk("o2","","학교","시험학교",1,14000)]});
+        const t=k=>{const a=ledAcc(k); return escText(ledRcptBytes(ledRcpt(a,ledCalc(a))));};
+        const p=t("개인|시험손님"), s=t("학교|시험학교"); led=keep;
+        return {p:/시험손님/.test(p)&&/지금 잔액\s+\+123,200원/.test(p)&&/-14,000원\s+잔액 \+73,200원/.test(p)&&/입금 · 계좌이체/.test(p)&&!/노트시험|요청/.test(p),
+          s:/쌓인 금액\s+\+14,000원/.test(s), cut:p.includes("[ 외상 잔액 ]")};
+      });
+      ok(lr.p&&lr.s&&lr.cut,"잔액 영수증: 이름·잔액·내역 찍고 요청사항 뺌, 학교는 쌓인 금액 ("+JSON.stringify(lr)+")");
       // 달콤 샌드 (2026-11-24, 이름은 2026-11-25): 안 고르면 '달콤 에그', 단호박·감자 고르면 '달콤 단호박'·'달콤 감자' (+500). 옵션 줄엔 안 찍음
       const dk=await pg.evaluate(()=>{
         resetForm(); const groups=MENU_IDX["달콤 샌드위치"].groups; openOpt({name:"달콤 샌드위치",base:7000,st:"sandwich",groups},null);
