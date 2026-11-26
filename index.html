@@ -2666,6 +2666,10 @@ function serBusyCheck(){
   toast("전표를 뽑는 중이에요. 잠깐만요."); return true;
 }
 async function printSlip(o){
+  return printOut(()=>slipBytes(o),()=>slipNode(o),()=>markPrinted(o),"전표를");
+}
+// 영수증 프린터로 보내기 (전표·외상 잔액 영수증이 같이 써요): COM4 로 바로, 막힌 화면이면 일반 인쇄 창
+async function printOut(mkBytes,mkNode,onOk,what){ // what: "전표를" 처럼 조사까지
   if(serBusyCheck())return;
   serBusy=true; serBusyAt=Date.now(); const my=serBusyAt;
   try{
@@ -2673,21 +2677,21 @@ async function printSlip(o){
       if(!serPort)await serKnown();
       if(!serPort&&!serBlocked)await serChoose();
       if(serPort&&!serBlocked){
-        toast("전표를 프린터로 보내는 중이에요.");
-        const r=await serPrint(o);
-        if(r==="ok"){markPrinted(o);toast("전표를 보냈어요.");return;}
+        toast(what+" 프린터로 보내는 중이에요.");
+        const r=await serSend(mkBytes());
+        if(r==="ok"){if(onOk)onOk();toast(what+" 보냈어요.");return;}
         if(SER_MSG[r]){toast(SER_MSG[r]);return;}
       }
       if(!serBlocked&&!serPort)return; // 목록에서 안 고름
     }
     // 프린터 칸 연결이 막힌 화면이면 일반 인쇄 창을 시도
-    const box=$("slip"); box.replaceChildren(slipNode(o));
+    const box=$("slip"); box.replaceChildren(mkNode());
     let opened=false; const on=()=>{opened=true;}; window.addEventListener("beforeprint",on);
     document.body.classList.add("printing");
     try{window.print();}catch(e){}
     window.removeEventListener("beforeprint",on);
     setTimeout(()=>document.body.classList.remove("printing"),300);
-    if(opened){markPrinted(o);return;}
+    if(opened){if(onOk)onOk();return;}
     toast("이 화면에서는 프린터 연결도 인쇄도 막혀 있어요. 알려주시면 다른 방법으로 바꿀게요.");
   } finally { if(serBusyAt===my)serBusy=false; }
 }
@@ -3831,6 +3835,11 @@ function renderLedOne(body,a){
   const post=ledPost(a);
   const big=el("div"); big.append(el("div","s",post?"이번 달 ("+monLbl(ymOf(Date.now()))+") 쌓인 금액":""),el("div","ledbig "+ledClsA(a,c.bal),ledSigned(c.bal)),el("div","s",ledMean(c.bal,a)+(c.fut.length?" · 예약 "+c.fut.length+"건 "+won(c.fut.reduce((s,o)=>s+(o.total||0),0))+"은 그날 "+(post?"더해져요":"빠져요"):"")));
   body.append(big);
+  // 🖨 잔액 영수증 (선정님 요청 2026-11-26): 손님께 지금 잔액과 최근 내역을 뽑아 드려요
+  const pr=el("button","slipbtn","🖨 잔액 영수증 뽑기"); pr.type="button"; pr.id="ledPrint"; pr.style.justifySelf="start";
+  pr.onclick=()=>{const a2=ledAcc(a.k), c2=a2&&ledCalc(a2); if(!c2){toast("잔액을 불러오는 중이에요. 잠깐 뒤 다시 눌러 주세요.");return;}
+    const L=ledRcpt(a2,c2); printOut(()=>ledRcptBytes(L),()=>ledRcptNode(L),null,"잔액 영수증을");};
+  body.append(pr);
   if(post){ // 달별 합계
     const mt=el("div","ledhist"); mt.append(el("div","sec","달별 (주문 합계 − 입금 = 남은 금액)"));
     c.months.slice().reverse().forEach(x=>{const r=el("div","h"); r.append(el("span","d",monLbl(x.m)),el("span","t","주문 "+won(x.ord+x.start)+(x.start?" (시작 "+ledSigned(x.start)+" 포함)":"")+(x.pay?" · 입금 "+won(x.pay):"")),el("span","a "+ledClsA(a,x.left),x.left?ledSigned(x.left):"다 받음"),el("span","r","")); mt.append(r);});
@@ -3881,6 +3890,91 @@ function renderLedOne(body,a){
     if(a.org===PERSON&&deptCol)customDepts.filter(c=>c.org===PERSON&&c.name===a.name&&c._id).forEach(c=>deptCol.doc(c._id).delete().catch(()=>{}));
     ledView=null; renderLed();};
   fix.append(stop); body.append(fix);
+}
+/* ---------- 🖨 외상 잔액 영수증 (선정님 요청 2026-11-26) ----------
+   📒 창에서 과·사람을 누르면 '🖨 잔액 영수증 뽑기'. 전표와 같은 COM4 영수증 프린터로 나와요.
+   지금 잔액 + 최근 내역(최대 LED_RCPT_N건, 오래된 것부터) + 예약. 부가세·사업자 칸은 없어요 (판매 영수증이 아니라 잔액 확인용).
+   줄 목록 하나로 프린터 글자(ledRcptBytes)와 인쇄 창 화면(ledRcptNode)을 같이 만들어요. */
+const LED_RCPT_N=10;
+const ledAsc=n=>(n<0?"-":n>0?"+":"")+Math.abs(n||0).toLocaleString("ko-KR")+"원"; // 프린터에 없는 '−' 대신 '-'
+const ledItems=o=>inOrder(o.items||[]).map(i=>i.name+" "+i.qty).join(", "); // 요청사항·옵션은 빼요 (전표와 같게)
+function ledRcpt(a,c){
+  const post=ledPost(a), L=[], now=Date.now();
+  const P=(t,f)=>L.push(Object.assign({t:t||""},f||{})), D=()=>L.push({dash:true}), R=(k,v,f)=>L.push(Object.assign({l:k,r:v},f||{}));
+  const ymd=ms=>{const d=new Date(ms);return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());};
+  P("[ 외상 잔액 ]",{c:true});
+  const sub=[a.org!=="기타"&&a.org!==PERSON?a.org:"",a.floor||""].filter(Boolean).join(" · ");
+  if(sub)P(sub);
+  P(a.name,{x2:true,b:true});
+  R("뽑은 시간",ymd(now)+" "+hm(now));
+  D();
+  R(post?monLbl(ymOf(now))+" 쌓인 금액":"지금 잔액",ledAsc(c.bal),{b:true});
+  R("",ledMean(c.bal,a));
+  if(c.fut.length)P("예약 "+c.fut.length+"건 "+won(c.fut.reduce((s,o)=>s+(o.total||0),0))+"은 그날 "+(post?"더해져요":"빠져요"),{w:true});
+  if(post&&c.months.length>1){ // 학교: 달별 남은 금액
+    D(); P("달별 남은 금액");
+    c.months.forEach(x=>R("  "+monLbl(x.m),x.left?ledAsc(x.left):"다 받음"));
+  }
+  D();
+  const ev=c.ev.slice(-LED_RCPT_N), more=c.ev.length-ev.length;
+  P("최근 내역 (오래된 것부터)",{b:true});
+  if(more>0||(c.cp&&c.cp.ord))P("  그 전 내역은 가게 장부에 있어요");
+  else R(shortDay(a.startAt)+" "+hm(a.startAt)+" 시작",ledAsc(a.start));
+  ev.forEach(e=>{
+    const d=shortDay(e.at)+" "+hm(e.at);
+    if(e.p)P(d+" 입금"+(post&&e.mon?" ("+monLbl(e.mon)+" 치)":"")+(e.p.memo?" · "+e.p.memo:""),{w:true});
+    else{P(d+" "+(e.o.kind==="배달"?"배달":"포장")); P(ledItems(e.o),{w:true,ind:"  "});}
+    R("  "+ledAsc(e.amt),(post&&e.mon?monLbl(e.mon)+" 합계 ":"잔액 ")+ledAsc(e.after));
+  });
+  if(!ev.length)P("  아직 주문·입금이 없어요");
+  c.fut.forEach(o=>{P(shortDay(dayMs(o.day))+" 예약 "+(o.due||"")); P(ledItems(o),{w:true,ind:"  "}); R("  "+ledAsc(ledSg(a)*(o.total||0)),"그날 "+(post?"더해져요":"빠져요"));});
+  D();
+  P(SHOP.name+" / "+SHOP.tel,{w:true});
+  P("* 확인용이에요. 가게 장부가 기준이에요.",{w:true});
+  return L;
+}
+// 띄어쓰기에서 줄 바꾸기 (메뉴 이름이 중간에 안 잘리게). 한 낱말이 한 줄보다 길면 글자로 잘라요.
+function wrapSp(s,w){
+  const out=[]; let line="";
+  for(const wd of String(s).split(" ")){
+    const t=line?line+" "+wd:wd;
+    if(cw(t)<=w){line=t;continue;}
+    if(line)out.push(line);
+    if(cw(wd)<=w)line=wd; else{const p=wrapW(wd,w); line=p.pop(); out.push(...p);}
+  }
+  if(line||!out.length)out.push(line);
+  return out;
+}
+function ledRcptBytes(L){
+  const W=slipW==="58"?32:42, map=ksMap(), out=[];
+  const raw=(...b)=>out.push(...b);
+  const txt=s=>{for(const ch of s){const k=ch.charCodeAt(0); if(k<0x80)out.push(k); else{const m=map.get(ch)||(ch==="‑"||ch==="–"||ch==="−"?[0x2d]:null); if(m)out.push(...m); else out.push(0x3f);}}};
+  const ln=s=>{txt(s);raw(0x0a);};
+  raw(0x1b,0x40, 0x1c,0x26);
+  L.forEach(x=>{
+    if(x.dash){ln("-".repeat(W));return;}
+    if(x.b)raw(0x1b,0x45,1);
+    if(x.x2){raw(0x1d,0x21,0x11); wrapW(x.t,Math.floor(W/2)).forEach(ln); raw(0x1d,0x21,0x00);}
+    else if(x.l!=null)ln(lr(x.l,x.r,W));
+    else if(x.c){raw(0x1b,0x61,1); ln(x.t); raw(0x1b,0x61,0);}
+    else if(x.w){const ind=x.ind||""; wrapSp(x.t,W-cw(ind)).forEach(t=>ln(ind+t));}
+    else ln(cut(x.t,W));
+    if(x.b)raw(0x1b,0x45,0);
+  });
+  raw(0x1b,0x64,4, 0x1d,0x56,0x42,0x00); // 종이 올리고 자르기
+  return new Uint8Array(out);
+}
+function ledRcptNode(L){
+  const w=el("div","sl"+(slipW==="58"?" w58":""));
+  L.forEach(x=>{
+    let r;
+    if(x.dash)r=el("div","dash","-".repeat(80));
+    else if(x.l!=null){r=el("div","rw"); r.append(el("span",null,x.l),el("span",null,x.r));}
+    else{r=el("div",x.c?"ttl":x.x2?"x2 dp":null,x.t); if(x.ind)r.style.paddingLeft="2ch";}
+    if(x.b)r.style.fontWeight="700";
+    w.append(r);
+  });
+  return w;
 }
 /* ---------- 💾 백업 (선정님 요청 2026-11-04: 주문판 안정성) ----------
    주문·외상 장부가 구글 저장소 한 곳에만 있어서, 카운터 컴퓨터 폴더에 파일로도 남겨요.
